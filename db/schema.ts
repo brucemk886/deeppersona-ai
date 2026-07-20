@@ -33,5 +33,7 @@ export const quizEvents = sqliteTable("quiz_events", {
   eventName: text("event_name").notNull(),
   step: integer("step").notNull().default(0),
   source: text("source"),
+  questionId: text("question_id"),
+  optionLabel: text("option_label"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });

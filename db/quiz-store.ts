@@ -59,10 +59,13 @@ async function createSchema(): Promise<void> {
       event_name TEXT NOT NULL,
       step INTEGER NOT NULL DEFAULT 0,
       source TEXT,
+      question_id TEXT,
+      option_label TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_events_session_idx ON quiz_events(session_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_events_name_idx ON quiz_events(event_name)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS quiz_events_question_idx ON quiz_events(question_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_sessions_email_idx ON quiz_sessions(email)"),
   ]);
 }
@@ -149,9 +152,16 @@ export async function saveQuestion(question: QuizQuestion): Promise<void> {
     .run();
 }
 
+export async function deleteQuestion(id: string): Promise<void> {
+  await ensureQuizSchema();
+  await getD1().prepare("DELETE FROM quiz_questions WHERE id = ?").bind(id).run();
+}
+
 export async function recordEvent(input: {
   campaign?: string;
   eventName: string;
+  optionLabel?: string;
+  questionId?: string;
   sessionId: string;
   source?: string;
   step?: number;
@@ -169,9 +179,17 @@ export async function recordEvent(input: {
           current_step = MAX(quiz_sessions.current_step, excluded.current_step)`)
       .bind(input.sessionId, input.source ?? null, input.campaign ?? null, step),
     db
-      .prepare(`INSERT INTO quiz_events (session_id, event_name, step, source)
-        VALUES (?, ?, ?, ?)`)
-      .bind(input.sessionId, input.eventName, step, input.source ?? null),
+      .prepare(`INSERT INTO quiz_events
+        (session_id, event_name, step, source, question_id, option_label)
+        VALUES (?, ?, ?, ?, ?, ?)`)
+      .bind(
+        input.sessionId,
+        input.eventName,
+        step,
+        input.source ?? null,
+        input.questionId ?? null,
+        input.optionLabel ?? null,
+      ),
   ]);
 }
 
@@ -220,7 +238,8 @@ export async function submitQuiz(input: {
 export async function getAdminStats() {
   await ensureQuizSchema();
   const db = getD1();
-  const [funnel, sources, emails, totals] = await Promise.all([
+  const [funnel, sources, emails, totals, online, today, sevenDays, popularQuestions] =
+    await Promise.all([
     db
       .prepare(`SELECT event_name, COUNT(DISTINCT session_id) AS users
         FROM quiz_events GROUP BY event_name`)
@@ -231,7 +250,7 @@ export async function getAdminStats() {
       .all<{ source: string; users: number }>(),
     db
       .prepare(`SELECT email, marketing_consent, result_type, source, completed_at
-        FROM quiz_sessions WHERE email IS NOT NULL ORDER BY completed_at DESC LIMIT 50`)
+        FROM quiz_sessions WHERE email IS NOT NULL ORDER BY completed_at DESC LIMIT 200`)
       .all<{
         completed_at: string;
         email: string;
@@ -246,12 +265,57 @@ export async function getAdminStats() {
         SUM(CASE WHEN marketing_consent = 1 THEN 1 ELSE 0 END) AS consented
         FROM quiz_sessions`)
       .first<{ consented: number; leads: number; sessions: number }>(),
+    db
+      .prepare(`SELECT COUNT(DISTINCT session_id) AS users
+        FROM quiz_events WHERE created_at >= datetime('now', '-5 minutes')`)
+      .first<{ users: number }>(),
+    db
+      .prepare(`SELECT
+        COUNT(*) AS sessions,
+        SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads
+        FROM quiz_sessions WHERE date(started_at) = date('now')`)
+      .first<{ leads: number; sessions: number }>(),
+    db
+      .prepare(`SELECT
+        date(started_at) AS day,
+        COUNT(*) AS sessions,
+        SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads
+        FROM quiz_sessions
+        WHERE started_at >= datetime('now', '-6 days', 'start of day')
+        GROUP BY date(started_at)
+        ORDER BY day`)
+      .all<{ day: string; leads: number; sessions: number }>(),
+    db
+      .prepare(`SELECT
+        e.question_id,
+        COALESCE(q.prompt, e.question_id) AS prompt,
+        COUNT(*) AS answers,
+        COUNT(DISTINCT e.session_id) AS users
+        FROM quiz_events e
+        LEFT JOIN quiz_questions q ON q.id = e.question_id
+        WHERE e.event_name = 'answer_selected' AND e.question_id IS NOT NULL
+        GROUP BY e.question_id, q.prompt
+        ORDER BY answers DESC
+        LIMIT 10`)
+      .all<{ answers: number; prompt: string; question_id: string; users: number }>(),
   ]);
+
+  const dailyByDate = new Map(sevenDays.results.map((item) => [item.day, item]));
+  const completeSevenDays = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setUTCDate(date.getUTCDate() - (6 - index));
+    const day = date.toISOString().slice(0, 10);
+    return dailyByDate.get(day) ?? { day, sessions: 0, leads: 0 };
+  });
 
   return {
     funnel: funnel.results,
     sources: sources.results,
     emails: emails.results,
+    onlineNow: online?.users ?? 0,
+    today: today ?? { sessions: 0, leads: 0 },
+    sevenDays: completeSevenDays,
+    popularQuestions: popularQuestions.results,
     totals: totals ?? { sessions: 0, leads: 0, consented: 0 },
   };
 }

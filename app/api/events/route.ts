@@ -8,12 +8,15 @@ const allowedEvents = new Set([
   "email_gate_viewed",
   "result_viewed",
   "upgrade_clicked",
+  "heartbeat",
 ]);
 
 export async function POST(request: Request) {
   const body = (await request.json()) as {
     campaign?: string;
     eventName?: string;
+    optionLabel?: string;
+    questionId?: string;
     sessionId?: string;
     source?: string;
     step?: number;
@@ -30,6 +33,8 @@ export async function POST(request: Request) {
   await recordEvent({
     sessionId: body.sessionId,
     eventName: body.eventName,
+    questionId: body.questionId?.slice(0, 100),
+    optionLabel: body.optionLabel?.slice(0, 160),
     step: body.step,
     source: body.source?.slice(0, 120),
     campaign: body.campaign?.slice(0, 160),

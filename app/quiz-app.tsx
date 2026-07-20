@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   calculateResult,
   type QuizQuestion,
@@ -43,11 +44,15 @@ export function QuizApp({ initialQuestions }: { initialQuestions: QuizQuestion[]
   const [error, setError] = useState("");
   const [result, setResult] = useState<ResultProfile | null>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
-  const [sessionId, setSessionId] = useState("");
-  const [attribution, setAttribution] = useState({ source: "direct", campaign: "" });
+  const [sessionId] = useState(() =>
+    typeof window === "undefined" ? "" : getSessionId(),
+  );
+  const [attribution] = useState(() =>
+    typeof window === "undefined" ? { source: "direct", campaign: "" } : getAttribution(),
+  );
 
   const track = useCallback(
-    (eventName: string, step = 0) => {
+    (eventName: string, step = 0, questionId?: string, optionLabel?: string) => {
       if (!sessionId) return;
       void fetch("/api/events", {
         method: "POST",
@@ -58,6 +63,8 @@ export function QuizApp({ initialQuestions }: { initialQuestions: QuizQuestion[]
           step,
           source: attribution.source,
           campaign: attribution.campaign,
+          questionId,
+          optionLabel,
         }),
         keepalive: true,
       }).catch(() => undefined);
@@ -66,18 +73,14 @@ export function QuizApp({ initialQuestions }: { initialQuestions: QuizQuestion[]
   );
 
   useEffect(() => {
-    const nextAttribution = getAttribution();
-    const nextSession = getSessionId();
-    setAttribution(nextAttribution);
-    setSessionId(nextSession);
     void fetch("/api/events", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        sessionId: nextSession,
+        sessionId,
         eventName: "session_started",
-        source: nextAttribution.source,
-        campaign: nextAttribution.campaign,
+        source: attribution.source,
+        campaign: attribution.campaign,
       }),
     }).catch(() => undefined);
 
@@ -87,7 +90,13 @@ export function QuizApp({ initialQuestions }: { initialQuestions: QuizQuestion[]
         if (data?.questions?.length) setQuestions(data.questions);
       })
       .catch(() => undefined);
-  }, []);
+  }, [attribution, sessionId]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    const timer = window.setInterval(() => track("heartbeat"), 60_000);
+    return () => window.clearInterval(timer);
+  }, [sessionId, track]);
 
   const activeQuestion = questions[questionIndex];
   const progress = stage === "email" ? 100 : ((questionIndex + 1) / questions.length) * 100;
@@ -102,13 +111,13 @@ export function QuizApp({ initialQuestions }: { initialQuestions: QuizQuestion[]
     setStage("quiz");
     setQuestionIndex(0);
     track("quiz_started", 1);
-    track("question_viewed", 1);
+    track("question_viewed", 1, questions[0]?.id);
   }
 
-  function chooseAnswer(scoreKey: TraitKey) {
+  function chooseAnswer(scoreKey: TraitKey, optionLabel: string) {
     if (!activeQuestion) return;
     setAnswers((current) => ({ ...current, [activeQuestion.id]: scoreKey }));
-    track("answer_selected", questionIndex + 1);
+    track("answer_selected", questionIndex + 1, activeQuestion.id, optionLabel);
   }
 
   function continueQuiz() {
@@ -116,7 +125,7 @@ export function QuizApp({ initialQuestions }: { initialQuestions: QuizQuestion[]
     if (questionIndex < questions.length - 1) {
       const nextIndex = questionIndex + 1;
       setQuestionIndex(nextIndex);
-      track("question_viewed", nextIndex + 1);
+      track("question_viewed", nextIndex + 1, questions[nextIndex]?.id);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
@@ -209,7 +218,7 @@ export function QuizApp({ initialQuestions }: { initialQuestions: QuizQuestion[]
         <footer className="site-footer">
           <span>Inner Atlas © 2026</span>
           <span>For self-reflection, not clinical diagnosis.</span>
-          <a href="/admin">Admin</a>
+          <Link href="/admin">Admin</Link>
         </footer>
       </main>
     );
@@ -244,7 +253,7 @@ export function QuizApp({ initialQuestions }: { initialQuestions: QuizQuestion[]
                   aria-checked={selected}
                   className={`option-card ${selected ? "selected" : ""}`}
                   key={`${activeQuestion.id}-${index}`}
-                  onClick={() => chooseAnswer(option.scoreKey)}
+                  onClick={() => chooseAnswer(option.scoreKey, option.label)}
                   role="radio"
                 >
                   <span
@@ -326,7 +335,7 @@ export function QuizApp({ initialQuestions }: { initialQuestions: QuizQuestion[]
   return (
     <main className="result-shell">
       <nav className="nav-bar">
-        <a className="brand" href="/"><span className="brand-mark">IA</span><span>Inner Atlas</span></a>
+        <Link className="brand" href="/"><span className="brand-mark">IA</span><span>Inner Atlas</span></Link>
         <button className="text-button" onClick={() => window.print()}>Save profile</button>
       </nav>
       {result ? (

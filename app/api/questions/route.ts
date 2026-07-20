@@ -1,5 +1,5 @@
 import { getChatGPTUser } from "@/app/chatgpt-auth";
-import { listQuestions, saveQuestion } from "@/db/quiz-store";
+import { deleteQuestion, listQuestions, saveQuestion } from "@/db/quiz-store";
 import { isAdminEmail } from "@/lib/admin";
 import { TRAIT_KEYS, type QuizQuestion } from "@/lib/quiz";
 
@@ -50,5 +50,20 @@ export async function PUT(request: Request) {
   }
 
   await saveQuestion(body);
+  return Response.json({ ok: true });
+}
+
+export async function DELETE(request: Request) {
+  const user = await getChatGPTUser();
+  if (!user || !isAdminEmail(user.email)) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const id = new URL(request.url).searchParams.get("id")?.trim();
+  if (!id || id.length > 100) {
+    return Response.json({ error: "Invalid question id" }, { status: 400 });
+  }
+
+  await deleteQuestion(id);
   return Response.json({ ok: true });
 }
