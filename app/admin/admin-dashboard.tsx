@@ -50,10 +50,10 @@ const resultNames: Record<string, string> = {
 };
 
 const blankOptions = [
-  { label: "选项 A", microcopy: "补充说明", scoreKey: "explorer" as TraitKey },
-  { label: "选项 B", microcopy: "补充说明", scoreKey: "connector" as TraitKey },
-  { label: "选项 C", microcopy: "补充说明", scoreKey: "architect" as TraitKey },
-  { label: "选项 D", microcopy: "补充说明", scoreKey: "creator" as TraitKey },
+  { label: "选项 A", microcopy: "补充说明", meaning: "填写这个选项代表什么", projection: "填写用户选择后的心理投射解读", scoreKey: "explorer" as TraitKey },
+  { label: "选项 B", microcopy: "补充说明", meaning: "填写这个选项代表什么", projection: "填写用户选择后的心理投射解读", scoreKey: "connector" as TraitKey },
+  { label: "选项 C", microcopy: "补充说明", meaning: "填写这个选项代表什么", projection: "填写用户选择后的心理投射解读", scoreKey: "architect" as TraitKey },
+  { label: "选项 D", microcopy: "补充说明", meaning: "填写这个选项代表什么", projection: "填写用户选择后的心理投射解读", scoreKey: "creator" as TraitKey },
 ];
 
 function formatDate(value: string) {
@@ -180,7 +180,7 @@ export function AdminDashboard({
   function updateOption(
     questionId: string,
     index: number,
-    next: { label?: string; microcopy?: string; scoreKey?: TraitKey },
+    next: { label?: string; meaning?: string; microcopy?: string; projection?: string; scoreKey?: TraitKey },
   ) {
     setQuestions((current) =>
       current.map((question) =>
@@ -656,7 +656,7 @@ function QuestionManager({
   setSelectedTestId: (value: string) => void;
   savingId: string;
   tests: QuizTest[];
-  updateOption: (id: string, index: number, next: { label?: string; microcopy?: string; scoreKey?: TraitKey }) => void;
+  updateOption: (id: string, index: number, next: { label?: string; meaning?: string; microcopy?: string; projection?: string; scoreKey?: TraitKey }) => void;
   updateQuestion: (id: string, next: Partial<QuizQuestion>) => void;
 }) {
   return (
@@ -703,6 +703,8 @@ function QuestionManager({
                       <span>{String.fromCharCode(65 + optionIndex)}</span>
                       <label>选项标题<input value={option.label} onChange={(event) => updateOption(question.id, optionIndex, { label: event.target.value })} /></label>
                       <label>补充说明<input value={option.microcopy} onChange={(event) => updateOption(question.id, optionIndex, { microcopy: event.target.value })} /></label>
+                      <label>选择含义<textarea rows={3} value={option.meaning} onChange={(event) => updateOption(question.id, optionIndex, { meaning: event.target.value })} /></label>
+                      <label>投射解读<textarea rows={4} value={option.projection} onChange={(event) => updateOption(question.id, optionIndex, { projection: event.target.value })} /></label>
                       <label>计分类型<select value={option.scoreKey} onChange={(event) => updateOption(question.id, optionIndex, { scoreKey: event.target.value as TraitKey })}><option value="explorer">探索者</option><option value="connector">连接者</option><option value="architect">架构者</option><option value="creator">创造者</option></select></label>
                     </section>
                   ))}

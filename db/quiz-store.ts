@@ -2,11 +2,14 @@ import { env } from "cloudflare:workers";
 import {
   defaultQuestions,
   defaultTests,
+  TRAIT_KEYS,
+  type QuizOption,
   type QuizQuestion,
   type QuizTest,
   type ResultProfile,
   type TraitKey,
 } from "@/lib/quiz";
+import { getOptionInsight } from "@/lib/choice-insights";
 
 type RuntimeEnv = {
   ADMIN_EMAILS?: string;
@@ -160,13 +163,31 @@ export async function ensureQuizSchema(): Promise<void> {
 }
 
 function rowToQuestion(row: QuestionRow): QuizQuestion {
+  const legacyPaths = ["/quiz/doors.png", "/quiz/rooms.png", "/quiz/landscapes.png", "/quiz/symbols.png"];
+  const catalogQuestion = defaultQuestions.find((question) => question.id === row.id);
+  const legacyPath = legacyPaths[Math.max(0, row.position - 1) % legacyPaths.length];
+  const atlasPath = catalogQuestion && row.atlas_path === legacyPath
+    ? catalogQuestion.atlasPath
+    : row.atlas_path;
+  const parsedOptions = JSON.parse(row.options_json) as Partial<QuizOption>[];
+
   return {
     id: row.id,
     testId: row.test_id,
     kicker: row.kicker,
     prompt: row.prompt,
-    atlasPath: row.atlas_path,
-    options: JSON.parse(row.options_json),
+    atlasPath,
+    options: parsedOptions.map((option, index) => {
+      const scoreKey = option.scoreKey ?? TRAIT_KEYS[index] ?? "explorer";
+      const insight = getOptionInsight(row.test_id, atlasPath, scoreKey);
+      return {
+        label: option.label ?? `Choice ${String.fromCharCode(65 + index)}`,
+        microcopy: option.microcopy ?? "Trust your first response",
+        scoreKey,
+        meaning: option.meaning?.trim() || insight.meaning,
+        projection: option.projection?.trim() || insight.projection,
+      };
+    }),
     position: row.position,
     active: Boolean(row.active),
   };

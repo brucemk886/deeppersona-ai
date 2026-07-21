@@ -45,6 +45,8 @@ export async function PUT(request: Request) {
       (option) =>
         typeof option.label === "string" &&
         typeof option.microcopy === "string" &&
+        typeof option.meaning === "string" &&
+        typeof option.projection === "string" &&
         TRAIT_KEYS.includes(option.scoreKey),
     );
 

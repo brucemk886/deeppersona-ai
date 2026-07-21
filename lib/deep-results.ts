@@ -1,11 +1,4 @@
-import { TRAIT_KEYS, type ResultProfile, type TraitKey } from "@/lib/quiz";
-
-export const traitLabels: Record<TraitKey, string> = {
-  explorer: "Explorer",
-  connector: "Connector",
-  architect: "Architect",
-  creator: "Creator",
-};
+import type { ResultProfile, TraitKey } from "@/lib/quiz";
 
 type TestLens = {
   title: string;
@@ -17,7 +10,6 @@ type TraitDepth = {
   coreDrive: string;
   inRelationships: string;
   underPressure: string;
-  practices: [string, string, string];
 };
 
 const testLenses: Record<string, TestLens> = {
@@ -68,41 +60,21 @@ const traitDepth: Record<TraitKey, TraitDepth> = {
     coreDrive: "You are organized around movement, possibility, and agency. When you can choose a direction and act on it, you feel more like yourself. You often understand an experience by entering it rather than observing it from a safe distance.",
     inRelationships: "You bring momentum and freshness. People may experience you as brave, energizing, and willing to name what others avoid. Your care is often expressed through action. The subtle risk is moving toward a solution before the emotional meaning of the moment has fully landed.",
     underPressure: "Your first impulse is to do something—initiate, change the environment, open another option, or push for clarity. This can interrupt helplessness, but speed may also keep you one step ahead of grief, uncertainty, or the need to stay with an unfinished feeling.",
-    practices: [
-      "Before taking action, name the feeling and the outcome you are hoping the action will create.",
-      "Choose one small promise to finish before opening a new path.",
-      "Ask, “Do you want movement, reassurance, or simply company right now?”",
-    ],
   },
   connector: {
     coreDrive: "You are organized around emotional contact, mutual understanding, and signs that the bond is intact. You notice tone, distance, and small shifts quickly. Feeling accurately met often matters more than receiving a perfect solution.",
     inRelationships: "You bring warmth, loyalty, and the ability to make people feel seen. You are often the person who remembers context and repairs emotional distance. The cost appears when connection becomes a job you perform alone or when another person’s mood becomes evidence about your worth.",
     underPressure: "Your attention moves toward the relationship: checking, explaining, accommodating, or searching for reassurance. Reaching out can be regulating, but repeated checking may briefly soothe uncertainty while teaching your nervous system that uncertainty itself is dangerous.",
-    practices: [
-      "Turn one indirect hope into a clear request that the other person can answer honestly.",
-      "Check whether someone has capacity before giving them the full emotional story.",
-      "Wait ten minutes before sending a second reassurance-seeking message; write what you fear it means instead.",
-    ],
   },
   architect: {
     coreDrive: "You are organized around clarity, reliability, and enough structure to think well. You trust what is consistent and prefer to understand the shape of a situation before exposing your softer reactions. Privacy is often how you protect accuracy, not evidence that you do not care.",
     inRelationships: "You bring steadiness, follow-through, and an ability to make confusing situations workable. People can depend on your judgment. The relational gap appears when the solution is visible but your care is not; others may need an emotional headline before they can appreciate the structure you offer.",
     underPressure: "You reduce input, separate facts from noise, and create a plan. That often prevents impulsive decisions. Yet analysis can become armor when no amount of thinking can remove uncertainty, or when another person needs to know you are emotionally present before the problem is solved.",
-    practices: [
-      "Lead difficult conversations with one sentence about care before moving into facts or logistics.",
-      "Time-box planning, then take the smallest reversible step.",
-      "Name what is known, what is unknown, and what does not need to be decided today.",
-    ],
   },
   creator: {
     coreDrive: "You are organized around meaning, emotional truth, and room for complexity. You notice patterns and contradictions that do not fit neat categories. Expression helps you discover what you feel; it is not merely decoration added after the thinking is done.",
     inRelationships: "You bring depth, originality, and language for experiences other people struggle to name. You can make a relationship feel vivid and deeply personal. The challenge is translating a rich inner experience into signals simple enough for another person to understand and respond to.",
     underPressure: "Your inner world becomes louder and more associative. You may retreat, imagine several meanings, or wait for the moment to feel right. This can produce genuine insight, but without a container it may turn one difficult feeling into many possible stories and delay a clear next step.",
-    practices: [
-      "Reduce the whole feeling to one honest sentence before adding context or interpretation.",
-      "Give reflection a container: one page, one voice note, or twenty minutes—then choose a next step.",
-      "When you withdraw, tell the other person when you expect to reconnect.",
-    ],
   },
 };
 
@@ -117,34 +89,4 @@ export function getDeepResultContent(testId: string, result: ResultProfile) {
     lens: testLenses[testId] ?? fallbackLens,
     depth: traitDepth[result.key],
   };
-}
-
-export function calculateResultBreakdown(answers: Record<string, TraitKey>) {
-  const scores: Record<TraitKey, number> = {
-    explorer: 0,
-    connector: 0,
-    architect: 0,
-    creator: 0,
-  };
-
-  Object.values(answers).forEach((key) => {
-    if (key in scores) scores[key] += 1;
-  });
-
-  const ordered = TRAIT_KEYS.map((key, index) => ({ key, score: scores[key], index }))
-    .sort((a, b) => b.score - a.score || a.index - b.index);
-  const topScore = ordered[0]?.score ?? 0;
-  const tied = ordered.filter((item) => item.score === topScore && topScore > 0);
-  const total = Math.max(Object.keys(answers).length, 1);
-
-  let note = "Your choices were spread across several signals, so this result is best read as a gentle lean rather than a fixed type.";
-  if (topScore >= 3) {
-    note = "Your choices formed a strong, consistent signal. The pattern is likely familiar, although context can still change how you express it.";
-  } else if (tied.length > 1) {
-    note = `Your top signal was shared with ${tied.slice(1).map((item) => traitLabels[item.key]).join(" and ")}. Your result is a blend, with the displayed profile acting as the clearest starting point.`;
-  } else if (topScore === 2) {
-    note = "Your choices show a noticeable preference, with meaningful influence from other patterns. Read the result as a default strategy, not your whole personality.";
-  }
-
-  return { scores, ordered, total, note };
 }

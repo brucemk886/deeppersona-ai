@@ -1,3 +1,5 @@
+import { getOptionInsight } from "@/lib/choice-insights";
+
 export const TRAIT_KEYS = ["explorer", "connector", "architect", "creator"] as const;
 
 export type TraitKey = (typeof TRAIT_KEYS)[number];
@@ -6,6 +8,8 @@ export type QuizOption = {
   label: string;
   microcopy: string;
   scoreKey: TraitKey;
+  meaning: string;
+  projection: string;
 };
 
 export type QuizQuestion = {
@@ -199,18 +203,19 @@ export const defaultTests: QuizTest[] = [
   },
 ];
 
-const images = [
-  "/quiz/doors.png",
-  "/quiz/rooms.png",
-  "/quiz/landscapes.png",
-  "/quiz/symbols.png",
-] as const;
-
 type CompactQuestion = {
   kicker: string;
   prompt: string;
   options: [string, string, string, string];
 };
+
+function atlasPathFor(prompt: string) {
+  const normalized = prompt.toLowerCase();
+  if (normalized.includes("room")) return "/quiz/rooms.png";
+  if (normalized.includes("door") || normalized.includes("welcome")) return "/quiz/doors.png";
+  if (normalized.includes("object") || normalized.includes("tool")) return "/quiz/symbols.png";
+  return "/quiz/landscapes.png";
+}
 
 const optionDetails: Record<TraitKey, string> = {
   explorer: "Move toward it",
@@ -271,19 +276,27 @@ const questionSets: Record<string, CompactQuestion[]> = {
 };
 
 export const defaultQuestions: QuizQuestion[] = defaultTests.flatMap((test) =>
-  (questionSets[test.id] ?? []).map((question, questionIndex) => ({
-    id: `${test.id}-${questionIndex + 1}`,
-    testId: test.id,
-    kicker: question.kicker,
-    prompt: question.prompt,
-    atlasPath: images[questionIndex % images.length],
-    position: questionIndex + 1,
-    active: true,
-    options: question.options.map((label, optionIndex) => {
-      const scoreKey = TRAIT_KEYS[optionIndex];
-      return { label, microcopy: optionDetails[scoreKey], scoreKey };
-    }),
-  })),
+  (questionSets[test.id] ?? []).map((question, questionIndex) => {
+    const atlasPath = atlasPathFor(question.prompt);
+    return {
+      id: `${test.id}-${questionIndex + 1}`,
+      testId: test.id,
+      kicker: question.kicker,
+      prompt: question.prompt,
+      atlasPath,
+      position: questionIndex + 1,
+      active: true,
+      options: question.options.map((label, optionIndex) => {
+        const scoreKey = TRAIT_KEYS[optionIndex];
+        return {
+          label,
+          microcopy: optionDetails[scoreKey],
+          scoreKey,
+          ...getOptionInsight(test.id, atlasPath, scoreKey),
+        };
+      }),
+    };
+  }),
 );
 
 export const resultProfiles = defaultTests[0].results;

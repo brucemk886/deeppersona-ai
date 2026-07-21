@@ -9,7 +9,7 @@ import {
   type ResultProfile,
   type TraitKey,
 } from "@/lib/quiz";
-import { calculateResultBreakdown, getDeepResultContent, traitLabels } from "@/lib/deep-results";
+import { getDeepResultContent } from "@/lib/deep-results";
 
 type Stage = "home" | "quiz" | "email" | "result";
 
@@ -106,6 +106,7 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
   const [stage, setStage] = useState<Stage>("home");
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, TraitKey>>({});
+  const [answerChoices, setAnswerChoices] = useState<Record<string, number>>({});
   const [email, setEmail] = useState("");
   const [marketingConsent, setMarketingConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -188,7 +189,7 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
   const featuredTest = tests.find((test) => test.featured) ?? tests[0];
   const activeQuestion = questions[questionIndex];
   const progress = stage === "email" ? 100 : questions.length ? ((questionIndex + 1) / questions.length) * 100 : 0;
-  const selectedOption = activeQuestion ? answers[activeQuestion.id] : undefined;
+  const selectedOptionIndex = activeQuestion ? answerChoices[activeQuestion.id] : undefined;
 
   useEffect(() => {
     if (!featuredTest || stage !== "home") return;
@@ -238,6 +239,7 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
       setSelectedTest(test);
       setQuestions(loadedQuestions);
       setAnswers({});
+      setAnswerChoices({});
       setQuestionIndex(0);
       setResult(null);
       setStage("quiz");
@@ -259,14 +261,15 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
     }
   }
 
-  function chooseAnswer(scoreKey: TraitKey, optionLabel: string) {
+  function chooseAnswer(scoreKey: TraitKey, optionLabel: string, optionIndex: number) {
     if (!activeQuestion) return;
     setAnswers((current) => ({ ...current, [activeQuestion.id]: scoreKey }));
+    setAnswerChoices((current) => ({ ...current, [activeQuestion.id]: optionIndex }));
     track("answer_selected", questionIndex + 1, activeQuestion.id, optionLabel);
   }
 
   function continueQuiz() {
-    if (!selectedOption) return;
+    if (selectedOptionIndex === undefined) return;
     if (questionIndex < questions.length - 1) {
       const nextIndex = questionIndex + 1;
       setQuestionIndex(nextIndex);
@@ -317,6 +320,7 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
     setSelectedTest(null);
     setQuestions([]);
     setAnswers({});
+    setAnswerChoices({});
     setSessionId("");
     setEmail("");
     setMarketingConsent(false);
@@ -393,7 +397,7 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
           <div className="question-heading"><span>{activeQuestion.kicker}</span><h1>{activeQuestion.prompt}</h1><p>There is no correct choice. Notice your first emotional response.</p></div>
           <div className="option-grid" role="radiogroup" aria-label={activeQuestion.prompt}>
             {activeQuestion.options.map((option, index) => {
-              const selected = selectedOption === option.scoreKey;
+              const selected = selectedOptionIndex === index;
               const letter = String.fromCharCode(65 + index);
               return (
                 <article className={`option-card ${selected ? "selected" : ""}`} key={`${activeQuestion.id}-${index}`}>
@@ -409,14 +413,14 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
                     <AtlasImage className="option-image" index={index} loading="eager" path={activeQuestion.atlasPath} priority={index === 0} />
                     <span className="image-zoom-badge" aria-hidden="true">＋</span>
                   </button>
-                  <button aria-checked={selected} className="option-select" onClick={() => chooseAnswer(option.scoreKey, option.label)} role="radio" type="button">
+                  <button aria-checked={selected} className="option-select" onClick={() => chooseAnswer(option.scoreKey, option.label, index)} role="radio" type="button">
                     <span className="option-meta"><span className="option-letter">{letter}</span><span><strong>{option.label}</strong><small>{option.microcopy}</small></span><span className="selection-mark" aria-hidden="true">✓</span></span>
                   </button>
                 </article>
               );
             })}
           </div>
-          <div className="quiz-actions"><button className="text-button" disabled={questionIndex === 0} onClick={() => setQuestionIndex((index) => Math.max(0, index - 1))}>← Back</button><button className="primary-button" disabled={!selectedOption} onClick={continueQuiz}>{questionIndex === questions.length - 1 ? "See my result" : "Continue"} →</button></div>
+          <div className="quiz-actions"><button className="text-button" disabled={questionIndex === 0} onClick={() => setQuestionIndex((index) => Math.max(0, index - 1))}>← Back</button><button className="primary-button" disabled={selectedOptionIndex === undefined} onClick={continueQuiz}>{questionIndex === questions.length - 1 ? "See my result" : "Continue"} →</button></div>
         </section>
         {zoomedOption ? (
           <div className="image-lightbox-backdrop" role="presentation" onClick={() => setZoomedOption(null)}>
@@ -427,7 +431,7 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
               </div>
               <div className="image-lightbox-copy">
                 <div><span>Choice {String.fromCharCode(65 + zoomedOption.index)}</span><h2 id="image-lightbox-title">{zoomedOption.label}</h2><p id="image-lightbox-description">{zoomedOption.microcopy}</p></div>
-                <button className="primary-button" onClick={() => { chooseAnswer(zoomedOption.scoreKey, zoomedOption.label); setZoomedOption(null); }} type="button">Choose this image →</button>
+                <button className="primary-button" onClick={() => { chooseAnswer(zoomedOption.scoreKey, zoomedOption.label, zoomedOption.index); setZoomedOption(null); }} type="button">Choose this image →</button>
               </div>
             </section>
           </div>
@@ -445,7 +449,7 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
           <form className="email-form" onSubmit={unlockResult}>
             <span className="pill">Your complete profile is ready</span>
             <h1>Unlock the full pattern behind your choices.</h1>
-            <p>See your score balance, core motivation, relationship pattern, stress response, and a practical 7-day experiment.</p>
+            <p>See every image you chose, what each choice represents, and the psychological projection behind the full pattern.</p>
             <label htmlFor="email">Email address</label>
             <input autoComplete="email" id="email" onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required type="email" value={email} />
             <label className="consent-row">
@@ -462,27 +466,41 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
   }
 
   const deepResult = result && selectedTest ? getDeepResultContent(selectedTest.id, result) : null;
-  const breakdown = result ? calculateResultBreakdown(answers) : null;
+  const answeredChoices = questions.flatMap((question, index) => {
+    const selectedIndex = answerChoices[question.id];
+    const option = selectedIndex === undefined ? undefined : question.options[selectedIndex];
+    return option ? [{ option, question, questionNumber: index + 1, selectedIndex }] : [];
+  });
 
   return (
     <main className="result-shell">
       <nav className="nav-bar"><button className="brand brand-button" onClick={returnHome}><span className="brand-mark">IA</span><span>Inner Atlas</span></button><button className="text-button" onClick={() => window.print()}>Save profile</button></nav>
-      {result && selectedTest && deepResult && breakdown ? (
+      {result && selectedTest && deepResult ? (
         <article className="result-card result-card-expanded">
           <span className="result-test-name">{selectedTest.title}</span>
-          <div className={`result-orbit result-${result.key}`}><span>{result.key.slice(0, 1).toUpperCase()}</span></div>
+          <span className="result-basis">Based on {answeredChoices.length} visual choices</span>
           <span className="result-eyebrow">{result.eyebrow}</span>
           <h1>{result.title}</h1>
           <p className="result-summary">{result.summary}</p>
 
-          <section className="score-panel" aria-labelledby="score-title">
-            <div className="score-panel-copy"><span>How your result was formed</span><h2 id="score-title">Your four-choice pattern</h2><p>{breakdown.note}</p></div>
-            <div className="score-bars">
-              {breakdown.ordered.map((item) => (
-                <div className="score-row" key={item.key}>
-                  <div><strong>{traitLabels[item.key]}</strong><span>{item.score} / {breakdown.total}</span></div>
-                  <div className="score-track"><span style={{ width: `${(item.score / breakdown.total) * 100}%`, background: selectedTest.accent }} /></div>
-                </div>
+          <section className="choice-review" aria-labelledby="choice-review-title">
+            <header>
+              <span>Your choices, decoded</span>
+              <h2 id="choice-review-title">What each image may be reflecting back to you</h2>
+              <p>This is the part that shaped your result: not a generic type label, but the specific pattern behind each image you selected.</p>
+            </header>
+            <div className="choice-review-list">
+              {answeredChoices.map(({ option, question, questionNumber, selectedIndex }) => (
+                <article className="choice-review-card" key={question.id}>
+                  <AtlasImage className="choice-review-image" index={selectedIndex} loading="eager" path={question.atlasPath} sizes="180px" />
+                  <div className="choice-review-copy">
+                    <div className="choice-review-meta"><span>Question {questionNumber}</span><strong>You chose {String.fromCharCode(65 + selectedIndex)}</strong></div>
+                    <p className="choice-review-question">{question.prompt}</p>
+                    <h3>{option.label}</h3>
+                    <div><strong>What this choice represents</strong><p>{option.meaning}</p></div>
+                    <div><strong>Your projection</strong><p>{option.projection}</p></div>
+                  </div>
+                </article>
               ))}
             </div>
           </section>
@@ -505,18 +523,13 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
             <section><span>Under pressure</span><h3>When the strength becomes protection</h3><p>{deepResult.depth.underPressure}</p></section>
           </div>
 
-          <section className="action-plan-card">
-            <div><span>Your 7-day experiment</span><h2>Turn recognition into one different response.</h2><p>Do not try to become a different type. Test these small adjustments and notice which one creates more choice.</p></div>
-            <ol>{deepResult.depth.practices.map((practice) => <li key={practice}>{practice}</li>)}</ol>
-          </section>
-
           <section className="reflection-card"><span>A question worth keeping</span><p>“{deepResult.lens.reflectionPrompt}”</p></section>
           <p className="result-disclaimer">This is a self-reflection tool based on four visual choices, not a clinical assessment or diagnosis.</p>
         </article>
       ) : null}
-      <section className="premium-card"><div><span className="premium-label">Coming next · Cross-test report</span><h2>Connect your patterns across all eight tests.</h2><p>A combined relationship map, recurring stress signals, contradictions between profiles, and a personalized 30-day practice plan.</p></div><button className="premium-button" onClick={() => { setShowUpgrade(true); track("upgrade_clicked", questions.length + 3); }}>Preview combined report <span>↗</span></button></section>
+      <section className="premium-card"><div><span className="premium-label">Coming next · Cross-test report</span><h2>Connect your patterns across all eight tests.</h2><p>A combined projection map showing repeated choices, contradictions between profiles, and the situations that change your response.</p></div><button className="premium-button" onClick={() => { setShowUpgrade(true); track("upgrade_clicked", questions.length + 3); }}>Preview combined report <span>↗</span></button></section>
       <button className="retake-button" onClick={returnHome}>Explore another test</button>
-      {showUpgrade ? <div className="modal-backdrop" role="presentation" onClick={() => setShowUpgrade(false)}><div className="upgrade-modal" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" onClick={(event) => event.stopPropagation()}><button className="modal-close" aria-label="Close" onClick={() => setShowUpgrade(false)}>×</button><span className="result-seal">Premium preview</span><h2 id="upgrade-title">Your deeper report is almost here.</h2><p>The checkout hook is ready for Creem or Stripe. Payments stay disabled until a provider is connected.</p><div className="premium-list"><span>✓ Personalized deep-dive</span><span>✓ Relationships and stress patterns</span><span>✓ 7-day practical reset</span></div><button className="primary-button full-button" disabled>Checkout coming soon</button></div></div> : null}
+      {showUpgrade ? <div className="modal-backdrop" role="presentation" onClick={() => setShowUpgrade(false)}><div className="upgrade-modal" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" onClick={(event) => event.stopPropagation()}><button className="modal-close" aria-label="Close" onClick={() => setShowUpgrade(false)}>×</button><span className="result-seal">Premium preview</span><h2 id="upgrade-title">Your deeper report is almost here.</h2><p>The checkout hook is ready for Creem or Stripe. Payments stay disabled until a provider is connected.</p><div className="premium-list"><span>✓ Every choice explained in context</span><span>✓ Repeated relationship and stress signals</span><span>✓ Contradictions that reveal when your pattern changes</span></div><button className="primary-button full-button" disabled>Checkout coming soon</button></div></div> : null}
     </main>
   );
 }
