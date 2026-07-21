@@ -34,6 +34,10 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(quiz, /image_zoomed/);
   assert.match(quiz, /srcSet/);
   assert.match(quiz, /preloadAtlas/);
+  assert.match(quiz, /defaultQuestions/);
+  assert.match(quiz, /AbortController/);
+  assert.match(quiz, /className="hero-mosaic"/);
+  assert.match(quiz, /className={`test-card/);
   assert.match(quiz, /Your choices, decoded/);
   assert.match(quiz, /What this choice represents/);
   assert.match(quiz, /Your projection/);
@@ -63,6 +67,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.doesNotMatch(store, /COUNT\(DISTINCT session_id\) AS users FROM quiz_sessions/);
   assert.match(layout, /DeepPersona AI — Visual Psychology Tests/);
   assert.match(layout, /og-deep-persona\.png/);
+  assert.match(layout, /width: "device-width"/);
   assert.match(privacy, /Test information/);
   assert.match(privacy, /marketing emails/);
   assert.match(terms, /Not healthcare or professional advice/);

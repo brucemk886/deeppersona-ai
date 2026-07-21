@@ -53,41 +53,6 @@ function getD1(): D1Database {
   return db;
 }
 
-async function ensureColumn(table: string, column: string, statement: string) {
-  const columns = await getD1().prepare(`PRAGMA table_info(${table})`).all<{ name: string }>();
-  if (!columns.results.some((item) => item.name === column)) {
-    await getD1().prepare(statement).run();
-  }
-}
-
-async function ensureLegacyColumns() {
-  const additions = [
-    ["quiz_questions", "test_id", "ALTER TABLE quiz_questions ADD COLUMN test_id TEXT NOT NULL DEFAULT 'legacy-instinctive-style'"],
-    ["quiz_sessions", "test_id", "ALTER TABLE quiz_sessions ADD COLUMN test_id TEXT"],
-    ["quiz_sessions", "email", "ALTER TABLE quiz_sessions ADD COLUMN email TEXT"],
-    ["quiz_sessions", "marketing_consent", "ALTER TABLE quiz_sessions ADD COLUMN marketing_consent INTEGER NOT NULL DEFAULT 0"],
-    ["quiz_sessions", "answers_json", "ALTER TABLE quiz_sessions ADD COLUMN answers_json TEXT"],
-    ["quiz_sessions", "result_type", "ALTER TABLE quiz_sessions ADD COLUMN result_type TEXT"],
-    ["quiz_sessions", "source", "ALTER TABLE quiz_sessions ADD COLUMN source TEXT"],
-    ["quiz_sessions", "campaign", "ALTER TABLE quiz_sessions ADD COLUMN campaign TEXT"],
-    ["quiz_sessions", "current_step", "ALTER TABLE quiz_sessions ADD COLUMN current_step INTEGER NOT NULL DEFAULT 0"],
-    ["quiz_sessions", "started_at", "ALTER TABLE quiz_sessions ADD COLUMN started_at TEXT"],
-    ["quiz_sessions", "completed_at", "ALTER TABLE quiz_sessions ADD COLUMN completed_at TEXT"],
-    ["quiz_events", "session_id", "ALTER TABLE quiz_events ADD COLUMN session_id TEXT"],
-    ["quiz_events", "event_name", "ALTER TABLE quiz_events ADD COLUMN event_name TEXT"],
-    ["quiz_events", "step", "ALTER TABLE quiz_events ADD COLUMN step INTEGER NOT NULL DEFAULT 0"],
-    ["quiz_events", "source", "ALTER TABLE quiz_events ADD COLUMN source TEXT"],
-    ["quiz_events", "question_id", "ALTER TABLE quiz_events ADD COLUMN question_id TEXT"],
-    ["quiz_events", "option_label", "ALTER TABLE quiz_events ADD COLUMN option_label TEXT"],
-    ["quiz_events", "test_id", "ALTER TABLE quiz_events ADD COLUMN test_id TEXT"],
-    ["quiz_events", "created_at", "ALTER TABLE quiz_events ADD COLUMN created_at TEXT"],
-  ] as const;
-
-  for (const [table, column, statement] of additions) {
-    await ensureColumn(table, column, statement);
-  }
-}
-
 async function createSchema(): Promise<void> {
   const db = getD1();
   await db.batch([
@@ -140,8 +105,6 @@ async function createSchema(): Promise<void> {
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
   ]);
-
-  await ensureLegacyColumns();
 
   await db.batch([
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_questions_test_idx ON quiz_questions(test_id)"),

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   calculateResult,
+  defaultQuestions,
   type QuizQuestion,
   type QuizTest,
   type ResultProfile,
@@ -133,13 +134,29 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
     const pending = questionRequests.current.get(testId);
     if (pending) return pending;
     const request = (async () => {
-      const response = await fetch(`/api/questions?test=${encodeURIComponent(testId)}`, { cache: "no-store" });
-      const data = (await response.json()) as { error?: string; questions?: QuizQuestion[] };
-      if (!response.ok || !data.questions?.length) {
-        throw new Error(data.error ?? "This test is not available yet.");
+      const fallbackQuestions = defaultQuestions
+        .filter((question) => question.testId === testId && question.active)
+        .sort((a, b) => a.position - b.position);
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 4_000);
+      try {
+        const response = await fetch(`/api/questions?test=${encodeURIComponent(testId)}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const data = (await response.json()) as { error?: string; questions?: QuizQuestion[] };
+        if (!response.ok || !data.questions?.length) {
+          throw new Error(data.error ?? "This test is not available yet.");
+        }
+        questionsCache.current.set(testId, data.questions);
+        return data.questions;
+      } catch (requestError) {
+        if (!fallbackQuestions.length) throw requestError;
+        questionsCache.current.set(testId, fallbackQuestions);
+        return fallbackQuestions;
+      } finally {
+        window.clearTimeout(timeout);
       }
-      questionsCache.current.set(testId, data.questions);
-      return data.questions;
     })();
     questionRequests.current.set(testId, request);
     try {
@@ -232,12 +249,19 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
     setLoadingTest(test.id);
     setError("");
     try {
-      const loadedQuestions = await loadQuestions(test.id);
-      preloadAtlas(loadedQuestions[0].atlasPath);
+      const builtInQuestions = defaultQuestions
+        .filter((question) => question.testId === test.id && question.active)
+        .sort((a, b) => a.position - b.position);
+      const loadedQuestions = questionsCache.current.get(test.id) ?? builtInQuestions;
+      const readyQuestions = loadedQuestions.length ? loadedQuestions : await loadQuestions(test.id);
+      if (!questionsCache.current.has(test.id)) {
+        void loadQuestions(test.id).catch(() => undefined);
+      }
+      preloadAtlas(readyQuestions[0].atlasPath);
       const nextSession = crypto.randomUUID();
       setSessionId(nextSession);
       setSelectedTest(test);
-      setQuestions(loadedQuestions);
+      setQuestions(readyQuestions);
       setAnswers({});
       setAnswerChoices({});
       setQuestionIndex(0);
@@ -252,7 +276,7 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
       };
       void fetch("/api/events", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...payload, eventName: "session_started" }) });
       void fetch("/api/events", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...payload, eventName: "quiz_started", step: 1 }) });
-      void fetch("/api/events", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...payload, eventName: "question_viewed", step: 1, questionId: loadedQuestions[0].id }) });
+      void fetch("/api/events", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...payload, eventName: "question_viewed", step: 1, questionId: readyQuestions[0].id }) });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to open this test.");
@@ -348,7 +372,7 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
             {error ? <p className="form-error" role="alert">{error}</p> : null}
           </div>
 
-          <div className="hero-mosaic" aria-label="A preview of four visual choices">
+          <button className="hero-mosaic" aria-label={featuredTest ? `Start ${featuredTest.title}` : "A preview of four visual choices"} disabled={!featuredTest || loadingTest === featuredTest.id} onClick={() => featuredTest && void startTest(featuredTest)} type="button">
             {previewImages.map((item) => (
               <AtlasImage
                 index={item.index}
@@ -360,21 +384,21 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
               />
             ))}
             <div className="mosaic-prompt">Which one feels safest?</div>
-          </div>
+          </button>
         </section>
 
         <section className="test-library" id="tests">
           <div className="library-heading"><span>Choose your question</span><h2>Eight ways to understand yourself a little better.</h2><p>Short, visual, and designed for reflection—not diagnosis.</p></div>
           <div className="test-card-grid">
             {tests.map((test, index) => (
-              <article className={`test-card ${test.featured ? "featured" : ""}`} key={test.id} style={{ "--test-accent": test.accent } as React.CSSProperties}>
+              <button aria-label={`Start ${test.title}`} className={`test-card ${test.featured ? "featured" : ""}`} disabled={loadingTest === test.id} key={test.id} onClick={() => void startTest(test)} onFocus={() => void loadQuestions(test.id).catch(() => undefined)} onPointerEnter={() => void loadQuestions(test.id).catch(() => undefined)} style={{ "--test-accent": test.accent } as React.CSSProperties} type="button">
                 <div className="test-card-image">
                   <AtlasImage index={0} path={test.coverAtlasPath} sizes="(max-width: 640px) 236px, 380px" />
                   <span className="test-number">{String(index + 1).padStart(2, "0")}</span>
                   {test.featured ? <span className="popular-badge">Most popular</span> : null}
                 </div>
-                <div className="test-card-copy"><span>{test.kicker}</span><h3>{test.title}</h3><p>{test.description}</p><div><small>{test.questionCount || 4} questions · About 2 min</small><button aria-label={`Start ${test.title}`} disabled={loadingTest === test.id} onFocus={() => void loadQuestions(test.id).catch(() => undefined)} onPointerEnter={() => void loadQuestions(test.id).catch(() => undefined)} onTouchStart={() => void loadQuestions(test.id).catch(() => undefined)} onClick={() => void startTest(test)}>{loadingTest === test.id ? "…" : "Start →"}</button></div></div>
-              </article>
+                <div className="test-card-copy"><span>{test.kicker}</span><h3>{test.title}</h3><p>{test.description}</p><div><small>{test.questionCount || 4} questions · About 2 min</small><strong className="test-card-start">{loadingTest === test.id ? "Opening…" : "Start →"}</strong></div></div>
+              </button>
             ))}
           </div>
         </section>
