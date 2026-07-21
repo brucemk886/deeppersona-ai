@@ -57,6 +57,34 @@ async function ensureColumn(table: string, column: string, statement: string) {
   }
 }
 
+async function ensureLegacyColumns() {
+  const additions = [
+    ["quiz_questions", "test_id", "ALTER TABLE quiz_questions ADD COLUMN test_id TEXT NOT NULL DEFAULT 'legacy-instinctive-style'"],
+    ["quiz_sessions", "test_id", "ALTER TABLE quiz_sessions ADD COLUMN test_id TEXT"],
+    ["quiz_sessions", "email", "ALTER TABLE quiz_sessions ADD COLUMN email TEXT"],
+    ["quiz_sessions", "marketing_consent", "ALTER TABLE quiz_sessions ADD COLUMN marketing_consent INTEGER NOT NULL DEFAULT 0"],
+    ["quiz_sessions", "answers_json", "ALTER TABLE quiz_sessions ADD COLUMN answers_json TEXT"],
+    ["quiz_sessions", "result_type", "ALTER TABLE quiz_sessions ADD COLUMN result_type TEXT"],
+    ["quiz_sessions", "source", "ALTER TABLE quiz_sessions ADD COLUMN source TEXT"],
+    ["quiz_sessions", "campaign", "ALTER TABLE quiz_sessions ADD COLUMN campaign TEXT"],
+    ["quiz_sessions", "current_step", "ALTER TABLE quiz_sessions ADD COLUMN current_step INTEGER NOT NULL DEFAULT 0"],
+    ["quiz_sessions", "started_at", "ALTER TABLE quiz_sessions ADD COLUMN started_at TEXT"],
+    ["quiz_sessions", "completed_at", "ALTER TABLE quiz_sessions ADD COLUMN completed_at TEXT"],
+    ["quiz_events", "session_id", "ALTER TABLE quiz_events ADD COLUMN session_id TEXT"],
+    ["quiz_events", "event_name", "ALTER TABLE quiz_events ADD COLUMN event_name TEXT"],
+    ["quiz_events", "step", "ALTER TABLE quiz_events ADD COLUMN step INTEGER NOT NULL DEFAULT 0"],
+    ["quiz_events", "source", "ALTER TABLE quiz_events ADD COLUMN source TEXT"],
+    ["quiz_events", "question_id", "ALTER TABLE quiz_events ADD COLUMN question_id TEXT"],
+    ["quiz_events", "option_label", "ALTER TABLE quiz_events ADD COLUMN option_label TEXT"],
+    ["quiz_events", "test_id", "ALTER TABLE quiz_events ADD COLUMN test_id TEXT"],
+    ["quiz_events", "created_at", "ALTER TABLE quiz_events ADD COLUMN created_at TEXT"],
+  ] as const;
+
+  for (const [table, column, statement] of additions) {
+    await ensureColumn(table, column, statement);
+  }
+}
+
 async function createSchema(): Promise<void> {
   const db = getD1();
   await db.batch([
@@ -110,9 +138,7 @@ async function createSchema(): Promise<void> {
     )`),
   ]);
 
-  await ensureColumn("quiz_questions", "test_id", "ALTER TABLE quiz_questions ADD COLUMN test_id TEXT NOT NULL DEFAULT 'legacy-instinctive-style'");
-  await ensureColumn("quiz_sessions", "test_id", "ALTER TABLE quiz_sessions ADD COLUMN test_id TEXT");
-  await ensureColumn("quiz_events", "test_id", "ALTER TABLE quiz_events ADD COLUMN test_id TEXT");
+  await ensureLegacyColumns();
 
   await db.batch([
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_questions_test_idx ON quiz_questions(test_id)"),
@@ -269,8 +295,8 @@ export async function recordEvent(input: {
   const db = getD1();
   const step = Math.max(0, Math.floor(input.step ?? 0));
   await db.batch([
-    db.prepare(`INSERT INTO quiz_sessions (id, test_id, source, campaign, current_step)
-      VALUES (?, ?, ?, ?, ?)
+    db.prepare(`INSERT INTO quiz_sessions (id, test_id, source, campaign, current_step, started_at)
+      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(id) DO UPDATE SET
         test_id = COALESCE(excluded.test_id, quiz_sessions.test_id),
         source = COALESCE(quiz_sessions.source, excluded.source),
@@ -278,8 +304,8 @@ export async function recordEvent(input: {
         current_step = MAX(quiz_sessions.current_step, excluded.current_step)`)
       .bind(input.sessionId, input.testId ?? null, input.source ?? null, input.campaign ?? null, step),
     db.prepare(`INSERT INTO quiz_events
-      (session_id, event_name, step, source, question_id, option_label, test_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      (session_id, event_name, step, source, question_id, option_label, test_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`)
       .bind(input.sessionId, input.eventName, step, input.source ?? null, input.questionId ?? null, input.optionLabel ?? null, input.testId ?? null),
   ]);
 }
@@ -311,8 +337,8 @@ export async function submitQuiz(input: {
         current_step = excluded.current_step,
         completed_at = CURRENT_TIMESTAMP`)
       .bind(input.sessionId, input.testId, input.email, input.marketingConsent ? 1 : 0, JSON.stringify(input.answers), input.resultType, input.source ?? null, input.campaign ?? null, Object.keys(input.answers).length + 1),
-    db.prepare(`INSERT INTO quiz_events (session_id, event_name, step, source, test_id)
-      VALUES (?, 'email_submitted', ?, ?, ?)`)
+    db.prepare(`INSERT INTO quiz_events (session_id, event_name, step, source, test_id, created_at)
+      VALUES (?, 'email_submitted', ?, ?, ?, CURRENT_TIMESTAMP)`)
       .bind(input.sessionId, Object.keys(input.answers).length + 1, input.source ?? null, input.testId),
   ]);
 }

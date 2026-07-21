@@ -72,6 +72,12 @@ function formatDay(value: string) {
   );
 }
 
+async function fetchAdminJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) throw new Error(`${url} 读取失败`);
+  return response.json() as Promise<T>;
+}
+
 export function AdminDashboard({
   adminEmail,
   hasAllowlist,
@@ -95,21 +101,31 @@ export function AdminDashboard({
   const loadData = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
     try {
-      const [statsResponse, questionsResponse, testsResponse] = await Promise.all([
-        fetch("/api/admin/stats", { cache: "no-store" }),
-        fetch("/api/questions?all=1", { cache: "no-store" }),
-        fetch("/api/tests?all=1", { cache: "no-store" }),
+      const [statsResult, questionsResult, testsResult] = await Promise.allSettled([
+        fetchAdminJson<Stats>("/api/admin/stats"),
+        fetchAdminJson<{ questions: QuizQuestion[] }>("/api/questions?all=1"),
+        fetchAdminJson<{ tests: QuizTest[] }>("/api/tests?all=1"),
       ]);
-      if (!statsResponse.ok || !questionsResponse.ok || !testsResponse.ok) throw new Error("后台数据读取失败");
-      const [statsData, questionData, testData] = await Promise.all([
-        statsResponse.json() as Promise<Stats>,
-        questionsResponse.json() as Promise<{ questions: QuizQuestion[] }>,
-        testsResponse.json() as Promise<{ tests: QuizTest[] }>,
-      ]);
-      setStats(statsData);
-      setQuestions(questionData.questions ?? []);
-      setTests(testData.tests ?? []);
-      setSelectedTestId((current) => current || testData.tests?.[0]?.id || "");
+      let loadedModules = 0;
+      if (statsResult.status === "fulfilled") {
+        setStats(statsResult.value);
+        loadedModules += 1;
+      }
+      if (questionsResult.status === "fulfilled") {
+        setQuestions(questionsResult.value.questions ?? []);
+        loadedModules += 1;
+      }
+      if (testsResult.status === "fulfilled") {
+        const nextTests = testsResult.value.tests ?? [];
+        setTests(nextTests);
+        setSelectedTestId((current) => current || nextTests[0]?.id || "");
+        loadedModules += 1;
+      }
+      if (!loadedModules) throw new Error("后台数据读取失败");
+      if (!quiet && statsResult.status === "rejected") {
+        setNotice("题库已正常加载，统计数据正在恢复");
+        window.setTimeout(() => setNotice(""), 3200);
+      }
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "后台数据读取失败");
     } finally {
