@@ -155,6 +155,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .hero-mosaic .atlas-image:nth-child(4) { border-bottom-right-radius: 150px; }
 .mosaic-prompt {
   position: absolute;
+  z-index: 4;
   left: 50%;
   bottom: 17px;
   transform: translateX(-50%);
@@ -168,11 +169,45 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   letter-spacing: 0.02em;
 }
 
-.atlas-image { background-size: 200% 200%; background-repeat: no-repeat; background-color: #d8d7cf; }
+.atlas-image {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background-size: 200% 200%;
+  background-repeat: no-repeat;
+  background-color: #d8d7cf;
+}
+.atlas-image picture { position: absolute; inset: 0; z-index: 1; }
+.atlas-image img {
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  max-width: none;
+  object-fit: fill;
+  opacity: 1;
+  transition: opacity 220ms ease;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.atlas-image.is-loading img { opacity: 0; }
+.atlas-image.is-loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,.7) 48%, transparent 66%);
+  background-size: 220% 100%;
+  animation: atlas-shimmer 1.15s ease-in-out infinite;
+}
+.atlas-0 img { left: 0; top: 0; }
+.atlas-1 img { left: -100%; top: 0; }
+.atlas-2 img { left: 0; top: -100%; }
+.atlas-3 img { left: -100%; top: -100%; }
 .atlas-0 { background-position: 0 0; }
 .atlas-1 { background-position: 100% 0; }
 .atlas-2 { background-position: 0 100%; }
 .atlas-3 { background-position: 100% 100%; }
+@keyframes atlas-shimmer { to { background-position-x: -220%; } }
 
 .how-it-works {
   width: min(1180px, calc(100% - 40px));
@@ -217,7 +252,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .test-card.featured { border-color: color-mix(in srgb, var(--test-accent) 48%, transparent); box-shadow: inset 0 3px var(--test-accent); }
 .test-card-image { position: relative; min-height: 100%; background: #ded9cc; }
 .test-card-image .atlas-image { position: absolute; inset: 0; background-size: 200% 200%; }
-.test-number, .popular-badge { position: absolute; z-index: 1; border-radius: 999px; backdrop-filter: blur(8px); }
+.test-number, .popular-badge { position: absolute; z-index: 3; border-radius: 999px; backdrop-filter: blur(8px); }
 .test-number { left: 13px; top: 13px; min-width: 34px; padding: 7px 9px; color: white; background: rgba(23,34,29,.72); text-align: center; font-size: 10px; letter-spacing: .08em; }
 .popular-badge { left: 13px; bottom: 13px; padding: 7px 10px; color: white; background: var(--test-accent); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; }
 .test-card-copy { display: flex; flex-direction: column; padding: 26px; }
@@ -253,19 +288,23 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
 .option-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 .option-card {
+  position: relative;
+  overflow: hidden;
   border: 1px solid transparent;
   border-radius: 24px;
   padding: 9px;
   background: rgba(255,255,255,0.68);
   text-align: left;
-  cursor: pointer;
   color: inherit;
   box-shadow: 0 12px 30px rgba(29,37,33,0.06);
   transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
 }
-.option-card:hover { transform: translateY(-4px); background: white; }
+@media (hover: hover) { .option-card:hover { transform: translateY(-4px); background: white; } }
 .option-card.selected { border-color: var(--forest); background: white; transform: translateY(-4px); }
+.option-image-trigger { position: relative; display: block; width: 100%; padding: 0; border: 0; border-radius: 17px; background: transparent; cursor: zoom-in; }
 .option-image { display: block; width: 100%; aspect-ratio: 0.86; border-radius: 17px; }
+.image-zoom-badge { position: absolute; right: 10px; top: 10px; z-index: 3; width: 31px; height: 31px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.62); border-radius: 50%; color: white; background: rgba(23,34,29,.68); backdrop-filter: blur(8px); font-size: 18px; box-shadow: 0 6px 18px rgba(0,0,0,.14); }
+.option-select { width: 100%; padding: 0; border: 0; color: inherit; background: transparent; text-align: left; cursor: pointer; }
 .option-meta { display: grid; grid-template-columns: 34px 1fr 22px; gap: 10px; align-items: center; padding: 14px 5px 8px; }
 .option-letter { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); font-size: 11px; font-weight: 800; }
 .option-meta strong, .option-meta small { display: block; }
@@ -276,6 +315,27 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .quiz-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 30px; }
 .text-button { border: 0; background: none; color: var(--muted); font-weight: 700; cursor: pointer; padding: 10px; }
 .text-button:disabled { opacity: 0.3; cursor: default; }
+
+.image-lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  padding: 24px;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  background: rgba(12,22,17,.84);
+  backdrop-filter: blur(14px);
+}
+.image-lightbox { position: relative; width: min(820px,100%); padding: 16px; border-radius: 30px; background: var(--paper); box-shadow: 0 36px 110px rgba(0,0,0,.4); }
+.image-lightbox-close { position: absolute; right: 24px; top: 24px; z-index: 4; width: 42px; height: 42px; border: 1px solid rgba(255,255,255,.5); border-radius: 50%; color: white; background: rgba(23,34,29,.7); cursor: pointer; font-size: 25px; backdrop-filter: blur(8px); }
+.image-lightbox-visual { width: 100%; aspect-ratio: 1.15 / 1; overflow: hidden; border-radius: 20px; background: #d8d7cf; touch-action: pinch-zoom; }
+.image-lightbox-image { width: 100%; height: 100%; }
+.image-lightbox-copy { padding: 20px 10px 6px; display: flex; align-items: center; justify-content: space-between; gap: 30px; }
+.image-lightbox-copy > div > span { color: var(--wine); font-size: 10px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+.image-lightbox-copy h2 { margin: 5px 0 3px; font: 500 30px/1.05 Georgia,serif; letter-spacing: -.035em; }
+.image-lightbox-copy p { margin: 0; color: var(--muted); font-size: 12px; }
+.image-lightbox-copy .primary-button { flex: 0 0 auto; }
 
 .gate-shell { min-height: 100vh; padding: 52px 20px; background: var(--forest); display: grid; place-items: center; }
 .email-gate { width: min(980px, 100%); display: grid; grid-template-columns: 1fr 1fr; background: var(--paper); border-radius: 34px; overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,0.24); }
@@ -659,12 +719,20 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .option-grid { gap: 9px; }
   .option-card { border-radius: 18px; padding: 6px; }
   .option-image { aspect-ratio: 1; border-radius: 13px; }
-  .option-meta { grid-template-columns: 28px 1fr; padding: 10px 2px 6px; gap: 7px; }
+  .option-meta { grid-template-columns: 28px minmax(0,1fr) 22px; padding: 10px 2px 6px; gap: 7px; }
   .option-letter { width: 26px; height: 26px; }
   .option-meta strong { font-size: 13px; }
   .option-meta small { display: none; }
-  .selection-mark { position: absolute; margin-left: -32px; margin-top: -112px; }
+  .selection-mark { width: 21px; height: 21px; }
+  .image-zoom-badge { right: 7px; top: 7px; width: 28px; height: 28px; font-size: 16px; }
   .quiz-actions { margin-top: 22px; }
+  .image-lightbox-backdrop { padding: 8px; align-items: center; }
+  .image-lightbox { padding: 8px; border-radius: 22px; }
+  .image-lightbox-close { right: 17px; top: 17px; width: 38px; height: 38px; }
+  .image-lightbox-visual { aspect-ratio: 1; border-radius: 16px; }
+  .image-lightbox-copy { padding: 16px 8px 8px; align-items: stretch; flex-direction: column; gap: 15px; }
+  .image-lightbox-copy h2 { font-size: 26px; }
+  .image-lightbox-copy .primary-button { width: 100%; }
   .gate-shell { padding: 16px; }
   .email-gate { grid-template-columns: 1fr; border-radius: 24px; }
   .result-teaser { min-height: 190px; padding: 22px; }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   calculateResult,
   type QuizQuestion,
@@ -11,6 +11,69 @@ import {
 } from "@/lib/quiz";
 
 type Stage = "home" | "quiz" | "email" | "result";
+
+type AtlasImageProps = {
+  path: string;
+  index: number;
+  className?: string;
+  loading?: "eager" | "lazy";
+  priority?: boolean;
+  sizes?: string;
+};
+
+const optimizedAtlases: Record<string, { full: string; compact: string }> = {
+  "/quiz/doors.png": { full: "/quiz/doors.webp", compact: "/quiz/doors-768.webp" },
+  "/quiz/landscapes.png": { full: "/quiz/landscapes.webp", compact: "/quiz/landscapes-768.webp" },
+  "/quiz/rooms.png": { full: "/quiz/rooms.webp", compact: "/quiz/rooms-768.webp" },
+  "/quiz/symbols.png": { full: "/quiz/symbols.webp", compact: "/quiz/symbols-768.webp" },
+};
+
+function AtlasImage({
+  path,
+  index,
+  className = "",
+  loading = "lazy",
+  priority = false,
+  sizes = "(max-width: 640px) 360px, 600px",
+}: AtlasImageProps) {
+  const [loadedPath, setLoadedPath] = useState("");
+  const optimized = optimizedAtlases[path];
+  const loaded = loadedPath === path;
+
+  return (
+    <span className={`atlas-image atlas-${index} ${loaded ? "is-loaded" : "is-loading"} ${className}`.trim()} aria-hidden="true">
+      <picture>
+        {optimized ? <source sizes={sizes} srcSet={`${optimized.compact} 768w, ${optimized.full} 1254w`} type="image/webp" /> : null}
+        <img
+          alt=""
+          decoding="async"
+          fetchPriority={priority ? "high" : "auto"}
+          height="1254"
+          loading={loading}
+          onLoad={() => setLoadedPath(path)}
+          sizes={sizes}
+          src={path}
+          width="1254"
+        />
+      </picture>
+    </span>
+  );
+}
+
+function preloadAtlas(path: string) {
+  if (typeof window === "undefined") return;
+  const optimized = optimizedAtlases[path];
+  const image = new Image();
+  image.decoding = "async";
+  if (optimized) {
+    image.srcset = `${optimized.compact} 768w, ${optimized.full} 1254w`;
+    image.sizes = "(max-width: 640px) 360px, 600px";
+    image.src = optimized.full;
+  } else {
+    image.src = path;
+  }
+  void image.decode().catch(() => undefined);
+}
 
 function getAttribution() {
   if (typeof window === "undefined") return { source: "direct", campaign: "" };
@@ -44,10 +107,40 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
   const [error, setError] = useState("");
   const [result, setResult] = useState<ResultProfile | null>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [zoomedOption, setZoomedOption] = useState<{
+    index: number;
+    label: string;
+    microcopy: string;
+    scoreKey: TraitKey;
+  } | null>(null);
   const [sessionId, setSessionId] = useState("");
+  const questionsCache = useRef(new Map<string, QuizQuestion[]>());
+  const questionRequests = useRef(new Map<string, Promise<QuizQuestion[]>>());
   const [attribution] = useState(() =>
     typeof window === "undefined" ? { source: "direct", campaign: "" } : getAttribution(),
   );
+
+  const loadQuestions = useCallback(async (testId: string) => {
+    const cached = questionsCache.current.get(testId);
+    if (cached?.length) return cached;
+    const pending = questionRequests.current.get(testId);
+    if (pending) return pending;
+    const request = (async () => {
+      const response = await fetch(`/api/questions?test=${encodeURIComponent(testId)}`, { cache: "no-store" });
+      const data = (await response.json()) as { error?: string; questions?: QuizQuestion[] };
+      if (!response.ok || !data.questions?.length) {
+        throw new Error(data.error ?? "This test is not available yet.");
+      }
+      questionsCache.current.set(testId, data.questions);
+      return data.questions;
+    })();
+    questionRequests.current.set(testId, request);
+    try {
+      return await request;
+    } finally {
+      questionRequests.current.delete(testId);
+    }
+  }, []);
 
   useEffect(() => {
     void fetch("/api/tests", { cache: "no-store" })
@@ -91,6 +184,38 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
   const progress = stage === "email" ? 100 : questions.length ? ((questionIndex + 1) / questions.length) * 100 : 0;
   const selectedOption = activeQuestion ? answers[activeQuestion.id] : undefined;
 
+  useEffect(() => {
+    if (!featuredTest || stage !== "home") return;
+    const timer = window.setTimeout(() => {
+      void loadQuestions(featuredTest.id)
+        .then((loadedQuestions) => {
+          if (loadedQuestions[0]) preloadAtlas(loadedQuestions[0].atlasPath);
+        })
+        .catch(() => undefined);
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [featuredTest, loadQuestions, stage]);
+
+  useEffect(() => {
+    if (stage !== "quiz") return;
+    const nextQuestion = questions[questionIndex + 1];
+    if (nextQuestion) preloadAtlas(nextQuestion.atlasPath);
+  }, [questionIndex, questions, stage]);
+
+  useEffect(() => {
+    if (!zoomedOption) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setZoomedOption(null);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [zoomedOption]);
+
   const previewImages = useMemo(() => {
     const atlas = featuredTest?.coverAtlasPath ?? "/quiz/doors.png";
     return [0, 1, 2, 3].map((index) => ({ atlas, index }));
@@ -100,13 +225,12 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
     setLoadingTest(test.id);
     setError("");
     try {
-      const response = await fetch(`/api/questions?test=${encodeURIComponent(test.id)}`, { cache: "no-store" });
-      const data = (await response.json()) as { error?: string; questions?: QuizQuestion[] };
-      if (!response.ok || !data.questions?.length) throw new Error(data.error ?? "This test is not available yet.");
+      const loadedQuestions = await loadQuestions(test.id);
+      preloadAtlas(loadedQuestions[0].atlasPath);
       const nextSession = crypto.randomUUID();
       setSessionId(nextSession);
       setSelectedTest(test);
-      setQuestions(data.questions);
+      setQuestions(loadedQuestions);
       setAnswers({});
       setQuestionIndex(0);
       setResult(null);
@@ -120,7 +244,7 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
       };
       void fetch("/api/events", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...payload, eventName: "session_started" }) });
       void fetch("/api/events", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...payload, eventName: "quiz_started", step: 1 }) });
-      void fetch("/api/events", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...payload, eventName: "question_viewed", step: 1, questionId: data.questions[0].id }) });
+      void fetch("/api/events", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...payload, eventName: "question_viewed", step: 1, questionId: loadedQuestions[0].id }) });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to open this test.");
@@ -190,6 +314,7 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
     setSessionId("");
     setEmail("");
     setError("");
+    setZoomedOption(null);
     window.history.replaceState({}, "", "/");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -213,7 +338,16 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
           </div>
 
           <div className="hero-mosaic" aria-label="A preview of four visual choices">
-            {previewImages.map((item) => <div className={`atlas-image atlas-${item.index}`} key={item.index} style={{ backgroundImage: `url(${item.atlas})` }} />)}
+            {previewImages.map((item) => (
+              <AtlasImage
+                index={item.index}
+                key={item.index}
+                loading="eager"
+                path={item.atlas}
+                priority={item.index === 0}
+                sizes="(max-width: 640px) 360px, 560px"
+              />
+            ))}
             <div className="mosaic-prompt">Which one feels safest?</div>
           </div>
         </section>
@@ -224,11 +358,11 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
             {tests.map((test, index) => (
               <article className={`test-card ${test.featured ? "featured" : ""}`} key={test.id} style={{ "--test-accent": test.accent } as React.CSSProperties}>
                 <div className="test-card-image">
-                  <span className="atlas-image atlas-0" style={{ backgroundImage: `url(${test.coverAtlasPath})` }} />
+                  <AtlasImage index={0} path={test.coverAtlasPath} sizes="(max-width: 640px) 236px, 380px" />
                   <span className="test-number">{String(index + 1).padStart(2, "0")}</span>
                   {test.featured ? <span className="popular-badge">Most popular</span> : null}
                 </div>
-                <div className="test-card-copy"><span>{test.kicker}</span><h3>{test.title}</h3><p>{test.description}</p><div><small>{test.questionCount || 4} questions · About 2 min</small><button aria-label={`Start ${test.title}`} disabled={loadingTest === test.id} onClick={() => void startTest(test)}>{loadingTest === test.id ? "…" : "Start →"}</button></div></div>
+                <div className="test-card-copy"><span>{test.kicker}</span><h3>{test.title}</h3><p>{test.description}</p><div><small>{test.questionCount || 4} questions · About 2 min</small><button aria-label={`Start ${test.title}`} disabled={loadingTest === test.id} onFocus={() => void loadQuestions(test.id).catch(() => undefined)} onPointerEnter={() => void loadQuestions(test.id).catch(() => undefined)} onTouchStart={() => void loadQuestions(test.id).catch(() => undefined)} onClick={() => void startTest(test)}>{loadingTest === test.id ? "…" : "Start →"}</button></div></div>
               </article>
             ))}
           </div>
@@ -253,11 +387,44 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
           <div className="option-grid" role="radiogroup" aria-label={activeQuestion.prompt}>
             {activeQuestion.options.map((option, index) => {
               const selected = selectedOption === option.scoreKey;
-              return <button aria-checked={selected} className={`option-card ${selected ? "selected" : ""}`} key={`${activeQuestion.id}-${index}`} onClick={() => chooseAnswer(option.scoreKey, option.label)} role="radio"><span className={`option-image atlas-image atlas-${index}`} style={{ backgroundImage: `url(${activeQuestion.atlasPath})` }} /><span className="option-meta"><span className="option-letter">{String.fromCharCode(65 + index)}</span><span><strong>{option.label}</strong><small>{option.microcopy}</small></span><span className="selection-mark" aria-hidden="true">✓</span></span></button>;
+              const letter = String.fromCharCode(65 + index);
+              return (
+                <article className={`option-card ${selected ? "selected" : ""}`} key={`${activeQuestion.id}-${index}`}>
+                  <button
+                    aria-label={`Enlarge choice ${letter}: ${option.label}`}
+                    className="option-image-trigger"
+                    onClick={() => {
+                      setZoomedOption({ index, label: option.label, microcopy: option.microcopy, scoreKey: option.scoreKey });
+                      track("image_zoomed", questionIndex + 1, activeQuestion.id, option.label);
+                    }}
+                    type="button"
+                  >
+                    <AtlasImage className="option-image" index={index} loading="eager" path={activeQuestion.atlasPath} priority={index === 0} />
+                    <span className="image-zoom-badge" aria-hidden="true">＋</span>
+                  </button>
+                  <button aria-checked={selected} className="option-select" onClick={() => chooseAnswer(option.scoreKey, option.label)} role="radio" type="button">
+                    <span className="option-meta"><span className="option-letter">{letter}</span><span><strong>{option.label}</strong><small>{option.microcopy}</small></span><span className="selection-mark" aria-hidden="true">✓</span></span>
+                  </button>
+                </article>
+              );
             })}
           </div>
           <div className="quiz-actions"><button className="text-button" disabled={questionIndex === 0} onClick={() => setQuestionIndex((index) => Math.max(0, index - 1))}>← Back</button><button className="primary-button" disabled={!selectedOption} onClick={continueQuiz}>{questionIndex === questions.length - 1 ? "See my result" : "Continue"} →</button></div>
         </section>
+        {zoomedOption ? (
+          <div className="image-lightbox-backdrop" role="presentation" onClick={() => setZoomedOption(null)}>
+            <section aria-describedby="image-lightbox-description" aria-labelledby="image-lightbox-title" aria-modal="true" className="image-lightbox" onClick={(event) => event.stopPropagation()} role="dialog">
+              <button aria-label="Close enlarged image" className="image-lightbox-close" onClick={() => setZoomedOption(null)} type="button">×</button>
+              <div className="image-lightbox-visual">
+                <AtlasImage className="image-lightbox-image" index={zoomedOption.index} loading="eager" path={activeQuestion.atlasPath} priority sizes="(max-width: 640px) 720px, 1100px" />
+              </div>
+              <div className="image-lightbox-copy">
+                <div><span>Choice {String.fromCharCode(65 + zoomedOption.index)}</span><h2 id="image-lightbox-title">{zoomedOption.label}</h2><p id="image-lightbox-description">{zoomedOption.microcopy}</p></div>
+                <button className="primary-button" onClick={() => { chooseAnswer(zoomedOption.scoreKey, zoomedOption.label); setZoomedOption(null); }} type="button">Choose this image →</button>
+              </div>
+            </section>
+          </div>
+        ) : null}
       </main>
     );
   }
