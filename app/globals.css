@@ -263,6 +263,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .test-card.featured { border-color: color-mix(in srgb, var(--test-accent) 48%, transparent); box-shadow: inset 0 3px var(--test-accent); }
 .test-card-image { position: relative; min-height: 100%; background: #ded9cc; }
 .test-card-image .atlas-image { position: absolute; inset: 0; background-size: 200% 200%; }
+.test-card-image .atlas-image img {
+  width: auto;
+  height: 200%;
+  left: 50%;
+  top: 0;
+  transform: translateX(-25%);
+}
 .test-number, .popular-badge { position: absolute; z-index: 3; border-radius: 999px; backdrop-filter: blur(8px); }
 .test-number { left: 13px; top: 13px; min-width: 34px; padding: 7px 9px; color: white; background: rgba(23,34,29,.72); text-align: center; font-size: 10px; letter-spacing: .08em; }
 .popular-badge { left: 13px; bottom: 13px; padding: 7px 10px; color: white; background: var(--test-accent); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; }
@@ -312,7 +319,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 @media (hover: hover) { .option-card:hover { transform: translateY(-4px); background: white; } }
 .option-card.selected { border-color: var(--forest); background: white; transform: translateY(-4px); }
 .option-image-trigger { position: relative; display: block; width: 100%; padding: 0; border: 0; border-radius: 17px; background: transparent; cursor: zoom-in; }
-.option-image { display: block; width: 100%; aspect-ratio: 0.86; border-radius: 17px; }
+.option-image { display: block; width: 100%; aspect-ratio: 1; border-radius: 17px; }
 .image-zoom-badge { position: absolute; right: 10px; top: 10px; z-index: 3; width: 31px; height: 31px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.62); border-radius: 50%; color: white; background: rgba(23,34,29,.68); backdrop-filter: blur(8px); font-size: 18px; box-shadow: 0 6px 18px rgba(0,0,0,.14); }
 .option-select { width: 100%; padding: 0; border: 0; color: inherit; background: transparent; text-align: left; cursor: pointer; }
 .option-meta { display: grid; grid-template-columns: 34px 1fr 22px; gap: 10px; align-items: center; padding: 14px 5px 8px; }
@@ -339,7 +346,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 }
 .image-lightbox { position: relative; width: min(820px,100%); padding: 16px; border-radius: 30px; background: var(--paper); box-shadow: 0 36px 110px rgba(0,0,0,.4); }
 .image-lightbox-close { position: absolute; right: 24px; top: 24px; z-index: 4; width: 42px; height: 42px; border: 1px solid rgba(255,255,255,.5); border-radius: 50%; color: white; background: rgba(23,34,29,.7); cursor: pointer; font-size: 25px; backdrop-filter: blur(8px); }
-.image-lightbox-visual { width: 100%; aspect-ratio: 1.15 / 1; overflow: hidden; border-radius: 20px; background: #d8d7cf; touch-action: pinch-zoom; }
+.image-lightbox-visual { width: 100%; aspect-ratio: 1; overflow: hidden; border-radius: 20px; background: #d8d7cf; touch-action: pinch-zoom; }
 .image-lightbox-image { width: 100%; height: 100%; }
 .image-lightbox-copy { padding: 20px 10px 6px; display: flex; align-items: center; justify-content: space-between; gap: 30px; }
 .image-lightbox-copy > div > span { color: var(--wine); font-size: 10px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
@@ -841,7 +848,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .hero-mosaic .atlas-image { border-radius: 18px; }
   .how-it-works { width: calc(100% - 28px); margin-bottom: 60px; padding: 28px 0; }
   .test-library { width: calc(100% - 28px); margin-bottom: 64px; }
-  .test-card { grid-template-columns: 132px 1fr; min-height: 238px; border-radius: 19px; }
+  .test-card { grid-template-columns: clamp(126px, 34vw, 144px) 1fr; min-height: 218px; border-radius: 19px; }
+  .test-card-image { width: calc(100% - 12px); min-height: 0; aspect-ratio: 4 / 5; align-self: center; margin-left: 10px; overflow: hidden; border-radius: 15px; }
+  .test-card-image .atlas-image { border-radius: inherit; }
   .test-card-copy { padding: 20px 17px; }
   .test-card-copy > span { font-size: 11px; line-height: 1.35; }
   .test-card-copy h3 { font-size: 24px; }

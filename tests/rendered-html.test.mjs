@@ -60,6 +60,8 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(admin, /导出分群 CSV/);
   assert.match(admin, /一个“测试”对应前台的一张测试卡/);
   assert.match(adminStyles, /\/\* Admin readability scale \*\//);
+  assert.match(adminStyles, /\.test-card-image \.atlas-image img/);
+  assert.match(adminStyles, /aspect-ratio: 4 \/ 5/);
   assert.match(adminStyles, /\.lead-table-cn \{ font-size: 13px; \}/);
   assert.match(store, /COUNT\(DISTINCT id\) AS users FROM quiz_sessions/);
   assert.match(store, /s\.answers_json/);
