@@ -638,8 +638,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .test-filter-bar select { min-width: 300px; border: 1px solid var(--admin-border); border-radius: 8px; padding: 9px 12px; background: white; color: var(--admin-text); }
 .test-filter-bar > span { color: var(--admin-muted); font-size: 9px; }
 .test-manager-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-.test-editor-card { display: grid; grid-template-columns: 145px 1fr; overflow: hidden; border: 1px solid var(--admin-border); border-radius: 15px; background: white; }
-.test-editor-cover { position: relative; min-height: 100%; background: #ddd8cc; }
+.test-editor-card { display: grid; grid-template-columns: 180px 1fr; align-items: start; overflow: hidden; border: 1px solid var(--admin-border); border-radius: 15px; background: white; }
+.test-editor-cover { position: relative; width: calc(100% - 32px); min-height: 0; aspect-ratio: 1; margin: 16px; overflow: hidden; border-radius: 13px; background: #ddd8cc; }
 .test-editor-cover .atlas-image { position: absolute; inset: 0; }
 .test-editor-cover b { position: absolute; left: 12px; top: 12px; padding: 6px 8px; border-radius: 99px; color: white; background: rgba(22,31,26,.76); font-size: 9px; }
 .test-editor-fields { display: grid; gap: 10px; padding: 18px; }
@@ -699,7 +699,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .metric-grid.five,.metric-grid.four { grid-template-columns:1fr 1fr; }.metric-card{min-height:122px;padding:15px}.metric-card>strong{font-size:29px}
   .admin-card{padding:16px}.seven-day-chart{height:220px;padding-inline:0;gap:5px}.bar-wrap{width:24px}.chart-legend{top:-15px}.source-list-cn>div{grid-template-columns:90px 1fr 24px}
   .question-summary-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.question-summary-strip small{grid-column:1/-1;margin:0}.question-editor-cn>header{padding:0 12px}.question-editor-body{grid-template-columns:1fr;padding:14px}.question-editor-body>aside{grid-template-columns:110px 1fr}.field-row.two{grid-template-columns:1fr}.option-editor-grid-cn section{grid-template-columns:1fr;padding-left:43px}.question-editor-cn>footer{padding:12px;gap:10px}.question-editor-cn>footer>div{margin-left:auto}.email-toolbar{align-items:stretch;flex-wrap:wrap}.email-search{width:100%}.email-toolbar>span{margin-left:0}.lead-table-cn{min-width:680px}.payment-provider-grid article{grid-template-columns:42px 1fr}.payment-provider-grid .status-tag{display:none}
-  .test-filter-bar{align-items:stretch;flex-direction:column}.test-filter-bar label{align-items:stretch;flex-direction:column}.test-filter-bar select{min-width:0;width:100%}.test-editor-card{grid-template-columns:90px 1fr}
+  .test-filter-bar{align-items:stretch;flex-direction:column}.test-filter-bar label{align-items:stretch;flex-direction:column}.test-filter-bar select{min-width:0;width:100%}.test-editor-card{grid-template-columns:96px 1fr}.test-editor-cover{width:calc(100% - 16px);margin:8px;border-radius:10px}
 }
 
 @media (max-width: 900px) {

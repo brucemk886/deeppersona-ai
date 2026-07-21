@@ -9,12 +9,13 @@ test("builds the complete Inner Atlas experience", async () => {
   await access(new URL("../public/quiz/doors.webp", import.meta.url));
   await access(new URL("../public/quiz/doors-768.webp", import.meta.url));
 
-  const [quiz, catalog, choiceInsights, deepResults, admin, layout, hosting] = await Promise.all([
+  const [quiz, catalog, choiceInsights, deepResults, admin, store, layout, hosting] = await Promise.all([
     readFile(new URL("../app/quiz-app.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/quiz.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/choice-insights.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/deep-results.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/admin-dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../db/quiz-store.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
   ]);
@@ -41,6 +42,9 @@ test("builds the complete Inner Atlas experience", async () => {
   assert.match(admin, /测试管理/);
   assert.match(admin, /题目管理/);
   assert.match(admin, /邮箱用户/);
+  assert.match(admin, /一个“测试”对应前台的一张测试卡/);
+  assert.match(store, /COUNT\(DISTINCT id\) AS users FROM quiz_sessions/);
+  assert.doesNotMatch(store, /COUNT\(DISTINCT session_id\) AS users FROM quiz_sessions/);
   assert.match(layout, /Visual Psychology Tests/);
   assert.match(hosting, /"d1": "DB"/);
   assert.doesNotMatch(quiz + layout, /codex-preview|react-loading-skeleton/);

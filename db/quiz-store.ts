@@ -370,7 +370,7 @@ export async function getAdminStats() {
   const db = getD1();
   const [funnel, sources, emails, totals, online, today, sevenDays, popularQuestions, popularTests] = await Promise.all([
     db.prepare(`SELECT event_name, COUNT(DISTINCT session_id) AS users FROM quiz_events GROUP BY event_name`).all<{ event_name: string; users: number }>(),
-    db.prepare(`SELECT COALESCE(source, 'direct') AS source, COUNT(DISTINCT session_id) AS users FROM quiz_sessions GROUP BY COALESCE(source, 'direct') ORDER BY users DESC LIMIT 8`).all<{ source: string; users: number }>(),
+    db.prepare(`SELECT COALESCE(source, 'direct') AS source, COUNT(DISTINCT id) AS users FROM quiz_sessions GROUP BY COALESCE(source, 'direct') ORDER BY users DESC LIMIT 8`).all<{ source: string; users: number }>(),
     db.prepare(`SELECT s.email, s.marketing_consent, s.result_type, s.source, s.completed_at, s.test_id, COALESCE(t.title, s.test_id) AS test_title
       FROM quiz_sessions s LEFT JOIN quiz_tests t ON t.id = s.test_id
       WHERE s.email IS NOT NULL ORDER BY s.completed_at DESC LIMIT 500`).all<{ completed_at: string; email: string; marketing_consent: number; result_type: string; source: string | null; test_id: string | null; test_title: string | null }>(),

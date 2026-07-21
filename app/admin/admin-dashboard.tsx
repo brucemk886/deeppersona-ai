@@ -605,7 +605,7 @@ function TestManager({
   return (
     <>
       <div className="admin-page-heading">
-        <div><span className="admin-kicker">内容产品</span><h1>测试管理</h1><p>管理海外用户看到的英文标题、简介、封面、顺序和上下线状态。</p></div>
+        <div><span className="admin-kicker">内容产品</span><h1>测试管理</h1><p>一个“测试”对应前台的一张测试卡和完整测试入口；这里管理标题、简介、封面、排序、推荐和上下线，不编辑测试内部题目。</p></div>
       </div>
       <div className="question-summary-strip">
         <span><strong>{tests.length}</strong>全部测试</span>
@@ -662,7 +662,7 @@ function QuestionManager({
   return (
     <>
       <div className="admin-page-heading question-heading-admin">
-        <div><span className="admin-kicker">测评内容</span><h1>题目管理</h1><p>新增、编辑、排序和上下线图片题目。保存后用户端立即生效。</p></div>
+        <div><span className="admin-kicker">测评内容</span><h1>题目管理</h1><p>管理所选测试内部的每一道图片题、A/B/C/D 选项、选择含义和投射解读。保存后用户端立即生效。</p></div>
         <button className="admin-primary-button" onClick={addQuestion}>＋ 新增题目</button>
       </div>
       <div className="test-filter-bar">
