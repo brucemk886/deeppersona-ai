@@ -374,7 +374,7 @@ export function AdminDashboard({
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `inner-atlas-emails-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.download = `deep-persona-ai-emails-${new Date().toISOString().slice(0, 10)}.csv`;
     anchor.click();
     URL.revokeObjectURL(url);
   }
@@ -383,8 +383,8 @@ export function AdminDashboard({
     <main className="admin-shell admin-cn">
       <aside className="admin-sidebar">
         <Link className="admin-logo" href="/">
-          <span className="brand-mark">IA</span>
-          <span><strong>Inner Atlas</strong><small>运营管理后台</small></span>
+          <span className="brand-mark">DP</span>
+          <span><strong>DeepPersona AI</strong><small>运营管理后台</small></span>
         </Link>
         <nav className="admin-side-nav" aria-label="后台导航">
           <span className="admin-nav-label">工作台</span>
@@ -419,7 +419,7 @@ export function AdminDashboard({
       <div className="admin-workspace">
         <header className="admin-topbar">
           <div>
-            <small>Inner Atlas / {navigation.find((item) => item.id === activeSection)?.label}</small>
+            <small>DeepPersona AI / {navigation.find((item) => item.id === activeSection)?.label}</small>
             <strong>{navigation.find((item) => item.id === activeSection)?.label}</strong>
           </div>
           <div className="topbar-actions">

@@ -334,7 +334,7 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
     return (
       <main className="landing-shell">
         <nav className="nav-bar" aria-label="Main navigation">
-          <a className="brand" href="#top" aria-label="Inner Atlas home"><span className="brand-mark">IA</span><span>Inner Atlas</span></a>
+          <a className="brand" href="#top" aria-label="DeepPersona AI home"><span className="brand-mark">DP</span><span>DeepPersona AI</span></a>
           <a className="nav-note nav-link" href="#tests">Explore 8 visual tests ↓</a>
         </nav>
 
@@ -380,7 +380,7 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
         </section>
 
         <section className="how-it-works"><span>01 · Notice</span><p>Let your eyes land before your reasoning catches up.</p><span>02 · Choose</span><p>Pick the image that creates the strongest first response.</p><span>03 · Reveal</span><p>Get your type, strength, watchout, and a practical next step.</p></section>
-        <footer className="site-footer"><span>Inner Atlas © 2026</span><span>For self-reflection, not clinical diagnosis.</span><Link href="/admin">Admin</Link></footer>
+        <footer className="site-footer site-footer-expanded"><div><strong>DeepPersona AI © 2026</strong><span>For self-reflection, not clinical diagnosis.</span></div><nav aria-label="Legal and support links"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds & delivery</Link><Link href="/disclaimer">Disclaimer</Link><Link href="/contact">Contact</Link><Link href="/admin">Admin</Link></nav></footer>
       </main>
     );
   }
@@ -389,7 +389,7 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
     return (
       <main className="quiz-shell">
         <header className="quiz-header">
-          <button className="brand brand-button" onClick={returnHome}><span className="brand-mark">IA</span><span>Inner Atlas</span></button>
+          <button className="brand brand-button" onClick={returnHome}><span className="brand-mark">DP</span><span>DeepPersona AI</span></button>
           <div className="progress-copy"><span>{selectedTest.title} · {questionIndex + 1} of {questions.length}</span><span>{Math.round(progress)}%</span></div>
           <div className="progress-track"><span style={{ width: `${progress}%`, background: selectedTest.accent }} /></div>
         </header>
@@ -454,11 +454,11 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
             <input autoComplete="email" id="email" onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required type="email" value={email} />
             <label className="consent-row">
               <input checked={marketingConsent} name="marketingConsent" onChange={(event) => setMarketingConsent(event.target.checked)} type="checkbox" />
-              <span><strong>Send me the Inner Atlas weekly reflection</strong><small>One practical prompt plus new visual tests by email. Optional, and you can unsubscribe anytime.</small></span>
+              <span><strong>Send me the DeepPersona AI weekly reflection</strong><small>One practical prompt plus new visual tests by email. Optional, and you can unsubscribe anytime.</small></span>
             </label>
             {error ? <p className="form-error" role="alert">{error}</p> : null}
             <button className="primary-button full-button" disabled={submitting} type="submit">{submitting ? "Building your profile…" : "Reveal my full profile →"}</button>
-            <small className="privacy-note">Your result unlock is not conditional on marketing consent.</small>
+            <small className="privacy-note">Your result unlock is not conditional on marketing consent. By continuing, you acknowledge our <Link href="/privacy">Privacy Policy</Link> and <Link href="/terms">Terms</Link>.</small>
           </form>
         </section>
       </main>
@@ -474,7 +474,7 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
 
   return (
     <main className="result-shell">
-      <nav className="nav-bar"><button className="brand brand-button" onClick={returnHome}><span className="brand-mark">IA</span><span>Inner Atlas</span></button><button className="text-button" onClick={() => window.print()}>Save profile</button></nav>
+      <nav className="nav-bar"><button className="brand brand-button" onClick={returnHome}><span className="brand-mark">DP</span><span>DeepPersona AI</span></button><button className="text-button" onClick={() => window.print()}>Save profile</button></nav>
       {result && selectedTest && deepResult ? (
         <article className="result-card result-card-expanded">
           <span className="result-test-name">{selectedTest.title}</span>
@@ -523,7 +523,7 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
       ) : null}
       <section className="premium-card"><div><span className="premium-label">Coming next · Cross-test report</span><h2>Connect your patterns across all eight tests.</h2><p>A combined projection map showing repeated choices, contradictions between profiles, and the situations that change your response.</p></div><button className="premium-button" onClick={() => { setShowUpgrade(true); track("upgrade_clicked", questions.length + 3); }}>Preview combined report <span>↗</span></button></section>
       <button className="retake-button" onClick={returnHome}>Explore another test</button>
-      {showUpgrade ? <div className="modal-backdrop" role="presentation" onClick={() => setShowUpgrade(false)}><div className="upgrade-modal" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" onClick={(event) => event.stopPropagation()}><button className="modal-close" aria-label="Close" onClick={() => setShowUpgrade(false)}>×</button><span className="result-seal">Premium preview</span><h2 id="upgrade-title">Your deeper report is almost here.</h2><p>The checkout hook is ready for Creem or Stripe. Payments stay disabled until a provider is connected.</p><div className="premium-list"><span>✓ Every choice explained in context</span><span>✓ Repeated relationship and stress signals</span><span>✓ Contradictions that reveal when your pattern changes</span></div><button className="primary-button full-button" disabled>Checkout coming soon</button></div></div> : null}
+      {showUpgrade ? <div className="modal-backdrop" role="presentation" onClick={() => setShowUpgrade(false)}><div className="upgrade-modal" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" onClick={(event) => event.stopPropagation()}><button className="modal-close" aria-label="Close" onClick={() => setShowUpgrade(false)}>×</button><span className="result-seal">Premium preview</span><h2 id="upgrade-title">Your deeper report is almost here.</h2><p>The checkout hook is ready for Creem or Stripe. Payments stay disabled until a provider is connected.</p><div className="premium-list"><span>✓ Every choice explained in context</span><span>✓ Repeated relationship and stress signals</span><span>✓ Contradictions that reveal when your pattern changes</span></div><button className="primary-button full-button" disabled>Checkout coming soon</button><p className="checkout-legal">Future purchases will be subject to our <Link href="/terms">Terms</Link>, <Link href="/privacy">Privacy Policy</Link>, and <Link href="/refunds">Refund & Delivery Policy</Link>.</p></div></div> : null}
     </main>
   );
 }

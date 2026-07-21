@@ -10,21 +10,21 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     metadataBase,
-    title: "Inner Atlas — Visual Psychology Tests",
+    title: "DeepPersona AI — Visual Psychology Tests",
     description:
       "Eight short visual tests reveal how you connect, reset, set boundaries, and move through relationships.",
-    applicationName: "Inner Atlas",
+    applicationName: "DeepPersona AI",
     openGraph: {
       title: "One image can say what words miss.",
-      description: "Explore eight 2-minute visual psychology tests from Inner Atlas.",
+      description: "Explore eight 2-minute visual psychology tests from DeepPersona AI.",
       type: "website",
-      images: metadataBase ? [{ url: new URL("/og-v2.png", metadataBase) }] : undefined,
+      images: metadataBase ? [{ url: new URL("/og-deep-persona.png", metadataBase) }] : undefined,
     },
     twitter: {
       card: "summary_large_image",
       title: "One image can say what words miss.",
-      description: "Explore eight 2-minute visual psychology tests from Inner Atlas.",
-      images: metadataBase ? [new URL("/og-v2.png", metadataBase)] : undefined,
+      description: "Explore eight 2-minute visual psychology tests from DeepPersona AI.",
+      images: metadataBase ? [new URL("/og-deep-persona.png", metadataBase)] : undefined,
     },
     robots: { index: true, follow: true },
   };
