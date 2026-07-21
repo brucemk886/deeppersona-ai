@@ -380,10 +380,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .choice-review-copy > div:not(.choice-review-meta) { padding: 12px 0; border-top: 1px solid var(--line); }
 .choice-review-copy > div:not(.choice-review-meta) > strong { display: block; margin-bottom: 5px; color: var(--wine); font-size: 9px; letter-spacing: .07em; text-transform: uppercase; }
 .choice-review-copy > div:not(.choice-review-meta) p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
-.insight-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 18px; text-align: left; }
-.insight-grid section { padding: 24px; border-radius: 20px; background: #f5f1e8; }
-.insight-grid span { color: var(--wine); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-.insight-grid p { font-size: 13px; line-height: 1.6; margin: 12px 0 0; }
 .pattern-lens { margin-top: 18px; padding: 34px; border-radius: 24px; color: white; background: #6f293b; text-align: left; }
 .pattern-lens > span { color: #e8d4a3; }
 .pattern-lens h2 { max-width: 720px; color: white; font-size: 34px; }
@@ -778,7 +774,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .choice-review-copy h3 { margin-top: 8px; font-size: 23px; }
   .choice-review-question { font-size: 9px; }
   .choice-review-copy > div:not(.choice-review-meta) p { font-size: 11px; }
-  .insight-grid { grid-template-columns: 1fr; margin-top: 36px; }
   .pattern-lens { padding: 26px 22px; }
   .pattern-lens h2 { font-size: 29px; }
   .deep-insight-grid { grid-template-columns: 1fr; }

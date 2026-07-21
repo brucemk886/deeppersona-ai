@@ -505,12 +505,6 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
             </div>
           </section>
 
-          <div className="insight-grid">
-            <section><span>Natural strength</span><p>{result.strength}</p></section>
-            <section><span>Watch for</span><p>{result.watchout}</p></section>
-            <section><span>Start here</span><p>{result.nextStep}</p></section>
-          </div>
-
           <section className="pattern-lens">
             <span>What this test is actually noticing</span>
             <h2>{deepResult.lens.title}</h2>

@@ -30,6 +30,7 @@ test("builds the complete Inner Atlas experience", async () => {
   assert.match(quiz, /What this choice represents/);
   assert.match(quiz, /Your projection/);
   assert.doesNotMatch(quiz, /7-day|30-day|Your four-choice pattern/);
+  assert.doesNotMatch(quiz, /Natural strength|Watch for|Start here/);
   assert.match(quiz, /marketingConsent, setMarketingConsent\] = useState\(false\)/);
   assert.match(deepResults, /How you try to restore safety in closeness/);
   assert.match(choiceInsights, /getOptionInsight/);
