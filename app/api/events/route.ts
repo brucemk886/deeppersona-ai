@@ -20,6 +20,7 @@ export async function POST(request: Request) {
     sessionId?: string;
     source?: string;
     step?: number;
+    testId?: string;
   };
   if (
     !body.sessionId ||
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
     step: body.step,
     source: body.source?.slice(0, 120),
     campaign: body.campaign?.slice(0, 160),
+    testId: body.testId?.slice(0, 100),
   });
   return Response.json({ ok: true });
 }

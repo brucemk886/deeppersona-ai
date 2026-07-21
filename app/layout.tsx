@@ -10,21 +10,21 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     metadataBase,
-    title: "Inner Atlas — Visual Personality Test",
+    title: "Inner Atlas — Visual Psychology Tests",
     description:
-      "Four instinctive image choices reveal how you move through possibility, connection, structure, and creativity.",
+      "Eight short visual tests reveal how you connect, reset, set boundaries, and move through relationships.",
     applicationName: "Inner Atlas",
     openGraph: {
-      title: "What pulls you in says more than you think.",
-      description: "Take the 2-minute Inner Atlas visual personality test.",
+      title: "One image can say what words miss.",
+      description: "Explore eight 2-minute visual psychology tests from Inner Atlas.",
       type: "website",
-      images: metadataBase ? [{ url: new URL("/og.png", metadataBase) }] : undefined,
+      images: metadataBase ? [{ url: new URL("/og-v2.png", metadataBase) }] : undefined,
     },
     twitter: {
       card: "summary_large_image",
-      title: "What pulls you in says more than you think.",
-      description: "Take the 2-minute Inner Atlas visual personality test.",
-      images: metadataBase ? [new URL("/og.png", metadataBase)] : undefined,
+      title: "One image can say what words miss.",
+      description: "Explore eight 2-minute visual psychology tests from Inner Atlas.",
+      images: metadataBase ? [new URL("/og-v2.png", metadataBase)] : undefined,
     },
     robots: { index: true, follow: true },
   };

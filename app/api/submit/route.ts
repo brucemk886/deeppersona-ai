@@ -12,6 +12,7 @@ export async function POST(request: Request) {
     resultType?: TraitKey;
     sessionId?: string;
     source?: string;
+    testId?: string;
   };
 
   if (
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
     !emailPattern.test(body.email) ||
     !body.answers ||
     !body.resultType ||
+    !body.testId ||
     !TRAIT_KEYS.includes(body.resultType)
   ) {
     return Response.json({ error: "Please provide a valid email." }, { status: 400 });
@@ -33,6 +35,7 @@ export async function POST(request: Request) {
     resultType: body.resultType,
     source: body.source?.slice(0, 120),
     campaign: body.campaign?.slice(0, 160),
+    testId: body.testId.slice(0, 100),
   });
   return Response.json({ ok: true, resultType: body.resultType });
 }

@@ -6,7 +6,9 @@ import { TRAIT_KEYS, type QuizQuestion } from "@/lib/quiz";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const includeInactive = new URL(request.url).searchParams.get("all") === "1";
+  const url = new URL(request.url);
+  const includeInactive = url.searchParams.get("all") === "1";
+  const testId = url.searchParams.get("test")?.slice(0, 100);
   if (includeInactive) {
     const user = await getChatGPTUser();
     if (!user || !isAdminEmail(user.email)) {
@@ -15,7 +17,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    return Response.json({ questions: await listQuestions(includeInactive) });
+    return Response.json({ questions: await listQuestions(testId, includeInactive) });
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Unable to load questions" },
@@ -33,6 +35,7 @@ export async function PUT(request: Request) {
   const body = (await request.json()) as QuizQuestion;
   const valid =
     typeof body.id === "string" &&
+    typeof body.testId === "string" &&
     typeof body.prompt === "string" &&
     typeof body.kicker === "string" &&
     typeof body.atlasPath === "string" &&

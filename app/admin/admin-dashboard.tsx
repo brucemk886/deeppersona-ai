@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import type { QuizQuestion, TraitKey } from "@/lib/quiz";
+import type { QuizQuestion, QuizTest, TraitKey } from "@/lib/quiz";
 
-type AdminSection = "overview" | "questions" | "traffic" | "emails" | "payments";
+type AdminSection = "overview" | "tests" | "questions" | "traffic" | "emails" | "payments";
 
 type Stats = {
   funnel: { event_name: string; users: number }[];
@@ -15,9 +15,12 @@ type Stats = {
     marketing_consent: number;
     result_type: string;
     source: string | null;
+    test_id: string | null;
+    test_title: string | null;
   }[];
   onlineNow: number;
   popularQuestions: { answers: number; prompt: string; question_id: string; users: number }[];
+  popularTests: { test_id: string; title: string; users: number }[];
   sevenDays: { day: string; leads: number; sessions: number }[];
   today: { leads: number; sessions: number };
   totals: { consented: number; leads: number; sessions: number };
@@ -25,6 +28,7 @@ type Stats = {
 
 const navigation: { id: AdminSection; icon: string; label: string }[] = [
   { id: "overview", icon: "概", label: "数据概览" },
+  { id: "tests", icon: "测", label: "测试管理" },
   { id: "questions", icon: "题", label: "题目管理" },
   { id: "traffic", icon: "流", label: "流量分析" },
   { id: "emails", icon: "邮", label: "邮箱用户" },
@@ -80,6 +84,8 @@ export function AdminDashboard({
   const [activeSection, setActiveSection] = useState<AdminSection>("overview");
   const [stats, setStats] = useState<Stats | null>(null);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [tests, setTests] = useState<QuizTest[]>([]);
+  const [selectedTestId, setSelectedTestId] = useState("");
   const [savingId, setSavingId] = useState("");
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
@@ -89,17 +95,21 @@ export function AdminDashboard({
   const loadData = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
     try {
-      const [statsResponse, questionsResponse] = await Promise.all([
+      const [statsResponse, questionsResponse, testsResponse] = await Promise.all([
         fetch("/api/admin/stats", { cache: "no-store" }),
         fetch("/api/questions?all=1", { cache: "no-store" }),
+        fetch("/api/tests?all=1", { cache: "no-store" }),
       ]);
-      if (!statsResponse.ok || !questionsResponse.ok) throw new Error("后台数据读取失败");
-      const [statsData, questionData] = await Promise.all([
+      if (!statsResponse.ok || !questionsResponse.ok || !testsResponse.ok) throw new Error("后台数据读取失败");
+      const [statsData, questionData, testData] = await Promise.all([
         statsResponse.json() as Promise<Stats>,
         questionsResponse.json() as Promise<{ questions: QuizQuestion[] }>,
+        testsResponse.json() as Promise<{ tests: QuizTest[] }>,
       ]);
       setStats(statsData);
       setQuestions(questionData.questions ?? []);
+      setTests(testData.tests ?? []);
+      setSelectedTestId((current) => current || testData.tests?.[0]?.id || "");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "后台数据读取失败");
     } finally {
@@ -171,10 +181,15 @@ export function AdminDashboard({
   }
 
   function addQuestion() {
+    if (!selectedTestId) {
+      showNotice("请先选择一个测试");
+      return;
+    }
     const id = `question-${Date.now()}`;
-    const position = Math.max(0, ...questions.map((question) => question.position)) + 1;
+    const position = Math.max(0, ...questions.filter((question) => question.testId === selectedTestId).map((question) => question.position)) + 1;
     const question: QuizQuestion = {
       id,
+      testId: selectedTestId,
       kicker: "凭第一感觉选择",
       prompt: "在这里填写新题目",
       atlasPath: "/quiz/landscapes.png",
@@ -206,6 +221,28 @@ export function AdminDashboard({
     }
   }
 
+  function updateTest(id: string, next: Partial<QuizTest>) {
+    setTests((current) => current.map((test) => (test.id === id ? { ...test, ...next } : test)));
+  }
+
+  async function saveTest(test: QuizTest) {
+    setSavingId(test.id);
+    try {
+      const response = await fetch("/api/tests", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(test),
+      });
+      if (!response.ok) throw new Error("保存失败");
+      showNotice(test.active ? "测试已保存并上线" : "测试草稿已保存");
+      await loadData(true);
+    } catch (error) {
+      showNotice(error instanceof Error ? error.message : "保存失败");
+    } finally {
+      setSavingId("");
+    }
+  }
+
   async function removeQuestion(question: QuizQuestion) {
     if (!window.confirm(`确定删除“${question.prompt}”吗？此操作不可撤销。`)) return;
     const response = await fetch(`/api/questions?id=${encodeURIComponent(question.id)}`, {
@@ -225,9 +262,10 @@ export function AdminDashboard({
       return `"${safe}"`;
     };
     const rows = [
-      ["邮箱", "人格类型", "流量来源", "营销授权", "提交时间"],
+      ["邮箱", "测试名称", "结果类型", "流量来源", "营销授权", "提交时间"],
       ...filteredEmails.map((lead) => [
         lead.email,
+        lead.test_title ?? lead.test_id ?? "未知测试",
         resultNames[lead.result_type] ?? lead.result_type,
         lead.source ?? "direct",
         lead.marketing_consent ? "已授权" : "仅查看结果",
@@ -252,7 +290,7 @@ export function AdminDashboard({
         </Link>
         <nav className="admin-side-nav" aria-label="后台导航">
           <span className="admin-nav-label">工作台</span>
-          {navigation.slice(0, 4).map((item) => (
+          {navigation.slice(0, 5).map((item) => (
             <button
               className={activeSection === item.id ? "active" : ""}
               key={item.id}
@@ -263,7 +301,7 @@ export function AdminDashboard({
             </button>
           ))}
           <span className="admin-nav-label second">系统</span>
-          {navigation.slice(4).map((item) => (
+          {navigation.slice(5).map((item) => (
             <button
               className={activeSection === item.id ? "active" : ""}
               key={item.id}
@@ -318,12 +356,24 @@ export function AdminDashboard({
           {activeSection === "questions" ? (
             <QuestionManager
               addQuestion={addQuestion}
-              questions={questions}
+              questions={questions.filter((question) => question.testId === selectedTestId)}
               removeQuestion={removeQuestion}
               saveQuestion={saveQuestion}
+              selectedTestId={selectedTestId}
+              setSelectedTestId={setSelectedTestId}
               savingId={savingId}
+              tests={tests}
               updateOption={updateOption}
               updateQuestion={updateQuestion}
+            />
+          ) : null}
+
+          {activeSection === "tests" ? (
+            <TestManager
+              saveTest={saveTest}
+              savingId={savingId}
+              tests={tests}
+              updateTest={updateTest}
             />
           ) : null}
 
@@ -405,6 +455,10 @@ function Overview({
           <CardHeader title="主要流量来源" subtitle="用于 TikTok 矩阵账号归因" />
           <SourceList sources={stats?.sources ?? []} />
         </div>
+      </section>
+      <section className="admin-card traffic-full">
+        <CardHeader title="热门测试排行" subtitle="按照开始测试的独立用户数排序" />
+        <PopularTests items={stats?.popularTests ?? []} />
       </section>
     </>
   );
@@ -489,6 +543,22 @@ function PopularQuestions({ items }: { items: Stats["popularQuestions"] }) {
   );
 }
 
+function PopularTests({ items }: { items: Stats["popularTests"] }) {
+  if (!items.length) return <EmptyState title="暂无热门测试数据" text="首批测试上线后，会自动按开始人数排序。" />;
+  const max = Math.max(1, ...items.map((item) => item.users));
+  return (
+    <div className="popular-list">
+      {items.map((item, index) => (
+        <div className="popular-row" key={item.test_id}>
+          <span className="rank">{String(index + 1).padStart(2, "0")}</span>
+          <div><strong>{item.title}</strong><span><i style={{ width: `${(item.users / max) * 100}%` }} /></span></div>
+          <b>{item.users} 人</b>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SourceList({ sources }: { sources: Stats["sources"] }) {
   if (!sources.length) return <EmptyState title="暂无来源数据" text="带 UTM 或 ttclid 的访问会自动归因。" />;
   const max = Math.max(1, ...sources.map((source) => source.users));
@@ -505,12 +575,60 @@ function SourceList({ sources }: { sources: Stats["sources"] }) {
   );
 }
 
+function TestManager({
+  saveTest,
+  savingId,
+  tests,
+  updateTest,
+}: {
+  saveTest: (test: QuizTest) => Promise<void>;
+  savingId: string;
+  tests: QuizTest[];
+  updateTest: (id: string, next: Partial<QuizTest>) => void;
+}) {
+  return (
+    <>
+      <div className="admin-page-heading">
+        <div><span className="admin-kicker">内容产品</span><h1>测试管理</h1><p>管理海外用户看到的英文标题、简介、封面、顺序和上下线状态。</p></div>
+      </div>
+      <div className="question-summary-strip">
+        <span><strong>{tests.length}</strong>全部测试</span>
+        <span><strong>{tests.filter((item) => item.active).length}</strong>已上线</span>
+        <span><strong>{tests.reduce((sum, item) => sum + (item.questionCount ?? 0), 0)}</strong>上线题目</span>
+        <small>前台保持英文；这里使用中文操作提示。</small>
+      </div>
+      <div className="test-manager-grid">
+        {tests.map((test, index) => (
+          <article className="test-editor-card" key={test.id}>
+            <div className="test-editor-cover">
+              <span className="atlas-image atlas-0" style={{ backgroundImage: `url(${test.coverAtlasPath})` }} />
+              <b>{String(index + 1).padStart(2, "0")}</b>
+            </div>
+            <div className="test-editor-fields">
+              <div className="test-editor-status"><small>ID: {test.id}</small><label className="status-switch"><input checked={test.active} onChange={(event) => updateTest(test.id, { active: event.target.checked })} type="checkbox" /><i /><span>{test.active ? "已上线" : "草稿"}</span></label></div>
+              <label>英文标题<input value={test.title} onChange={(event) => updateTest(test.id, { title: event.target.value })} /></label>
+              <label>英文分类标签<input value={test.kicker} onChange={(event) => updateTest(test.id, { kicker: event.target.value })} /></label>
+              <label>英文简介<textarea rows={3} value={test.description} onChange={(event) => updateTest(test.id, { description: event.target.value })} /></label>
+              <div className="field-row two"><label>封面拼图地址<input list="atlas-paths" value={test.coverAtlasPath} onChange={(event) => updateTest(test.id, { coverAtlasPath: event.target.value })} /></label><label>排序<input min="1" type="number" value={test.position} onChange={(event) => updateTest(test.id, { position: Number(event.target.value) })} /></label></div>
+              <label className="featured-checkbox"><input checked={test.featured} onChange={(event) => updateTest(test.id, { featured: event.target.checked })} type="checkbox" />设为首页主推测试</label>
+              <button className="admin-primary-button" disabled={savingId === test.id} onClick={() => void saveTest(test)}>{savingId === test.id ? "保存中…" : "保存测试"}</button>
+            </div>
+          </article>
+        ))}
+      </div>
+    </>
+  );
+}
+
 function QuestionManager({
   addQuestion,
   questions,
   removeQuestion,
   saveQuestion,
+  selectedTestId,
+  setSelectedTestId,
   savingId,
+  tests,
   updateOption,
   updateQuestion,
 }: {
@@ -518,7 +636,10 @@ function QuestionManager({
   questions: QuizQuestion[];
   removeQuestion: (question: QuizQuestion) => Promise<void>;
   saveQuestion: (question: QuizQuestion) => Promise<void>;
+  selectedTestId: string;
+  setSelectedTestId: (value: string) => void;
   savingId: string;
+  tests: QuizTest[];
   updateOption: (id: string, index: number, next: { label?: string; microcopy?: string; scoreKey?: TraitKey }) => void;
   updateQuestion: (id: string, next: Partial<QuizQuestion>) => void;
 }) {
@@ -527,6 +648,10 @@ function QuestionManager({
       <div className="admin-page-heading question-heading-admin">
         <div><span className="admin-kicker">测评内容</span><h1>题目管理</h1><p>新增、编辑、排序和上下线图片题目。保存后用户端立即生效。</p></div>
         <button className="admin-primary-button" onClick={addQuestion}>＋ 新增题目</button>
+      </div>
+      <div className="test-filter-bar">
+        <label>当前测试<select value={selectedTestId} onChange={(event) => setSelectedTestId(event.target.value)}>{tests.map((test) => <option key={test.id} value={test.id}>{test.title}（{test.questionCount ?? 0} 题）</option>)}</select></label>
+        <span>下方只显示当前测试的题目；所有面向用户的文案请填写英文。</span>
       </div>
       <div className="question-summary-strip">
         <span><strong>{questions.length}</strong>全部题目</span>
@@ -583,7 +708,7 @@ function TrafficPanel({ chartMax, funnel, funnelMax, stats }: { chartMax: number
       <section className="metric-grid four"><MetricCard accent="green" label="当前在线" value={stats?.onlineNow ?? 0} note="近 5 分钟活跃" live /><MetricCard label="今日流量" value={stats?.today.sessions ?? 0} note={`邮箱 ${stats?.today.leads ?? 0}`} /><MetricCard label="累计会话" value={stats?.totals.sessions ?? 0} note="全部来源" /><MetricCard accent="wine" label="累计邮箱" value={stats?.totals.leads ?? 0} note="完成邮箱解锁" /></section>
       <section className="admin-card chart-card traffic-full"><CardHeader title="最近 7 日流量趋势" subtitle="每天的访问与邮箱提交" /><SevenDayChart data={stats?.sevenDays ?? []} max={chartMax} /></section>
       <section className="dashboard-two-column equal"><div className="admin-card"><CardHeader title="流量来源" subtitle="来源参数与直接访问" /><SourceList sources={stats?.sources ?? []} /></div><div className="admin-card"><CardHeader title="完整转化漏斗" subtitle="发现具体流失节点" /><Funnel funnel={funnel} max={funnelMax} /></div></section>
-      <section className="admin-card traffic-full"><CardHeader title="热门题目排行" subtitle="用户选择最多的题目" /><PopularQuestions items={stats?.popularQuestions ?? []} /></section>
+      <section className="dashboard-two-column equal"><div className="admin-card"><CardHeader title="热门测试排行" subtitle="开始测试的独立用户" /><PopularTests items={stats?.popularTests ?? []} /></div><div className="admin-card"><CardHeader title="热门题目排行" subtitle="用户选择最多的题目" /><PopularQuestions items={stats?.popularQuestions ?? []} /></div></section>
     </>
   );
 }
@@ -594,7 +719,7 @@ function EmailPanel({ consentOnly, emailSearch, emails, exportEmails, setConsent
       <div className="admin-page-heading"><div><span className="admin-kicker">用户资产</span><h1>邮箱用户</h1><p>查看测试结果、来源和邮件营销授权状态。</p></div><button className="admin-primary-button" onClick={exportEmails}>导出 CSV</button></div>
       <div className="email-toolbar"><label className="email-search">⌕<input placeholder="搜索邮箱地址" value={emailSearch} onChange={(event) => setEmailSearch(event.target.value)} /></label><label className="consent-filter"><input checked={consentOnly} onChange={(event) => setConsentOnly(event.target.checked)} type="checkbox" />仅显示已授权营销</label><span>共 {emails.length} 条记录</span></div>
       <section className="admin-card email-table-card">
-        <div className="table-scroll"><table className="lead-table-cn"><thead><tr><th>邮箱地址</th><th>测试类型</th><th>流量来源</th><th>营销授权</th><th>提交时间</th></tr></thead><tbody>{emails.map((lead) => <tr key={`${lead.email}-${lead.completed_at}`}><td><strong>{lead.email}</strong></td><td><span className={`result-tag ${lead.result_type}`}>{resultNames[lead.result_type] ?? lead.result_type}</span></td><td>{lead.source ?? "direct"}</td><td>{lead.marketing_consent ? <span className="consent-yes">● 已授权</span> : <span className="consent-no">仅查看结果</span>}</td><td>{formatDate(lead.completed_at)}</td></tr>)}</tbody></table></div>
+        <div className="table-scroll"><table className="lead-table-cn"><thead><tr><th>邮箱地址</th><th>测试名称</th><th>结果类型</th><th>流量来源</th><th>营销授权</th><th>提交时间</th></tr></thead><tbody>{emails.map((lead) => <tr key={`${lead.email}-${lead.completed_at}`}><td><strong>{lead.email}</strong></td><td>{lead.test_title ?? lead.test_id ?? "未知测试"}</td><td><span className={`result-tag ${lead.result_type}`}>{resultNames[lead.result_type] ?? lead.result_type}</span></td><td>{lead.source ?? "direct"}</td><td>{lead.marketing_consent ? <span className="consent-yes">● 已授权</span> : <span className="consent-no">仅查看结果</span>}</td><td>{formatDate(lead.completed_at)}</td></tr>)}</tbody></table></div>
         {!emails.length ? <EmptyState title="暂无邮箱记录" text="用户完成测试并提交邮箱后会显示在这里。" /> : null}
       </section>
     </>
