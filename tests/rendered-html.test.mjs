@@ -9,9 +9,10 @@ test("builds the complete Inner Atlas experience", async () => {
   await access(new URL("../public/quiz/doors.webp", import.meta.url));
   await access(new URL("../public/quiz/doors-768.webp", import.meta.url));
 
-  const [quiz, catalog, admin, layout, hosting] = await Promise.all([
+  const [quiz, catalog, deepResults, admin, layout, hosting] = await Promise.all([
     readFile(new URL("../app/quiz-app.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/quiz.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/deep-results.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/admin-dashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
@@ -24,6 +25,10 @@ test("builds the complete Inner Atlas experience", async () => {
   assert.match(quiz, /image_zoomed/);
   assert.match(quiz, /srcSet/);
   assert.match(quiz, /preloadAtlas/);
+  assert.match(quiz, /Your four-choice pattern/);
+  assert.match(quiz, /marketingConsent, setMarketingConsent\] = useState\(false\)/);
+  assert.match(deepResults, /How you try to restore safety in closeness/);
+  assert.match(deepResults, /calculateResultBreakdown/);
   assert.match(catalog, /attachment-style/);
   assert.match(catalog, /hidden-strength/);
   assert.equal((catalog.match(/id: "[a-z-]+",\n    title:/g) ?? []).length, 8);

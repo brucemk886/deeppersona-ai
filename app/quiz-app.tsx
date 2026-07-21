@@ -9,6 +9,7 @@ import {
   type ResultProfile,
   type TraitKey,
 } from "@/lib/quiz";
+import { calculateResultBreakdown, getDeepResultContent, traitLabels } from "@/lib/deep-results";
 
 type Stage = "home" | "quiz" | "email" | "result";
 
@@ -39,6 +40,10 @@ function AtlasImage({
   const [loadedPath, setLoadedPath] = useState("");
   const optimized = optimizedAtlases[path];
   const loaded = loadedPath === path;
+  const markLoaded = useCallback(() => setLoadedPath(path), [path]);
+  const registerImage = useCallback((image: HTMLImageElement | null) => {
+    if (image?.complete && image.naturalWidth > 0) markLoaded();
+  }, [markLoaded]);
 
   return (
     <span className={`atlas-image atlas-${index} ${loaded ? "is-loaded" : "is-loading"} ${className}`.trim()} aria-hidden="true">
@@ -50,7 +55,8 @@ function AtlasImage({
           fetchPriority={priority ? "high" : "auto"}
           height="1254"
           loading={loading}
-          onLoad={() => setLoadedPath(path)}
+          onLoad={markLoaded}
+          ref={registerImage}
           sizes={sizes}
           src={path}
           width="1254"
@@ -313,6 +319,7 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
     setAnswers({});
     setSessionId("");
     setEmail("");
+    setMarketingConsent(false);
     setError("");
     setZoomedOption(null);
     window.history.replaceState({}, "", "/");
@@ -435,17 +442,79 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
       <main className="gate-shell">
         <section className="email-gate">
           <div className="result-teaser"><span className="result-seal">Profile found</span><div className="blurred-result"><span>{selectedTest.title}</span><h2>{preview.title}</h2><p>{preview.summary}</p></div></div>
-          <form className="email-form" onSubmit={unlockResult}><span className="pill">Your result is ready</span><h1>Unlock your full reflection.</h1><p>Enter your email to reveal the complete profile on this screen.</p><label htmlFor="email">Email address</label><input autoComplete="email" id="email" onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required type="email" value={email} /><label className="consent-row"><input checked={marketingConsent} onChange={(event) => setMarketingConsent(event.target.checked)} type="checkbox" /><span>Send me occasional reflection prompts and new tests. Unsubscribe anytime.</span></label>{error ? <p className="form-error" role="alert">{error}</p> : null}<button className="primary-button full-button" disabled={submitting} type="submit">{submitting ? "Opening your profile…" : "Unlock my result →"}</button><small className="privacy-note">We use your email to unlock this result. Marketing emails are optional.</small></form>
+          <form className="email-form" onSubmit={unlockResult}>
+            <span className="pill">Your complete profile is ready</span>
+            <h1>Unlock the full pattern behind your choices.</h1>
+            <p>See your score balance, core motivation, relationship pattern, stress response, and a practical 7-day experiment.</p>
+            <label htmlFor="email">Email address</label>
+            <input autoComplete="email" id="email" onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required type="email" value={email} />
+            <label className="consent-row">
+              <input checked={marketingConsent} name="marketingConsent" onChange={(event) => setMarketingConsent(event.target.checked)} type="checkbox" />
+              <span><strong>Send me the Inner Atlas weekly reflection</strong><small>One practical prompt plus new visual tests by email. Optional, and you can unsubscribe anytime.</small></span>
+            </label>
+            {error ? <p className="form-error" role="alert">{error}</p> : null}
+            <button className="primary-button full-button" disabled={submitting} type="submit">{submitting ? "Building your profile…" : "Reveal my full profile →"}</button>
+            <small className="privacy-note">Your result unlock is not conditional on marketing consent.</small>
+          </form>
         </section>
       </main>
     );
   }
 
+  const deepResult = result && selectedTest ? getDeepResultContent(selectedTest.id, result) : null;
+  const breakdown = result ? calculateResultBreakdown(answers) : null;
+
   return (
     <main className="result-shell">
       <nav className="nav-bar"><button className="brand brand-button" onClick={returnHome}><span className="brand-mark">IA</span><span>Inner Atlas</span></button><button className="text-button" onClick={() => window.print()}>Save profile</button></nav>
-      {result && selectedTest ? <article className="result-card"><span className="result-test-name">{selectedTest.title}</span><div className={`result-orbit result-${result.key}`}><span>{result.key.slice(0, 1).toUpperCase()}</span></div><span className="result-eyebrow">{result.eyebrow}</span><h1>{result.title}</h1><p className="result-summary">{result.summary}</p><div className="insight-grid"><section><span>Natural strength</span><p>{result.strength}</p></section><section><span>Watch for</span><p>{result.watchout}</p></section><section><span>Try this next</span><p>{result.nextStep}</p></section></div></article> : null}
-      <section className="premium-card"><div><span className="premium-label">Coming next · Deep report</span><h2>Turn this insight into a practical personal map.</h2><p>Expanded patterns, relationship dynamics, stress signals, and a 7-day action guide.</p></div><button className="premium-button" onClick={() => { setShowUpgrade(true); track("upgrade_clicked", questions.length + 3); }}>Preview full report <span>↗</span></button></section>
+      {result && selectedTest && deepResult && breakdown ? (
+        <article className="result-card result-card-expanded">
+          <span className="result-test-name">{selectedTest.title}</span>
+          <div className={`result-orbit result-${result.key}`}><span>{result.key.slice(0, 1).toUpperCase()}</span></div>
+          <span className="result-eyebrow">{result.eyebrow}</span>
+          <h1>{result.title}</h1>
+          <p className="result-summary">{result.summary}</p>
+
+          <section className="score-panel" aria-labelledby="score-title">
+            <div className="score-panel-copy"><span>How your result was formed</span><h2 id="score-title">Your four-choice pattern</h2><p>{breakdown.note}</p></div>
+            <div className="score-bars">
+              {breakdown.ordered.map((item) => (
+                <div className="score-row" key={item.key}>
+                  <div><strong>{traitLabels[item.key]}</strong><span>{item.score} / {breakdown.total}</span></div>
+                  <div className="score-track"><span style={{ width: `${(item.score / breakdown.total) * 100}%`, background: selectedTest.accent }} /></div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <div className="insight-grid">
+            <section><span>Natural strength</span><p>{result.strength}</p></section>
+            <section><span>Watch for</span><p>{result.watchout}</p></section>
+            <section><span>Start here</span><p>{result.nextStep}</p></section>
+          </div>
+
+          <section className="pattern-lens">
+            <span>What this test is actually noticing</span>
+            <h2>{deepResult.lens.title}</h2>
+            <p>{deepResult.lens.explanation}</p>
+          </section>
+
+          <div className="deep-insight-grid">
+            <section><span>Core motivation</span><h3>What sits underneath the pattern</h3><p>{deepResult.depth.coreDrive}</p></section>
+            <section><span>In relationships</span><h3>What other people may experience</h3><p>{deepResult.depth.inRelationships}</p></section>
+            <section><span>Under pressure</span><h3>When the strength becomes protection</h3><p>{deepResult.depth.underPressure}</p></section>
+          </div>
+
+          <section className="action-plan-card">
+            <div><span>Your 7-day experiment</span><h2>Turn recognition into one different response.</h2><p>Do not try to become a different type. Test these small adjustments and notice which one creates more choice.</p></div>
+            <ol>{deepResult.depth.practices.map((practice) => <li key={practice}>{practice}</li>)}</ol>
+          </section>
+
+          <section className="reflection-card"><span>A question worth keeping</span><p>“{deepResult.lens.reflectionPrompt}”</p></section>
+          <p className="result-disclaimer">This is a self-reflection tool based on four visual choices, not a clinical assessment or diagnosis.</p>
+        </article>
+      ) : null}
+      <section className="premium-card"><div><span className="premium-label">Coming next · Cross-test report</span><h2>Connect your patterns across all eight tests.</h2><p>A combined relationship map, recurring stress signals, contradictions between profiles, and a personalized 30-day practice plan.</p></div><button className="premium-button" onClick={() => { setShowUpgrade(true); track("upgrade_clicked", questions.length + 3); }}>Preview combined report <span>↗</span></button></section>
       <button className="retake-button" onClick={returnHome}>Explore another test</button>
       {showUpgrade ? <div className="modal-backdrop" role="presentation" onClick={() => setShowUpgrade(false)}><div className="upgrade-modal" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" onClick={(event) => event.stopPropagation()}><button className="modal-close" aria-label="Close" onClick={() => setShowUpgrade(false)}>×</button><span className="result-seal">Premium preview</span><h2 id="upgrade-title">Your deeper report is almost here.</h2><p>The checkout hook is ready for Creem or Stripe. Payments stay disabled until a provider is connected.</p><div className="premium-list"><span>✓ Personalized deep-dive</span><span>✓ Relationships and stress patterns</span><span>✓ 7-day practical reset</span></div><button className="primary-button full-button" disabled>Checkout coming soon</button></div></div> : null}
     </main>
