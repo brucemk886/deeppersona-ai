@@ -43,10 +43,16 @@ test("builds the complete Inner Atlas experience", async () => {
   assert.match(admin, /测试管理/);
   assert.match(admin, /题目管理/);
   assert.match(admin, /邮箱用户/);
+  assert.match(admin, /用户答题档案/);
+  assert.match(admin, /营销分群标签/);
+  assert.match(admin, /逐题选择/);
+  assert.match(admin, /导出分群 CSV/);
   assert.match(admin, /一个“测试”对应前台的一张测试卡/);
   assert.match(adminStyles, /\/\* Admin readability scale \*\//);
   assert.match(adminStyles, /\.lead-table-cn \{ font-size: 13px; \}/);
   assert.match(store, /COUNT\(DISTINCT id\) AS users FROM quiz_sessions/);
+  assert.match(store, /s\.answers_json/);
+  assert.match(store, /answerEvents: answerEvents\.results/);
   assert.doesNotMatch(store, /COUNT\(DISTINCT session_id\) AS users FROM quiz_sessions/);
   assert.match(layout, /Visual Psychology Tests/);
   assert.match(hosting, /"d1": "DB"/);

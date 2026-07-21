@@ -7,13 +7,17 @@ import type { QuizQuestion, QuizTest, TraitKey } from "@/lib/quiz";
 type AdminSection = "overview" | "tests" | "questions" | "traffic" | "emails" | "payments";
 
 type Stats = {
+  answerEvents: { option_label: string | null; question_id: string; session_id: string }[];
   funnel: { event_name: string; users: number }[];
   sources: { source: string; users: number }[];
   emails: {
+    answers_json: string | null;
+    campaign: string | null;
     completed_at: string;
     email: string;
     marketing_consent: number;
     result_type: string;
+    session_id: string;
     source: string | null;
     test_id: string | null;
     test_title: string | null;
@@ -48,6 +52,73 @@ const resultNames: Record<string, string> = {
   architect: "架构者",
   creator: "创造者",
 };
+
+const segmentRecommendations: Record<string, string> = {
+  explorer: "自我探索、旅行体验、职业转型、成长课程",
+  connector: "亲密关系、沟通训练、情绪陪伴、社群型产品",
+  architect: "效率规划、边界管理、压力调节、结构化课程",
+  creator: "表达写作、创意练习、个人品牌、艺术体验",
+};
+
+type EmailLead = Stats["emails"][number];
+
+type LeadAnswerDetail = {
+  option: QuizQuestion["options"][number] | undefined;
+  optionIndex: number;
+  optionLabel: string;
+  question: QuizQuestion | undefined;
+  questionId: string;
+  scoreKey: TraitKey;
+};
+
+function parseAnswers(value: string | null): Record<string, TraitKey> {
+  if (!value) return {};
+  try {
+    return JSON.parse(value) as Record<string, TraitKey>;
+  } catch {
+    return {};
+  }
+}
+
+function getLeadAnswerDetails(
+  lead: EmailLead,
+  questions: QuizQuestion[],
+  answerEvents: Stats["answerEvents"],
+): LeadAnswerDetail[] {
+  const latestLabels = new Map<string, string>();
+  answerEvents.forEach((event) => {
+    if (event.session_id === lead.session_id && event.option_label && !latestLabels.has(event.question_id)) {
+      latestLabels.set(event.question_id, event.option_label);
+    }
+  });
+
+  return Object.entries(parseAnswers(lead.answers_json))
+    .map(([questionId, scoreKey]) => {
+      const question = questions.find((item) => item.id === questionId);
+      const eventLabel = latestLabels.get(questionId);
+      let optionIndex = question?.options.findIndex((option) => option.label === eventLabel) ?? -1;
+      if (optionIndex < 0) optionIndex = question?.options.findIndex((option) => option.scoreKey === scoreKey) ?? -1;
+      const option = optionIndex >= 0 ? question?.options[optionIndex] : undefined;
+      return {
+        option,
+        optionIndex,
+        optionLabel: eventLabel ?? option?.label ?? "历史选项",
+        question,
+        questionId,
+        scoreKey,
+      };
+    })
+    .sort((a, b) => (a.question?.position ?? 999) - (b.question?.position ?? 999));
+}
+
+function getMarketingTags(lead: EmailLead) {
+  const counts = new Map<string, number>();
+  Object.values(parseAnswers(lead.answers_json)).forEach((key) => counts.set(key, (counts.get(key) ?? 0) + 1));
+  const choiceTags = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([key, count]) => `${resultNames[key] ?? key}倾向 ×${count}`);
+  return [`主类型 · ${resultNames[lead.result_type] ?? lead.result_type}`, ...choiceTags];
+}
 
 const blankOptions = [
   { label: "选项 A", microcopy: "补充说明", meaning: "填写这个选项代表什么", projection: "填写用户选择后的心理投射解读", scoreKey: "explorer" as TraitKey },
@@ -97,6 +168,7 @@ export function AdminDashboard({
   const [notice, setNotice] = useState("");
   const [emailSearch, setEmailSearch] = useState("");
   const [consentOnly, setConsentOnly] = useState(false);
+  const [segmentFilter, setSegmentFilter] = useState("all");
 
   const loadData = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
@@ -156,10 +228,11 @@ export function AdminDashboard({
     const needle = emailSearch.trim().toLowerCase();
     return (stats?.emails ?? []).filter(
       (lead) =>
-        (!needle || lead.email.toLowerCase().includes(needle)) &&
-        (!consentOnly || Boolean(lead.marketing_consent)),
+        (!needle || [lead.email, lead.test_title, resultNames[lead.result_type]].some((value) => value?.toLowerCase().includes(needle))) &&
+        (!consentOnly || Boolean(lead.marketing_consent)) &&
+        (segmentFilter === "all" || lead.result_type === segmentFilter),
     );
-  }, [consentOnly, emailSearch, stats]);
+  }, [consentOnly, emailSearch, segmentFilter, stats]);
 
   function showNotice(message: string) {
     setNotice(message);
@@ -278,15 +351,24 @@ export function AdminDashboard({
       return `"${safe}"`;
     };
     const rows = [
-      ["邮箱", "测试名称", "结果类型", "流量来源", "营销授权", "提交时间"],
-      ...filteredEmails.map((lead) => [
-        lead.email,
-        lead.test_title ?? lead.test_id ?? "未知测试",
-        resultNames[lead.result_type] ?? lead.result_type,
-        lead.source ?? "direct",
-        lead.marketing_consent ? "已授权" : "仅查看结果",
-        lead.completed_at,
-      ]),
+      ["邮箱", "测试名称", "结果类型", "营销分群", "推荐产品方向", "逐题选择", "流量来源", "活动参数", "营销授权", "提交时间"],
+      ...filteredEmails.map((lead) => {
+        const choices = getLeadAnswerDetails(lead, questions, stats?.answerEvents ?? [])
+          .map((answer, index) => `Q${index + 1} ${answer.optionLabel}（${resultNames[answer.scoreKey] ?? answer.scoreKey}）`)
+          .join("；");
+        return [
+          lead.email,
+          lead.test_title ?? lead.test_id ?? "未知测试",
+          resultNames[lead.result_type] ?? lead.result_type,
+          getMarketingTags(lead).join("；"),
+          segmentRecommendations[lead.result_type] ?? "根据测试内容人工判断",
+          choices,
+          lead.source ?? "direct",
+          lead.campaign ?? "—",
+          lead.marketing_consent ? "已授权" : "仅查看结果",
+          lead.completed_at,
+        ];
+      }),
     ];
     const csv = `\uFEFF${rows.map((row) => row.map(escape).join(",")).join("\n")}`;
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
@@ -408,8 +490,12 @@ export function AdminDashboard({
               emailSearch={emailSearch}
               emails={filteredEmails}
               exportEmails={exportEmails}
+              answerEvents={stats?.answerEvents ?? []}
+              questions={questions}
+              segmentFilter={segmentFilter}
               setConsentOnly={setConsentOnly}
               setEmailSearch={setEmailSearch}
+              setSegmentFilter={setSegmentFilter}
             />
           ) : null}
 
@@ -731,16 +817,101 @@ function TrafficPanel({ chartMax, funnel, funnelMax, stats }: { chartMax: number
   );
 }
 
-function EmailPanel({ consentOnly, emailSearch, emails, exportEmails, setConsentOnly, setEmailSearch }: { consentOnly: boolean; emailSearch: string; emails: Stats["emails"]; exportEmails: () => void; setConsentOnly: (value: boolean) => void; setEmailSearch: (value: string) => void }) {
+function EmailPanel({
+  answerEvents,
+  consentOnly,
+  emailSearch,
+  emails,
+  exportEmails,
+  questions,
+  segmentFilter,
+  setConsentOnly,
+  setEmailSearch,
+  setSegmentFilter,
+}: {
+  answerEvents: Stats["answerEvents"];
+  consentOnly: boolean;
+  emailSearch: string;
+  emails: Stats["emails"];
+  exportEmails: () => void;
+  questions: QuizQuestion[];
+  segmentFilter: string;
+  setConsentOnly: (value: boolean) => void;
+  setEmailSearch: (value: string) => void;
+  setSegmentFilter: (value: string) => void;
+}) {
+  const [selectedSessionId, setSelectedSessionId] = useState("");
+  const selectedLead = emails.find((lead) => lead.session_id === selectedSessionId);
+  const selectedAnswers = selectedLead ? getLeadAnswerDetails(selectedLead, questions, answerEvents) : [];
+
   return (
     <>
-      <div className="admin-page-heading"><div><span className="admin-kicker">用户资产</span><h1>邮箱用户</h1><p>查看测试结果、来源和邮件营销授权状态。</p></div><button className="admin-primary-button" onClick={exportEmails}>导出 CSV</button></div>
-      <div className="email-toolbar"><label className="email-search">⌕<input placeholder="搜索邮箱地址" value={emailSearch} onChange={(event) => setEmailSearch(event.target.value)} /></label><label className="consent-filter"><input checked={consentOnly} onChange={(event) => setConsentOnly(event.target.checked)} type="checkbox" />仅显示已授权营销</label><span>共 {emails.length} 条记录</span></div>
+      <div className="admin-page-heading"><div><span className="admin-kicker">用户资产</span><h1>邮箱用户</h1><p>查看每位用户的逐题选择、心理投射和营销分群，便于定向推荐后续产品。</p></div><button className="admin-primary-button" onClick={exportEmails}>导出分群 CSV</button></div>
+      <div className="email-guidance"><strong>定向营销提示</strong><span>结果类型和答题倾向可以用来划分内容兴趣；实际发送邮件时，请仅使用“已授权营销”的用户。</span></div>
+      <div className="email-toolbar">
+        <label className="email-search">⌕<input placeholder="搜索邮箱、测试或类型" value={emailSearch} onChange={(event) => setEmailSearch(event.target.value)} /></label>
+        <label className="segment-filter">营销分群<select value={segmentFilter} onChange={(event) => setSegmentFilter(event.target.value)}><option value="all">全部类型</option>{Object.entries(resultNames).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+        <label className="consent-filter"><input checked={consentOnly} onChange={(event) => setConsentOnly(event.target.checked)} type="checkbox" />仅显示已授权营销</label>
+        <span>共 {emails.length} 条记录</span>
+      </div>
       <section className="admin-card email-table-card">
-        <div className="table-scroll"><table className="lead-table-cn"><thead><tr><th>邮箱地址</th><th>测试名称</th><th>结果类型</th><th>流量来源</th><th>营销授权</th><th>提交时间</th></tr></thead><tbody>{emails.map((lead) => <tr key={`${lead.email}-${lead.completed_at}`}><td><strong>{lead.email}</strong></td><td>{lead.test_title ?? lead.test_id ?? "未知测试"}</td><td><span className={`result-tag ${lead.result_type}`}>{resultNames[lead.result_type] ?? lead.result_type}</span></td><td>{lead.source ?? "direct"}</td><td>{lead.marketing_consent ? <span className="consent-yes">● 已授权</span> : <span className="consent-no">仅查看结果</span>}</td><td>{formatDate(lead.completed_at)}</td></tr>)}</tbody></table></div>
+        <div className="table-scroll"><table className="lead-table-cn"><thead><tr><th>邮箱地址</th><th>测试名称</th><th>结果类型</th><th>营销分群</th><th>流量来源</th><th>营销授权</th><th>提交时间</th><th>答题详情</th></tr></thead><tbody>{emails.map((lead) => <tr key={lead.session_id}><td><strong>{lead.email}</strong></td><td>{lead.test_title ?? lead.test_id ?? "未知测试"}</td><td><span className={`result-tag ${lead.result_type}`}>{resultNames[lead.result_type] ?? lead.result_type}</span></td><td><span className="segment-summary">{getMarketingTags(lead).slice(1).join(" · ") || "待分析"}</span></td><td>{lead.source ?? "direct"}</td><td>{lead.marketing_consent ? <span className="consent-yes">● 已授权</span> : <span className="consent-no">仅查看结果</span>}</td><td>{formatDate(lead.completed_at)}</td><td><button className="lead-detail-button" onClick={() => setSelectedSessionId(lead.session_id)}>查看详情 →</button></td></tr>)}</tbody></table></div>
         {!emails.length ? <EmptyState title="暂无邮箱记录" text="用户完成测试并提交邮箱后会显示在这里。" /> : null}
       </section>
+      {selectedLead ? (
+        <div className="lead-detail-backdrop" onClick={() => setSelectedSessionId("")} role="presentation">
+          <aside aria-labelledby="lead-detail-title" aria-modal="true" className="lead-detail-drawer" onClick={(event) => event.stopPropagation()} role="dialog">
+            <header className="lead-detail-header">
+              <div><span>用户答题档案</span><h2 id="lead-detail-title">{selectedLead.email}</h2><p>{selectedLead.test_title ?? selectedLead.test_id ?? "未知测试"} · {formatDate(selectedLead.completed_at)}</p></div>
+              <button aria-label="关闭答题详情" onClick={() => setSelectedSessionId("")}>×</button>
+            </header>
+            <section className="lead-profile-grid">
+              <div><span>最终类型</span><strong>{resultNames[selectedLead.result_type] ?? selectedLead.result_type}</strong></div>
+              <div><span>营销授权</span><strong className={selectedLead.marketing_consent ? "consent-yes" : "consent-no"}>{selectedLead.marketing_consent ? "已授权" : "未授权"}</strong></div>
+              <div><span>流量来源</span><strong>{selectedLead.source ?? "direct"}</strong></div>
+              <div><span>活动参数</span><strong>{selectedLead.campaign ?? "—"}</strong></div>
+            </section>
+            <section className="lead-marketing-card">
+              <span>营销分群标签</span>
+              <div>{getMarketingTags(selectedLead).map((tag) => <b key={tag}>{tag}</b>)}</div>
+              <p><strong>适合推荐：</strong>{segmentRecommendations[selectedLead.result_type] ?? "根据测试内容人工判断"}</p>
+            </section>
+            <section className="lead-answer-section">
+              <header><span>逐题选择</span><strong>{selectedAnswers.length} 条已保存答案</strong></header>
+              <div className="lead-answer-list">
+                {selectedAnswers.map((answer, index) => (
+                  <article className="lead-answer-card" key={answer.questionId}>
+                    <AnswerThumbnail answer={answer} />
+                    <div>
+                      <span>第 {index + 1} 题 · 用户选择 {answer.optionIndex >= 0 ? String.fromCharCode(65 + answer.optionIndex) : "—"}</span>
+                      <h3>{answer.question?.prompt ?? `历史题目 ${answer.questionId}`}</h3>
+                      <strong>{answer.optionLabel}</strong>
+                      <p><b>代表含义：</b>{answer.option?.meaning ?? "历史选项内容已变更，保留了原始选择标签。"}</p>
+                      <p><b>心理投射：</b>{answer.option?.projection ?? `已保存倾向：${resultNames[answer.scoreKey] ?? answer.scoreKey}`}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+              {!selectedAnswers.length ? <EmptyState title="暂无逐题答案" text="该记录可能来自旧版本；后续新提交会完整显示每一道选择。" /> : null}
+            </section>
+          </aside>
+        </div>
+      ) : null}
     </>
+  );
+}
+
+function AnswerThumbnail({ answer }: { answer: LeadAnswerDetail }) {
+  if (!answer.question || answer.optionIndex < 0) return <div className="lead-answer-thumb empty">?</div>;
+  const horizontal = answer.optionIndex % 2 === 0 ? "0%" : "100%";
+  const vertical = answer.optionIndex < 2 ? "0%" : "100%";
+  return (
+    <div
+      aria-label={`选择 ${String.fromCharCode(65 + answer.optionIndex)} 的图片`}
+      className="lead-answer-thumb"
+      role="img"
+      style={{ backgroundImage: `url(${answer.question.atlasPath})`, backgroundPosition: `${horizontal} ${vertical}` }}
+    />
   );
 }
 

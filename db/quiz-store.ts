@@ -368,12 +368,18 @@ export async function getAdminStats() {
   await ensureQuizSchema();
   await seedCatalogIfNeeded();
   const db = getD1();
-  const [funnel, sources, emails, totals, online, today, sevenDays, popularQuestions, popularTests] = await Promise.all([
+  const [funnel, sources, emails, answerEvents, totals, online, today, sevenDays, popularQuestions, popularTests] = await Promise.all([
     db.prepare(`SELECT event_name, COUNT(DISTINCT session_id) AS users FROM quiz_events GROUP BY event_name`).all<{ event_name: string; users: number }>(),
     db.prepare(`SELECT COALESCE(source, 'direct') AS source, COUNT(DISTINCT id) AS users FROM quiz_sessions GROUP BY COALESCE(source, 'direct') ORDER BY users DESC LIMIT 8`).all<{ source: string; users: number }>(),
-    db.prepare(`SELECT s.email, s.marketing_consent, s.result_type, s.source, s.completed_at, s.test_id, COALESCE(t.title, s.test_id) AS test_title
+    db.prepare(`SELECT s.id AS session_id, s.email, s.marketing_consent, s.answers_json, s.result_type, s.source, s.campaign, s.completed_at, s.test_id, COALESCE(t.title, s.test_id) AS test_title
       FROM quiz_sessions s LEFT JOIN quiz_tests t ON t.id = s.test_id
-      WHERE s.email IS NOT NULL ORDER BY s.completed_at DESC LIMIT 500`).all<{ completed_at: string; email: string; marketing_consent: number; result_type: string; source: string | null; test_id: string | null; test_title: string | null }>(),
+      WHERE s.email IS NOT NULL ORDER BY s.completed_at DESC LIMIT 500`).all<{ answers_json: string | null; campaign: string | null; completed_at: string; email: string; marketing_consent: number; result_type: string; session_id: string; source: string | null; test_id: string | null; test_title: string | null }>(),
+    db.prepare(`SELECT e.session_id, e.question_id, e.option_label
+      FROM quiz_events e
+      WHERE e.event_name = 'answer_selected'
+        AND e.question_id IS NOT NULL
+        AND e.session_id IN (SELECT id FROM quiz_sessions WHERE email IS NOT NULL ORDER BY completed_at DESC LIMIT 500)
+      ORDER BY e.id DESC`).all<{ option_label: string | null; question_id: string; session_id: string }>(),
     db.prepare(`SELECT COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads, SUM(CASE WHEN marketing_consent = 1 THEN 1 ELSE 0 END) AS consented FROM quiz_sessions`).first<{ consented: number; leads: number; sessions: number }>(),
     db.prepare(`SELECT COUNT(DISTINCT session_id) AS users FROM quiz_events WHERE created_at >= datetime('now', '-5 minutes')`).first<{ users: number }>(),
     db.prepare(`SELECT COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads FROM quiz_sessions WHERE date(started_at) = date('now')`).first<{ leads: number; sessions: number }>(),
@@ -394,6 +400,7 @@ export async function getAdminStats() {
     funnel: funnel.results,
     sources: sources.results,
     emails: emails.results,
+    answerEvents: answerEvents.results,
     onlineNow: online?.users ?? 0,
     today: today ?? { sessions: 0, leads: 0 },
     sevenDays: completeSevenDays,
