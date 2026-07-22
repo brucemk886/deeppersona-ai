@@ -18,3 +18,9 @@ export function DELETE(request: Request) {
   response.headers.append("Set-Cookie", `${adminCookie.name}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`);
   return response;
 }
+
+export function GET(request: Request) {
+  const response = Response.redirect(new URL("/admin/login", request.url), 303);
+  response.headers.append("Set-Cookie", `${adminCookie.name}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`);
+  return response;
+}
