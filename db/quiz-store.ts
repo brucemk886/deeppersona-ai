@@ -16,6 +16,7 @@ type RuntimeEnv = {
   ADMIN_PASSWORD?: string;
   ADMIN_SESSION_SECRET?: string;
   ADMIN_USERNAME?: string;
+  CONTENT_SYNC_API_KEY?: string;
   DB?: D1Database;
 };
 
@@ -241,7 +242,10 @@ export async function listQuestions(testId?: string, includeInactive = false): P
     values.push(testId);
   }
   const where = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
-  const result = await getD1().prepare(`SELECT * FROM quiz_questions ${where} ORDER BY test_id, position, id`).bind(...values).all<QuestionRow>();
+  const result = await getD1().prepare(`SELECT q.* FROM quiz_questions q
+    LEFT JOIN quiz_tests t ON t.id = q.test_id
+    ${where ? where.replaceAll("active", "q.active") : ""}
+    ORDER BY COALESCE(t.position, 2147483647), q.test_id, q.position, q.id`).bind(...values).all<QuestionRow>();
   return result.results.map(rowToQuestion);
 }
 
