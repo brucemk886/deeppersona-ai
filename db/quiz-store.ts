@@ -13,6 +13,9 @@ import { getOptionInsight } from "@/lib/choice-insights";
 
 type RuntimeEnv = {
   ADMIN_EMAILS?: string;
+  ADMIN_PASSWORD?: string;
+  ADMIN_SESSION_SECRET?: string;
+  ADMIN_USERNAME?: string;
   DB?: D1Database;
 };
 

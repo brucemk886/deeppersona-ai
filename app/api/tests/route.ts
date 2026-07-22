@@ -1,6 +1,5 @@
-import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { isAdminRequest } from "@/app/admin-auth";
 import { listTests, saveTest } from "@/db/quiz-store";
-import { isAdminEmail } from "@/lib/admin";
 import { TRAIT_KEYS, type QuizTest } from "@/lib/quiz";
 
 export const dynamic = "force-dynamic";
@@ -8,8 +7,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const includeInactive = new URL(request.url).searchParams.get("all") === "1";
   if (includeInactive) {
-    const user = await getChatGPTUser();
-    if (!user || !isAdminEmail(user.email)) {
+    if (!await isAdminRequest(request)) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
   }
@@ -25,8 +23,7 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const user = await getChatGPTUser();
-  if (!user || !isAdminEmail(user.email)) {
+  if (!await isAdminRequest(request)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
