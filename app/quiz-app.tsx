@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   calculateResult,
@@ -102,7 +101,6 @@ function getAttribution() {
 }
 
 export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTest[]; initialTestId?: string }) {
-  const router = useRouter();
   const [tests, setTests] = useState(initialTests);
   const [selectedTest, setSelectedTest] = useState<QuizTest | null>(() => initialTestId ? initialTests.find((test) => test.id === initialTestId) ?? null : null);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -253,14 +251,13 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
   }
 
   function prepareDetail(test: QuizTest) {
-    router.prefetch(detailHref(test));
     preloadAtlas(test.coverAtlasPath);
     void loadQuestions(test.id).catch(() => undefined);
   }
 
   function openDetail(test: QuizTest) {
     prepareDetail(test);
-    router.push(detailHref(test));
+    window.location.assign(detailHref(test));
   }
   async function startTest(test: QuizTest) {
     setLoadingTest(test.id);
