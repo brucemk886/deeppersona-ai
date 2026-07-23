@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-export const SUPPORT_EMAIL = "liu.xuan.yu.mk@gmail.com";
+export const SUPPORT_EMAIL = "support@deeppersonaai.com";
 export const POLICY_DATE = "July 21, 2026";
 
 const legalLinks = [

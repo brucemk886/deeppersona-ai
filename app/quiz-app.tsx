@@ -367,6 +367,7 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
             <span className="pill">Visual psychology tests · 2 minutes</span>
             <h1>One image can say what words miss.</h1>
             <p className="hero-lede">Choose what pulls you in. Get a concise reflection on how you connect, reset, set boundaries, and move through relationships.</p>
+            <div className="report-price" aria-label="Optional paid report pricing"><strong>Optional Full Reflection Report · $4.99 USD</strong><span>One-time payment · Your visual test remains free</span></div>
             {featuredTest ? <button className="primary-button hero-cta" disabled={loadingTest === featuredTest.id} onClick={() => void startTest(featuredTest)}>{loadingTest === featuredTest.id ? "Opening…" : "Start the most popular test"} <span aria-hidden="true">↗</span></button> : null}
             <div className="trust-row" aria-label="Test details"><span>No right answers</span><i /><span>Private by design</span><i /><span>4 visual choices</span></div>
             {error ? <p className="form-error" role="alert">{error}</p> : null}
@@ -404,7 +405,7 @@ export function QuizApp({ initialTests }: { initialTests: QuizTest[] }) {
         </section>
 
         <section className="how-it-works"><span>01 · Notice</span><p>Let your eyes land before your reasoning catches up.</p><span>02 · Choose</span><p>Pick the image that creates the strongest first response.</p><span>03 · Reveal</span><p>Get your type, strength, watchout, and a practical next step.</p></section>
-        <footer className="site-footer site-footer-expanded"><div><strong>DeepPersona AI © 2026</strong><span>For self-reflection, not clinical diagnosis.</span></div><nav aria-label="Legal and support links"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds & delivery</Link><Link href="/disclaimer">Disclaimer</Link><Link href="/contact">Contact</Link><Link href="/admin">Admin</Link></nav></footer>
+        <footer className="site-footer site-footer-expanded"><div><strong>DeepPersona AI © 2026</strong><span>For self-reflection, not clinical diagnosis.</span></div><nav aria-label="Legal and support links"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds & delivery</Link><Link href="/disclaimer">Disclaimer</Link><Link href="/contact">Contact</Link></nav></footer>
       </main>
     );
   }
