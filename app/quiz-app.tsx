@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   calculateResult,
@@ -101,6 +102,7 @@ function getAttribution() {
 }
 
 export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTest[]; initialTestId?: string }) {
+  const router = useRouter();
   const [tests, setTests] = useState(initialTests);
   const [selectedTest, setSelectedTest] = useState<QuizTest | null>(() => initialTestId ? initialTests.find((test) => test.id === initialTestId) ?? null : null);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -245,9 +247,20 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
     return [0, 1, 2, 3].map((index) => ({ atlas, index }));
   }, [featuredTest]);
 
-  function openDetail(test: QuizTest) {
+  function detailHref(test: QuizTest) {
     const query = typeof window === "undefined" ? "" : window.location.search;
-    window.location.assign(`/tests/${encodeURIComponent(test.id)}${query}`);
+    return `/tests/${encodeURIComponent(test.id)}${query}`;
+  }
+
+  function prepareDetail(test: QuizTest) {
+    router.prefetch(detailHref(test));
+    preloadAtlas(test.coverAtlasPath);
+    void loadQuestions(test.id).catch(() => undefined);
+  }
+
+  function openDetail(test: QuizTest) {
+    prepareDetail(test);
+    router.push(detailHref(test));
   }
   async function startTest(test: QuizTest) {
     setLoadingTest(test.id);
@@ -360,7 +373,30 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
 
   if (stage === "detail") {
     if (!selectedTest) return <main className="detail-loading"><span className="brand-mark">DP</span><p>Finding this visual test…</p></main>;
-    return <main className="test-detail-shell"><nav className="nav-bar" aria-label="Main navigation"><Link className="brand" href="/"><span className="brand-mark">DP</span><span>DeepPersona AI</span></Link><Link className="nav-note nav-link" href="/#tests">All visual tests ↓</Link></nav><section className="test-detail-hero" style={{ "--test-accent": selectedTest.accent } as React.CSSProperties}><div className="test-detail-image"><AtlasImage index={0} loading="eager" path={selectedTest.coverAtlasPath} priority sizes="(max-width: 640px) 100vw, 620px" /></div><div className="test-detail-copy"><span className="pill">{selectedTest.kicker}</span><h1>{selectedTest.title}</h1><p>{selectedTest.description}</p><dl><div><dt>Format</dt><dd>{selectedTest.questionCount || 4} visual choices · about 2 minutes</dd></div><div><dt>Free to begin</dt><dd>Your core reflection is shown after the test.</dd></div><div><dt>Optional full report</dt><dd>${(selectedTest.reportPriceCents / 100).toFixed(2)} USD · one-time payment</dd></div></dl><button className="primary-button detail-cta" disabled={loadingTest === selectedTest.id} onClick={() => void startTest(selectedTest)}>{loadingTest === selectedTest.id ? "Opening…" : "Start this visual test"} <span aria-hidden="true">→</span></button><small className="detail-note">For self-reflection, not clinical diagnosis.</small>{error ? <p className="form-error" role="alert">{error}</p> : null}</div></section><footer className="site-footer"><div><strong>DeepPersona AI © 2026</strong></div><nav aria-label="Legal links"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds & delivery</Link><Link href="/contact">Contact</Link></nav></footer></main>;
+    const detailQuestion = defaultQuestions.find((question) => question.testId === selectedTest.id && question.position === 1);
+    const detailPrompt = detailQuestion?.prompt ?? "Which image pulls you in before you can explain why?";
+    return (
+      <main className="test-detail-shell">
+        <nav className="nav-bar" aria-label="Main navigation"><Link className="brand" href="/"><span className="brand-mark">DP</span><span>DeepPersona AI</span></Link><Link className="nav-note nav-link" href="/#tests">All visual tests ↓</Link></nav>
+        <section className="detail-stage" style={{ "--test-accent": selectedTest.accent } as React.CSSProperties}>
+          <div className="detail-gallery" aria-label="Four visual choices preview">
+            {[0, 1, 2, 3].map((index) => <AtlasImage index={index} key={index} loading="eager" path={selectedTest.coverAtlasPath} priority={index === 0} sizes="(max-width: 640px) 50vw, 340px" />)}
+            <span className="detail-gallery-tag">Choose the one you feel first</span>
+          </div>
+          <div className="detail-story">
+            <span className="detail-category">{selectedTest.kicker}</span>
+            <p className="detail-count">4 visual choices · about 2 minutes</p>
+            <h1>{detailPrompt}</h1>
+            <p className="detail-intro">There is no right answer. The image you reach for first can reveal the pattern you use before words catch up.</p>
+            <div className="detail-reveal"><span>YOUR REFLECTION WILL EXPLORE</span><div><p>What your first instinct is trying to protect.</p><p>How this pattern shapes closeness, stress, or boundaries.</p><p>The strength hidden inside the response you repeat.</p></div></div>
+            <button className="primary-button detail-cta" disabled={loadingTest === selectedTest.id} onClick={() => void startTest(selectedTest)}>{loadingTest === selectedTest.id ? "Opening…" : "See what your first choice reveals"} <span aria-hidden="true">→</span></button>
+            <div className="detail-assurance"><span>Free visual test</span><i /> <span>Private by design</span><i /> <span>Full report available for ${(selectedTest.reportPriceCents / 100).toFixed(2)}</span></div>
+            {error ? <p className="form-error" role="alert">{error}</p> : null}
+          </div>
+        </section>
+        <footer className="site-footer"><div><strong>DeepPersona AI © 2026</strong></div><nav aria-label="Legal links"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds & delivery</Link><Link href="/contact">Contact</Link></nav></footer>
+      </main>
+    );
   }
   if (stage === "home") {
     return (
@@ -375,8 +411,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
             <span className="pill">Visual psychology tests · 2 minutes</span>
             <h1>One image can say what words miss.</h1>
             <p className="hero-lede">Choose what pulls you in. Get a concise reflection on how you connect, reset, set boundaries, and move through relationships.</p>
-            {featuredTest ? <button className="primary-button hero-cta" disabled={loadingTest === featuredTest.id} onClick={() => openDetail(featuredTest)}>{loadingTest === featuredTest.id ? "Opening…" : "Explore the most popular test"} <span aria-hidden="true">↗</span></button> : null}
-            {featuredTest ? <p className="report-price" aria-label="Optional paid report pricing">The visual test is free. Optional full reflection report <b>· ${(featuredTest.reportPriceCents / 100).toFixed(2)} USD</b></p> : null}            <div className="trust-row" aria-label="Test details"><span>No right answers</span><i /><span>Private by design</span><i /><span>4 visual choices</span></div>
+            {featuredTest ? <button className="primary-button hero-cta" disabled={loadingTest === featuredTest.id} onClick={() => openDetail(featuredTest)}>{loadingTest === featuredTest.id ? "Opening…" : "Explore the most popular test"} <span aria-hidden="true">↗</span></button> : null}            <div className="trust-row" aria-label="Test details"><span>No right answers</span><i /><span>Private by design</span><i /><span>4 visual choices</span></div>
             {error ? <p className="form-error" role="alert">{error}</p> : null}
           </div>
 
@@ -399,7 +434,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
           <div className="library-heading"><span>Choose your question</span><h2>Eight ways to understand yourself a little better.</h2><p>Short, visual, and designed for reflection—not diagnosis.</p></div>
           <div className="test-card-grid">
             {tests.map((test, index) => (
-              <button aria-label={`View details for ${test.title}`} className={`test-card ${test.featured ? "featured" : ""}`} disabled={loadingTest === test.id} key={test.id} onClick={() => openDetail(test)} onFocus={() => void loadQuestions(test.id).catch(() => undefined)} onPointerEnter={() => void loadQuestions(test.id).catch(() => undefined)} style={{ "--test-accent": test.accent } as React.CSSProperties} type="button">
+              <button aria-label={`View details for ${test.title}`} className={`test-card ${test.featured ? "featured" : ""}`} disabled={loadingTest === test.id} key={test.id} onClick={() => openDetail(test)} onFocus={() => prepareDetail(test)} onPointerEnter={() => prepareDetail(test)} style={{ "--test-accent": test.accent } as React.CSSProperties} type="button">
                 <div className="test-card-image">
                   <AtlasImage index={0} path={test.coverAtlasPath} sizes="(max-width: 640px) 236px, 380px" />
                   <span className="test-number">{String(index + 1).padStart(2, "0")}</span>
