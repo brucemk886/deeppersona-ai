@@ -437,7 +437,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
                   <span className="test-number">{String(index + 1).padStart(2, "0")}</span>
                   {test.featured ? <span className="popular-badge">Most popular</span> : null}
                 </div>
-                <div className="test-card-copy"><span>{test.kicker}</span><h3>{test.title}</h3><p>{test.description}</p><div><small>{test.questionCount || 4} questions · About 2 min<br /><em className="test-report-price">Full report ${(test.reportPriceCents / 100).toFixed(2)}</em></small><strong className="test-card-start">{loadingTest === test.id ? "Opening…" : "Explore →"}</strong></div></div>
+                <div className="test-card-copy"><span>{test.kicker}</span><h3>{test.title}</h3><p>{test.description}</p><div><small>{test.questionCount || 4} questions<br /><em className="test-report-price">Full report ${(test.reportPriceCents / 100).toFixed(2)}</em></small><strong className="test-card-start">{loadingTest === test.id ? "Opening…" : "Explore →"}</strong></div></div>
               </button>
             ))}
           </div>
