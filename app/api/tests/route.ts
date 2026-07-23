@@ -35,6 +35,7 @@ export async function PUT(request: Request) {
     typeof body.description === "string" &&
     typeof body.coverAtlasPath === "string" &&
     typeof body.accent === "string" &&
+    Number.isInteger(body.reportPriceCents) && body.reportPriceCents >= 100 &&
     Number.isFinite(body.position) &&
     body.results &&
     TRAIT_KEYS.every((key) => body.results[key]?.key === key);

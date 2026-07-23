@@ -24,6 +24,7 @@ export const quizTests = sqliteTable("quiz_tests", {
   position: integer("position").notNull().default(0),
   active: integer("active", { mode: "boolean" }).notNull().default(true),
   featured: integer("featured", { mode: "boolean" }).notNull().default(false),
+  reportPriceCents: integer("report_price_cents").notNull().default(499),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 

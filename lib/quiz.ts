@@ -43,6 +43,7 @@ export type QuizTest = {
   position: number;
   active: boolean;
   featured: boolean;
+  reportPriceCents: number;
   results: Record<TraitKey, ResultProfile>;
   questionCount?: number;
 };
@@ -75,6 +76,7 @@ export const defaultTests: QuizTest[] = [
     position: 1,
     active: true,
     featured: true,
+    reportPriceCents: 499,
     results: {
       explorer: profile("explorer", "The Steady Reconnector", "You value closeness without losing your center. When something feels off, you prefer a clear signal and an honest path back to connection.", "You can name what you need and stay open to the other person's reality.", "Your calm can sometimes hide needs you assume should be obvious.", "Ask for one specific form of connection instead of waiting to be read."),
       connector: profile("connector", "The Reassurance Seeker", "Connection matters deeply to you, so distance can feel louder than it looks. You notice small changes quickly and move toward clarity.", "You bring warmth, loyalty, and emotional attention to relationships.", "Uncertainty can turn into over-reading or repeated checking.", "Pause before following the first story your nervous system creates."),
@@ -92,6 +94,7 @@ export const defaultTests: QuizTest[] = [
     position: 2,
     active: true,
     featured: false,
+    reportPriceCents: 499,
     results: {
       explorer: profile("explorer", "Freedom to Move", "You feel most like yourself when there is room to choose, explore, and change direction.", "You revive possibility when other people feel stuck.", "Too many obligations can make you disappear before explaining why.", "Protect a small pocket of choice inside your current commitments."),
       connector: profile("connector", "To Be Truly Understood", "Your deepest need is not constant attention—it is the feeling that someone genuinely gets the meaning beneath your words.", "You create rare emotional depth and mutual trust.", "You may over-give while waiting for someone to notice what you need.", "Say the unspoken need plainly to one safe person."),
@@ -109,6 +112,7 @@ export const defaultTests: QuizTest[] = [
     position: 3,
     active: true,
     featured: false,
+    reportPriceCents: 499,
     results: {
       explorer: profile("explorer", "The Direct Navigator", "You would rather address tension than let it quietly grow. Movement and honest language help you regain trust.", "You bring momentum and courage to difficult conversations.", "Speed can make the other person feel rushed into resolution.", "Ask whether they need clarity now or a little time first."),
       connector: profile("connector", "The Harmony Keeper", "You instinctively protect connection, soften sharp edges, and look for the feeling beneath the argument.", "You de-escalate conflict and help people feel human again.", "Peace can cost too much when you hide your real position.", "State one non-negotiable before you start accommodating."),
@@ -126,6 +130,7 @@ export const defaultTests: QuizTest[] = [
     position: 4,
     active: true,
     featured: false,
+    reportPriceCents: 499,
     results: {
       explorer: profile("explorer", "The Social Spark", "Novel people and spontaneous plans wake you up. You connect through motion, humor, and shared experiences.", "You make groups feel open and alive.", "You can outrun your need for recovery.", "Leave the party while you still have a little energy left."),
       connector: profile("connector", "The Selective Connector", "You enjoy people most when the interaction has warmth and meaning. One real conversation can energize you more than a crowded room.", "You build bonds that feel personal and lasting.", "You may stay too long when someone needs you.", "Notice the first quiet sign that your attention is fading."),
@@ -143,6 +148,7 @@ export const defaultTests: QuizTest[] = [
     position: 5,
     active: true,
     featured: false,
+    reportPriceCents: 499,
     results: {
       explorer: profile("explorer", "Shared Adventure", "Love feels real when someone chooses an experience with you and meets you in the aliveness of the moment.", "You keep relationships curious and growing.", "Everyday consistency can feel less visible than big moments.", "Notice one ordinary act of love today."),
       connector: profile("connector", "Words That See You", "Specific, sincere words reach you because they show that someone has been paying attention to who you really are.", "You make appreciation emotionally precise.", "Silence can feel more negative than it was intended.", "Ask for reassurance without apologizing for needing it."),
@@ -160,6 +166,7 @@ export const defaultTests: QuizTest[] = [
     position: 6,
     active: true,
     featured: false,
+    reportPriceCents: 499,
     results: {
       explorer: profile("explorer", "The Movement Reset", "Stress begins to loosen when your body moves and the scenery changes. Momentum helps your thoughts reorganize.", "You can shift stagnant energy quickly.", "Constant movement can postpone the feeling underneath.", "Move first, then give the feeling a name."),
       connector: profile("connector", "The Connected Reset", "A safe voice, shared silence, or honest conversation helps your system remember that you are not carrying everything alone.", "You regulate through genuine human connection.", "You may reach for people who do not have capacity.", "Ask whether someone can listen before you begin."),
@@ -177,6 +184,7 @@ export const defaultTests: QuizTest[] = [
     position: 7,
     active: true,
     featured: false,
+    reportPriceCents: 499,
     results: {
       explorer: profile("explorer", "The Direct Boundary Setter", "You prefer a clear yes or no and trust that honesty prevents resentment later.", "People usually know where they stand with you.", "Directness can land harder than you intend.", "Keep the boundary firm and the delivery warm."),
       connector: profile("connector", "The Compassionate Negotiator", "You consider context and feelings before drawing a line. You want the boundary to protect connection, not punish it.", "You make difficult limits feel humane.", "You may negotiate past your own capacity.", "Decide your limit before entering the conversation."),
@@ -194,6 +202,7 @@ export const defaultTests: QuizTest[] = [
     position: 8,
     active: true,
     featured: false,
+    reportPriceCents: 499,
     results: {
       explorer: profile("explorer", "Bold Initiation", "You create movement when everyone else is still evaluating. Your willingness to begin gives possibility a real shape.", "You turn uncertainty into useful experiments.", "Starting is easier than staying with the final details.", "Choose one finish line before the next beginning."),
       connector: profile("connector", "Emotional Translation", "You notice what people mean beneath what they say and help a room become more honest without forcing it.", "You build trust across very different personalities.", "Carrying the emotional room can become invisible labor.", "Let one feeling belong to the person who brought it."),

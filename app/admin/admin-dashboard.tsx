@@ -712,6 +712,8 @@ function TestManager({
               <label>英文分类标签<input value={test.kicker} onChange={(event) => updateTest(test.id, { kicker: event.target.value })} /></label>
               <label>英文简介<textarea rows={3} value={test.description} onChange={(event) => updateTest(test.id, { description: event.target.value })} /></label>
               <div className="field-row two"><label>封面拼图地址<input list="atlas-paths" value={test.coverAtlasPath} onChange={(event) => updateTest(test.id, { coverAtlasPath: event.target.value })} /></label><label>排序<input min="1" type="number" value={test.position} onChange={(event) => updateTest(test.id, { position: Number(event.target.value) })} /></label></div>
+              <label>完整解析价格（USD）<input min="1" step="0.01" type="number" value={(test.reportPriceCents / 100).toFixed(2)} onChange={(event) => updateTest(test.id, { reportPriceCents: Math.max(100, Math.round(Number(event.target.value || 0) * 100)) })} /></label>
+
               <label className="featured-checkbox"><input checked={test.featured} onChange={(event) => updateTest(test.id, { featured: event.target.checked })} type="checkbox" />设为首页主推测试</label>
               <button className="admin-primary-button" disabled={savingId === test.id} onClick={() => void saveTest(test)}>{savingId === test.id ? "保存中…" : "保存测试"}</button>
             </div>

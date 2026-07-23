@@ -37,6 +37,7 @@ type TestRow = {
   cover_atlas_path: string;
   description: string;
   featured: number;
+  report_price_cents: number;
   id: string;
   kicker: string;
   position: number;
@@ -71,6 +72,7 @@ async function createSchema(): Promise<void> {
       position INTEGER NOT NULL DEFAULT 0,
       active INTEGER NOT NULL DEFAULT 1,
       featured INTEGER NOT NULL DEFAULT 0,
+      report_price_cents INTEGER NOT NULL DEFAULT 499,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
     db.prepare(`CREATE TABLE IF NOT EXISTS quiz_questions (
@@ -109,6 +111,10 @@ async function createSchema(): Promise<void> {
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
   ]);
+
+  await db.prepare("ALTER TABLE quiz_tests ADD COLUMN report_price_cents INTEGER NOT NULL DEFAULT 499").run().catch((error: unknown) => {
+    if (!(error instanceof Error) || !/duplicate column name/i.test(error.message)) throw error;
+  });
 
   await db.batch([
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_questions_test_idx ON quiz_questions(test_id)"),
@@ -172,6 +178,7 @@ function rowToTest(row: TestRow): QuizTest {
     position: row.position,
     active: Boolean(row.active),
     featured: Boolean(row.featured),
+    reportPriceCents: Number(row.report_price_cents ?? 499),
     questionCount: Number(row.question_count ?? 0),
   };
 }
@@ -184,9 +191,9 @@ async function seedCatalogIfNeeded(): Promise<void> {
   await db.batch([
     ...defaultTests.map((test) =>
       db.prepare(`INSERT OR IGNORE INTO quiz_tests
-        (id, title, kicker, description, cover_atlas_path, accent, results_json, position, active, featured)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .bind(test.id, test.title, test.kicker, test.description, test.coverAtlasPath, test.accent, JSON.stringify(test.results), test.position, test.active ? 1 : 0, test.featured ? 1 : 0),
+        (id, title, kicker, description, cover_atlas_path, accent, results_json, position, active, featured, report_price_cents)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .bind(test.id, test.title, test.kicker, test.description, test.coverAtlasPath, test.accent, JSON.stringify(test.results), test.position, test.active ? 1 : 0, test.featured ? 1 : 0, test.reportPriceCents),
     ),
     ...defaultQuestions.map((question) =>
       db.prepare(`INSERT OR IGNORE INTO quiz_questions
@@ -214,8 +221,8 @@ export async function listTests(includeInactive = false): Promise<QuizTest[]> {
 export async function saveTest(test: QuizTest): Promise<void> {
   await ensureQuizSchema();
   await getD1().prepare(`INSERT INTO quiz_tests
-    (id, title, kicker, description, cover_atlas_path, accent, results_json, position, active, featured, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    (id, title, kicker, description, cover_atlas_path, accent, results_json, position, active, featured, report_price_cents, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(id) DO UPDATE SET
       title = excluded.title,
       kicker = excluded.kicker,
@@ -226,8 +233,9 @@ export async function saveTest(test: QuizTest): Promise<void> {
       position = excluded.position,
       active = excluded.active,
       featured = excluded.featured,
+      report_price_cents = excluded.report_price_cents,
       updated_at = CURRENT_TIMESTAMP`)
-    .bind(test.id, test.title, test.kicker, test.description, test.coverAtlasPath, test.accent, JSON.stringify(test.results), test.position, test.active ? 1 : 0, test.featured ? 1 : 0)
+    .bind(test.id, test.title, test.kicker, test.description, test.coverAtlasPath, test.accent, JSON.stringify(test.results), test.position, test.active ? 1 : 0, test.featured ? 1 : 0, test.reportPriceCents)
     .run();
 }
 
