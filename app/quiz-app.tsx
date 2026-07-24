@@ -109,7 +109,6 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
   const [answers, setAnswers] = useState<Record<string, TraitKey>>({});
   const [answerChoices, setAnswerChoices] = useState<Record<string, number>>({});
   const [email, setEmail] = useState("");
-  const [marketingConsent, setMarketingConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loadingTest, setLoadingTest] = useState("");
   const [error, setError] = useState("");
@@ -333,7 +332,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
           sessionId,
           testId: selectedTest.id,
           email,
-          marketingConsent,
+          marketingConsent: false,
           answers,
           resultType: nextResult.key,
           source: attribution.source,
@@ -387,7 +386,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
             <p className="detail-intro">There is no right answer. The image you reach for first can reveal the pattern you use before words catch up.</p>
             <div className="detail-reveal"><span>YOUR REFLECTION WILL EXPLORE</span><div><p>What your first instinct is trying to protect.</p><p>How this pattern shapes closeness, stress, or boundaries.</p><p>The strength hidden inside the response you repeat.</p></div></div>
             <button className="primary-button detail-cta" disabled={loadingTest === selectedTest.id} onClick={() => void startTest(selectedTest)}>{loadingTest === selectedTest.id ? "Opening…" : "See what your first choice reveals"} <span aria-hidden="true">→</span></button>
-            <div className="detail-assurance"><span>Free visual test</span><i /> <span>Private by design</span><i /> <span>Full report available for ${(selectedTest.reportPriceCents / 100).toFixed(2)}</span></div>
+            <div className="detail-assurance"><span>Free visual test</span><i /> <span>Private by design</span>{selectedTest.reportPriceCents > 0 ? <><i /> <span>Full report available for ${(selectedTest.reportPriceCents / 100).toFixed(2)}</span></> : null}</div>
             {error ? <p className="form-error" role="alert">{error}</p> : null}
           </div>
         </section>
@@ -437,7 +436,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
                   <span className="test-number">{String(index + 1).padStart(2, "0")}</span>
                   {test.featured ? <span className="popular-badge">Most popular</span> : null}
                 </div>
-                <div className="test-card-copy"><span>{test.kicker}</span><h3>{test.title}</h3><p>{test.description}</p><div><small>{test.questionCount || 4} questions<br /><em className="test-report-price">Full report ${(test.reportPriceCents / 100).toFixed(2)}</em></small><strong className="test-card-start">{loadingTest === test.id ? "Opening…" : "Explore →"}</strong></div></div>
+                <div className="test-card-copy"><span>{test.kicker}</span><h3>{test.title}</h3><p>{test.description}</p><div><small>{test.questionCount || 4} questions{test.reportPriceCents > 0 ? <><br /><em className="test-report-price">Full report ${(test.reportPriceCents / 100).toFixed(2)}</em></> : null}</small><strong className="test-card-start">{loadingTest === test.id ? "Opening…" : "Explore →"}</strong></div></div>
               </button>
             ))}
           </div>
@@ -516,13 +515,10 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
             <p>See every image you chose, what each choice represents, and the psychological projection behind the full pattern.</p>
             <label htmlFor="email">Email address</label>
             <input autoComplete="email" id="email" onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required type="email" value={email} />
-            <label className="consent-row">
-              <input checked={marketingConsent} name="marketingConsent" onChange={(event) => setMarketingConsent(event.target.checked)} type="checkbox" />
-              <span><strong>Send me the DeepPersona AI weekly reflection</strong><small>One practical prompt plus new visual tests by email. Optional, and you can unsubscribe anytime.</small></span>
-            </label>
+
             {error ? <p className="form-error" role="alert">{error}</p> : null}
             <button className="primary-button full-button" disabled={submitting} type="submit">{submitting ? "Building your profile…" : "Reveal my full profile →"}</button>
-            <small className="privacy-note">Your result unlock is not conditional on marketing consent. By continuing, you acknowledge our <Link href="/privacy">Privacy Policy</Link> and <Link href="/terms">Terms</Link>.</small>
+            <small className="privacy-note">By continuing, you acknowledge our <Link href="/privacy">Privacy Policy</Link> and <Link href="/terms">Terms</Link>.</small>
           </form>
         </section>
       </main>
