@@ -11,8 +11,15 @@ import {
   type TraitKey,
 } from "@/lib/quiz";
 import { getDeepResultContent } from "@/lib/deep-results";
+import {
+  getDimensionProgress,
+  recommendNextTest,
+  TEST_DIMENSIONS,
+  type InnerProfileSummary,
+} from "@/lib/inner-map";
 
 type Stage = "home" | "detail" | "quiz" | "email" | "result";
+type InsightReaction = "accurate" | "not_quite" | "more";
 
 type AtlasImageProps = {
   path: string;
@@ -100,6 +107,24 @@ function getAttribution() {
   return { source, campaign: params.get("utm_campaign") ?? "" };
 }
 
+function InnerMap({ completedTestIds, compact = false }: { completedTestIds: string[]; compact?: boolean }) {
+  const dimensions = getDimensionProgress(completedTestIds);
+  const unlocked = dimensions.filter((dimension) => dimension.unlocked).length;
+  return (
+    <section className={`inner-map ${compact ? "inner-map-compact" : ""}`} aria-label="Your six-part Inner Map">
+      <header><span>Your evolving profile</span><h2>Your Inner Map</h2><p>Each visual exploration adds evidence to one part of the person you are becoming.</p></header>
+      <div className="inner-map-board">
+        <div className="inner-map-core"><strong>{unlocked}<small>/ 6</small></strong><span>dimensions discovered</span></div>
+        {dimensions.map((dimension, index) => (
+          <article className={`inner-map-node inner-map-node-${index + 1} ${dimension.unlocked ? "is-unlocked" : ""}`} key={dimension.id}>
+            <i>{dimension.unlocked ? "✓" : String(index + 1).padStart(2, "0")}</i>
+            <div><strong>{dimension.label}</strong><span>{dimension.unlocked ? `${dimension.completedCount}/${dimension.testCount} reflections` : "Not explored yet"}</span></div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
 export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTest[]; initialTestId?: string }) {
   const [tests, setTests] = useState(initialTests);
   const [selectedTest, setSelectedTest] = useState<QuizTest | null>(() => initialTestId ? initialTests.find((test) => test.id === initialTestId) ?? null : null);
@@ -108,6 +133,8 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, TraitKey>>({});
   const [answerChoices, setAnswerChoices] = useState<Record<string, number>>({});
+  const [insightReactions, setInsightReactions] = useState<Record<string, InsightReaction>>({});
+  const [profile, setProfile] = useState<InnerProfileSummary>({ completedTestIds: [] });
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loadingTest, setLoadingTest] = useState("");
@@ -123,6 +150,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
   const [sessionId, setSessionId] = useState("");
   const questionsCache = useRef(new Map<string, QuizQuestion[]>());
   const questionRequests = useRef(new Map<string, Promise<QuizQuestion[]>>());
+  const insightRef = useRef<HTMLElement | null>(null);
   const [attribution] = useState(() =>
     typeof window === "undefined" ? { source: "direct", campaign: "" } : getAttribution(),
   );
@@ -166,13 +194,23 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
   }, []);
 
   useEffect(() => {
+    void fetch("/api/profile", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: InnerProfileSummary | null) => {
+        if (!data?.completedTestIds) return;
+        setProfile(data);
+        if (data.email) setEmail(data.email);
+      })
+      .catch(() => undefined);
+  }, []);
+  useEffect(() => {
     void fetch("/api/tests", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
         if (data?.tests?.length) { setTests(data.tests); if (initialTestId) setSelectedTest(data.tests.find((test: QuizTest) => test.id === initialTestId) ?? null); }
       })
       .catch(() => undefined);
-  }, []);
+  }, [initialTestId]);
 
   const track = useCallback(
     (eventName: string, step = 0, questionId?: string, optionLabel?: string, overrideTestId?: string) => {
@@ -206,6 +244,12 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
   const activeQuestion = questions[questionIndex];
   const progress = stage === "email" ? 100 : questions.length ? ((questionIndex + 1) / questions.length) * 100 : 0;
   const selectedOptionIndex = activeQuestion ? answerChoices[activeQuestion.id] : undefined;
+  const selectedOption = activeQuestion && selectedOptionIndex !== undefined ? activeQuestion.options[selectedOptionIndex] : undefined;
+  const selectedReaction = activeQuestion ? insightReactions[activeQuestion.id] : undefined;
+  const completedTestIds = profile.completedTestIds;
+  const mapDimensions = getDimensionProgress(completedTestIds);
+  const unlockedDimensions = mapDimensions.filter((dimension) => dimension.unlocked).length;
+  const recommendedTest = recommendNextTest(tests, completedTestIds, selectedTest?.id);
 
   useEffect(() => {
     if (!featuredTest || stage !== "home") return;
@@ -224,6 +268,11 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
     const nextQuestion = questions[questionIndex + 1];
     if (nextQuestion) preloadAtlas(nextQuestion.atlasPath);
   }, [questionIndex, questions, stage]);
+  useEffect(() => {
+    if (stage !== "quiz" || selectedOptionIndex === undefined) return;
+    const timer = window.setTimeout(() => insightRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 120);
+    return () => window.clearTimeout(timer);
+  }, [questionIndex, selectedOptionIndex, stage]);
 
   useEffect(() => {
     if (!zoomedOption) return;
@@ -277,6 +326,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
       setQuestions(readyQuestions);
       setAnswers({});
       setAnswerChoices({});
+      setInsightReactions({});
       setQuestionIndex(0);
       setResult(null);
       setStage("quiz");
@@ -302,7 +352,19 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
     if (!activeQuestion) return;
     setAnswers((current) => ({ ...current, [activeQuestion.id]: scoreKey }));
     setAnswerChoices((current) => ({ ...current, [activeQuestion.id]: optionIndex }));
+    setInsightReactions((current) => {
+      const next = { ...current };
+      delete next[activeQuestion.id];
+      return next;
+    });
     track("answer_selected", questionIndex + 1, activeQuestion.id, optionLabel);
+  }
+
+  function reactToInsight(reaction: InsightReaction) {
+    if (!activeQuestion || !selectedOption) return;
+    setInsightReactions((current) => ({ ...current, [activeQuestion.id]: reaction }));
+    const eventName = reaction === "accurate" ? "insight_accurate" : reaction === "not_quite" ? "insight_not_quite" : "insight_more";
+    track(eventName, questionIndex + 1, activeQuestion.id, selectedOption.label);
   }
 
   function continueQuiz() {
@@ -339,8 +401,12 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
           campaign: attribution.campaign,
         }),
       });
-      const data = (await response.json()) as { error?: string };
+      const data = (await response.json()) as { error?: string; profile?: InnerProfileSummary };
       if (!response.ok) throw new Error(data.error ?? "Something went wrong.");
+      if (data.profile) {
+        setProfile(data.profile);
+        if (data.profile.email) setEmail(data.profile.email);
+      }
       setResult(nextResult);
       setStage("result");
       track("result_viewed", questions.length + 2);
@@ -358,9 +424,9 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
     setQuestions([]);
     setAnswers({});
     setAnswerChoices({});
+    setInsightReactions({});
     setSessionId("");
     setEmail("");
-    setMarketingConsent(false);
     setError("");
     setZoomedOption(null);
     window.history.replaceState({}, "", "/");
@@ -426,6 +492,12 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
           </button>
         </section>
 
+        {completedTestIds.length ? (
+          <section className="returning-profile">
+            <div className="returning-profile-copy"><span>Welcome back</span><h2>Your map remembers where you left off.</h2><p>{unlockedDimensions} of 6 dimensions discovered. One short reflection is enough to keep building.</p>{recommendedTest ? <button className="primary-button" onClick={() => openDetail(recommendedTest)} type="button">Continue with {recommendedTest.title} →</button> : null}</div>
+            <InnerMap compact completedTestIds={completedTestIds} />
+          </section>
+        ) : null}
         <section className="test-library" id="tests">
           <div className="library-heading"><span>Choose your question</span><h2>Eight ways to understand yourself a little better.</h2><p>Short, visual, and designed for reflection—not diagnosis.</p></div>
           <div className="test-card-grid">
@@ -483,7 +555,24 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
               );
             })}
           </div>
-          <div className="quiz-actions"><button className="text-button" disabled={questionIndex === 0} onClick={() => setQuestionIndex((index) => Math.max(0, index - 1))}>← Back</button><button className="primary-button" disabled={selectedOptionIndex === undefined} onClick={continueQuiz}>{questionIndex === questions.length - 1 ? "See my result" : "Continue"} →</button></div>
+          {selectedOption ? (
+            <aside className="instant-insight" ref={(node) => { insightRef.current = node; }}>
+              <span>Instant reflection</span>
+              <h2>You chose “{selectedOption.label}”</h2>
+              <p>{selectedOption.meaning}</p>
+              {selectedReaction === "more" ? <div className="instant-insight-more"><strong>The deeper projection</strong><p>{selectedOption.projection}</p></div> : null}
+              <div className="insight-reactions" aria-label="How accurate did this reflection feel?">
+                <span>Does this feel like you?</span>
+                <div>
+                  <button className={selectedReaction === "accurate" ? "active" : ""} onClick={() => reactToInsight("accurate")} type="button">That feels accurate</button>
+                  <button className={selectedReaction === "not_quite" ? "active" : ""} onClick={() => reactToInsight("not_quite")} type="button">Not quite</button>
+                  <button className={selectedReaction === "more" ? "active" : ""} onClick={() => reactToInsight("more")} type="button">Tell me more</button>
+                </div>
+              </div>
+              {selectedReaction && selectedReaction !== "more" ? <small>Thank you. Your response helps the next reflection fit you better.</small> : null}
+            </aside>
+          ) : null}
+          <div className="quiz-actions"><button className="text-button" disabled={questionIndex === 0} onClick={() => setQuestionIndex((index) => Math.max(0, index - 1))}>← Back</button><button className="primary-button" disabled={selectedOptionIndex === undefined} onClick={continueQuiz}>{questionIndex === questions.length - 1 ? "Save my Inner Map" : "Next reflection"} →</button></div>
         </section>
         {zoomedOption ? (
           <div className="image-lightbox-backdrop" role="presentation" onClick={() => setZoomedOption(null)}>
@@ -510,15 +599,13 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
         <section className="email-gate">
           <div className="result-teaser"><span className="result-seal">Profile found</span><div className="blurred-result"><span>{selectedTest.title}</span><h2>{preview.title}</h2><p>{preview.summary}</p></div></div>
           <form className="email-form" onSubmit={unlockResult}>
-            <span className="pill">Your complete profile is ready</span>
-            <h1>Unlock the full pattern behind your choices.</h1>
-            <p>See every image you chose, what each choice represents, and the psychological projection behind the full pattern.</p>
-            <label htmlFor="email">Email address</label>
-            <input autoComplete="email" id="email" onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required type="email" value={email} />
-
+            <span className="pill">Your first Inner Map discovery is ready</span>
+            <h1>Save what you have uncovered.</h1>
+            <p>You have already seen the meaning behind each choice. Save this dimension to your private DeepPersona profile and keep building your map over time.</p>
+            {profile.email ? <div className="saved-profile-email"><span>Saving this reflection to</span><strong>{profile.email}</strong></div> : <><label htmlFor="email">Email address</label><input autoComplete="email" id="email" onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required type="email" value={email} /></>}
             {error ? <p className="form-error" role="alert">{error}</p> : null}
-            <button className="primary-button full-button" disabled={submitting} type="submit">{submitting ? "Building your profile…" : "Reveal my full profile →"}</button>
-            <small className="privacy-note">By continuing, you acknowledge our <Link href="/privacy">Privacy Policy</Link> and <Link href="/terms">Terms</Link>.</small>
+            <button className="primary-button full-button" disabled={submitting} type="submit">{submitting ? "Saving your discovery…" : profile.email ? "Add this to my map →" : "Save my map and reveal my profile →"}</button>
+            <small className="privacy-note">No password is needed on this device. By continuing, you acknowledge our <Link href="/privacy">Privacy Policy</Link> and <Link href="/terms">Terms</Link>.</small>
           </form>
         </section>
       </main>
@@ -543,6 +630,9 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
           <h1>{result.title}</h1>
           <p className="result-summary">{result.summary}</p>
 
+          <section className="map-unlock-copy"><span>New dimension added</span><h2>{TEST_DIMENSIONS[selectedTest.id] ? `${mapDimensions.find((dimension) => dimension.id === TEST_DIMENSIONS[selectedTest.id])?.label} is now part of your map.` : "Your Inner Map has started."}</h2><p>This is not a fixed label. Every future reflection adds context and can make the pattern more precise.</p></section>
+          <InnerMap completedTestIds={completedTestIds} />
+          {recommendedTest ? <section className="next-exploration" style={{ "--test-accent": recommendedTest.accent } as React.CSSProperties}><div><span>Recommended next</span><h2>{recommendedTest.title}</h2><p>{recommendedTest.description}</p></div><button className="primary-button" onClick={() => openDetail(recommendedTest)} type="button">Explore this dimension →</button></section> : null}
           <section className="choice-review" aria-labelledby="choice-review-title">
             <header>
               <span>Your choices, decoded</span>
@@ -582,7 +672,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
         </article>
       ) : null}
       <section className="premium-card"><div><span className="premium-label">Coming next · Cross-test report</span><h2>Connect your patterns across all eight tests.</h2><p>A combined projection map showing repeated choices, contradictions between profiles, and the situations that change your response.</p></div><button className="premium-button" onClick={() => { setShowUpgrade(true); track("upgrade_clicked", questions.length + 3); }}>Preview combined report <span>↗</span></button></section>
-      <button className="retake-button" onClick={returnHome}>Explore another test</button>
+      <button className="retake-button" onClick={returnHome}>Return to my Inner Map</button>
       {showUpgrade ? <div className="modal-backdrop" role="presentation" onClick={() => setShowUpgrade(false)}><div className="upgrade-modal" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" onClick={(event) => event.stopPropagation()}><button className="modal-close" aria-label="Close" onClick={() => setShowUpgrade(false)}>×</button><span className="result-seal">Premium preview</span><h2 id="upgrade-title">Your deeper report is almost here.</h2><p>The checkout hook is ready for Creem or Stripe. Payments stay disabled until a provider is connected.</p><div className="premium-list"><span>✓ Every choice explained in context</span><span>✓ Repeated relationship and stress signals</span><span>✓ Contradictions that reveal when your pattern changes</span></div><button className="primary-button full-button" disabled>Checkout coming soon</button><p className="checkout-legal">Future purchases will be subject to our <Link href="/terms">Terms</Link>, <Link href="/privacy">Privacy Policy</Link>, and <Link href="/refunds">Refund & Delivery Policy</Link>.</p></div></div> : null}
     </main>
   );

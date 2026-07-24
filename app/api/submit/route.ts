@@ -1,5 +1,6 @@
 import { submitQuiz } from "@/db/quiz-store";
 import { TRAIT_KEYS, type TraitKey } from "@/lib/quiz";
+import { createProfileId, profileCookie, readProfileId } from "@/lib/profile-cookie";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -27,8 +28,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "Please provide a valid email." }, { status: 400 });
   }
 
-  await submitQuiz({
+  const profileId = readProfileId(request) ?? createProfileId();
+  const profile = await submitQuiz({
     sessionId: body.sessionId,
+    profileId,
     email: body.email.toLowerCase().slice(0, 254),
     marketingConsent: Boolean(body.marketingConsent),
     answers: body.answers,
@@ -37,5 +40,8 @@ export async function POST(request: Request) {
     campaign: body.campaign?.slice(0, 160),
     testId: body.testId.slice(0, 100),
   });
-  return Response.json({ ok: true, resultType: body.resultType });
+  return Response.json(
+    { ok: true, resultType: body.resultType, profile },
+    { headers: { "set-cookie": profileCookie(profileId) } },
+  );
 }

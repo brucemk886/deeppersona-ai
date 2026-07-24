@@ -28,7 +28,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   ]);
 
   assert.match(quiz, /DeepPersona AI/);
-  assert.match(quiz, /Start the most popular test/);
+  assert.match(quiz, /Explore the most popular test/);
   assert.match(quiz, /email_submitted|\/api\/submit/);
   assert.match(quiz, /upgrade_clicked/);
   assert.match(quiz, /image_zoomed/);
@@ -43,7 +43,11 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(quiz, /Your projection/);
   assert.doesNotMatch(quiz, /7-day|30-day|Your four-choice pattern/);
   assert.doesNotMatch(quiz, /Natural strength|Watch for|Start here/);
-  assert.match(quiz, /marketingConsent, setMarketingConsent\] = useState\(false\)/);
+  assert.match(quiz, /marketingConsent: false/);
+  assert.match(quiz, /Instant reflection/);
+  assert.match(quiz, /Your Inner Map/);
+  assert.match(quiz, /That feels accurate/);
+  assert.match(quiz, /Save my map and reveal my profile/);
   assert.match(deepResults, /How you try to restore safety in closeness/);
   assert.match(choiceInsights, /getOptionInsight/);
   assert.match(choiceInsights, /attachment-style/);
@@ -76,7 +80,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(refunds, /14 calendar days/);
   assert.match(refunds, /Digital delivery/);
   assert.match(contact, /SUPPORT_EMAIL/);
-  assert.match(legalPage, /liu\.xuan\.yu\.mk@gmail\.com/);
+  assert.match(legalPage, /bruce@loversdaily\.com/);
   assert.match(disclaimer, /not validated diagnostic instruments/);
   assert.match(hosting, /"d1": "DB"/);
   assert.doesNotMatch(quiz + layout, /codex-preview|react-loading-skeleton/);

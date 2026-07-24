@@ -30,6 +30,7 @@ export const quizTests = sqliteTable("quiz_tests", {
 
 export const quizSessions = sqliteTable("quiz_sessions", {
   id: text("id").primaryKey(),
+  profileId: text("profile_id"),
   testId: text("test_id"),
   email: text("email"),
   marketingConsent: integer("marketing_consent", { mode: "boolean" })
@@ -44,6 +45,12 @@ export const quizSessions = sqliteTable("quiz_sessions", {
   completedAt: text("completed_at"),
 });
 
+export const quizProfiles = sqliteTable("quiz_profiles", {
+  id: text("id").primaryKey(),
+  email: text("email"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
 export const quizEvents = sqliteTable("quiz_events", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   sessionId: text("session_id").notNull(),

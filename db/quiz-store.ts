@@ -10,6 +10,7 @@ import {
   type TraitKey,
 } from "@/lib/quiz";
 import { getOptionInsight } from "@/lib/choice-insights";
+import type { InnerProfileSummary } from "@/lib/inner-map";
 
 type RuntimeEnv = {
   ADMIN_EMAILS?: string;
@@ -86,8 +87,14 @@ async function createSchema(): Promise<void> {
       active INTEGER NOT NULL DEFAULT 1,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS quiz_sessions (
+    db.prepare(`CREATE TABLE IF NOT EXISTS quiz_profiles (
       id TEXT PRIMARY KEY,
+      email TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),    db.prepare(`CREATE TABLE IF NOT EXISTS quiz_sessions (
+      id TEXT PRIMARY KEY,
+      profile_id TEXT,
       test_id TEXT,
       email TEXT,
       marketing_consent INTEGER NOT NULL DEFAULT 0,
@@ -115,6 +122,9 @@ async function createSchema(): Promise<void> {
   await db.prepare("ALTER TABLE quiz_tests ADD COLUMN report_price_cents INTEGER NOT NULL DEFAULT 499").run().catch((error: unknown) => {
     if (!(error instanceof Error) || !/duplicate column name/i.test(error.message)) throw error;
   });
+  await db.prepare("ALTER TABLE quiz_sessions ADD COLUMN profile_id TEXT").run().catch((error: unknown) => {
+    if (!(error instanceof Error) || !/duplicate column name/i.test(error.message)) throw error;
+  });
 
   await db.batch([
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_questions_test_idx ON quiz_questions(test_id)"),
@@ -122,6 +132,8 @@ async function createSchema(): Promise<void> {
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_events_name_idx ON quiz_events(event_name)"),
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_events_question_idx ON quiz_events(question_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_events_test_idx ON quiz_events(test_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS quiz_profiles_email_idx ON quiz_profiles(email)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS quiz_sessions_profile_idx ON quiz_sessions(profile_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_sessions_email_idx ON quiz_sessions(email)"),
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_sessions_test_idx ON quiz_sessions(test_id)"),
   ]);
@@ -309,23 +321,46 @@ export async function recordEvent(input: {
   ]);
 }
 
+export async function getProfileSummary(profileId: string): Promise<InnerProfileSummary> {
+  await ensureQuizSchema();
+  const db = getD1();
+  const [profile, completed] = await Promise.all([
+    db.prepare("SELECT email FROM quiz_profiles WHERE id = ?").bind(profileId).first<{ email: string | null }>(),
+    db.prepare(`SELECT DISTINCT test_id FROM quiz_sessions
+      WHERE profile_id = ? AND completed_at IS NOT NULL AND test_id IS NOT NULL
+      ORDER BY completed_at`)
+      .bind(profileId)
+      .all<{ test_id: string }>(),
+  ]);
+  return {
+    completedTestIds: completed.results.map((item) => item.test_id),
+    ...(profile?.email ? { email: profile.email } : {}),
+  };
+}
+
 export async function submitQuiz(input: {
   answers: Record<string, TraitKey>;
   campaign?: string;
   email: string;
   marketingConsent: boolean;
+  profileId: string;
   resultType: TraitKey;
   sessionId: string;
   source?: string;
   testId: string;
-}): Promise<void> {
+}): Promise<InnerProfileSummary> {
   await ensureQuizSchema();
   const db = getD1();
   await db.batch([
+    db.prepare(`INSERT INTO quiz_profiles (id, email, created_at, updated_at)
+      VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT(id) DO UPDATE SET email = excluded.email, updated_at = CURRENT_TIMESTAMP`)
+      .bind(input.profileId, input.email),
     db.prepare(`INSERT INTO quiz_sessions
-      (id, test_id, email, marketing_consent, answers_json, result_type, source, campaign, current_step, completed_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      (id, profile_id, test_id, email, marketing_consent, answers_json, result_type, source, campaign, current_step, completed_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(id) DO UPDATE SET
+        profile_id = excluded.profile_id,
         test_id = excluded.test_id,
         email = excluded.email,
         marketing_consent = excluded.marketing_consent,
@@ -335,13 +370,13 @@ export async function submitQuiz(input: {
         campaign = COALESCE(quiz_sessions.campaign, excluded.campaign),
         current_step = excluded.current_step,
         completed_at = CURRENT_TIMESTAMP`)
-      .bind(input.sessionId, input.testId, input.email, input.marketingConsent ? 1 : 0, JSON.stringify(input.answers), input.resultType, input.source ?? null, input.campaign ?? null, Object.keys(input.answers).length + 1),
+      .bind(input.sessionId, input.profileId, input.testId, input.email, input.marketingConsent ? 1 : 0, JSON.stringify(input.answers), input.resultType, input.source ?? null, input.campaign ?? null, Object.keys(input.answers).length + 1),
     db.prepare(`INSERT INTO quiz_events (session_id, event_name, step, source, test_id, created_at)
       VALUES (?, 'email_submitted', ?, ?, ?, CURRENT_TIMESTAMP)`)
       .bind(input.sessionId, Object.keys(input.answers).length + 1, input.source ?? null, input.testId),
   ]);
+  return getProfileSummary(input.profileId);
 }
-
 export async function getAdminStats() {
   await ensureQuizSchema();
   await seedCatalogIfNeeded();
