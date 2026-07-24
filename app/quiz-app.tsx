@@ -503,7 +503,13 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
           relationshipId: relationshipContext?.id,
         }),
       });
-      const data = (await response.json()) as { error?: string; profile?: InnerProfileSummary };
+      const raw = await response.text();
+      let data: { error?: string; profile?: InnerProfileSummary } = {};
+      try {
+        data = raw ? JSON.parse(raw) as { error?: string; profile?: InnerProfileSummary } : {};
+      } catch {
+        throw new Error("We could not save your reflection. Please try again.");
+      }
       if (!response.ok) throw new Error(data.error ?? "Something went wrong.");
       if (data.profile) {
         setProfile(data.profile);
