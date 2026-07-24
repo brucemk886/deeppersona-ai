@@ -42,6 +42,9 @@ const optimizedAtlases: Record<string, { full: string; compact: string }> = {
   "/quiz/symbols.png": { full: "/quiz/symbols.webp", compact: "/quiz/symbols-768.webp" },
 };
 
+// Kept intact for a future relaunch; the current public flow focuses on individual tests.
+const RELATIONSHIP_NETWORK_ENABLED = false;
+
 function AtlasImage({
   path,
   index,
@@ -290,6 +293,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
   }
 
   useEffect(() => {
+    if (!RELATIONSHIP_NETWORK_ENABLED) return;
     const refresh = window.setTimeout(() => {
       void loadRelationships();
     }, 0);
@@ -609,13 +613,15 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
             <div className="returning-profile-copy"><span>Welcome back</span><h2>Your map remembers where you left off.</h2><p>{unlockedDimensions} of 6 dimensions discovered. One short reflection is enough to keep building.</p>{recommendedTest ? <button className="primary-button" onClick={() => openDetail(recommendedTest)} type="button">Continue with {recommendedTest.title} →</button> : null}</div>
             <InnerMap compact completedTestIds={completedTestIds} />
           </section>
-          <RelationshipNetwork
-            loading={relationshipLoading}
-            onCreate={createRelationship}
-            onExplore={(relationship) => featuredTest && void startTest(featuredTest, relationship)}
-            relationships={relationships}
-          />
-          {relationshipError ? <p className="relationship-error" role="alert">{relationshipError}</p> : null}
+          {RELATIONSHIP_NETWORK_ENABLED ? <>
+            <RelationshipNetwork
+              loading={relationshipLoading}
+              onCreate={createRelationship}
+              onExplore={(relationship) => featuredTest && void startTest(featuredTest, relationship)}
+              relationships={relationships}
+            />
+            {relationshipError ? <p className="relationship-error" role="alert">{relationshipError}</p> : null}
+          </> : null}
         </> : null}        <section className="test-library" id="tests">
           <div className="library-heading"><span>Choose your question</span><h2>Eight ways to understand yourself a little better.</h2><p>Short, visual, and designed for reflection—not diagnosis.</p></div>
           <div className="test-card-grid">
