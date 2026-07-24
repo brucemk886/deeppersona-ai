@@ -757,6 +757,10 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
             <section className="map-unlock-copy"><span>New dimension added</span><h2>{TEST_DIMENSIONS[selectedTest.id] ? `${mapDimensions.find((dimension) => dimension.id === TEST_DIMENSIONS[selectedTest.id])?.label} is now part of your map.` : "Your Inner Map has started."}</h2><p>This is not a fixed label. Every future reflection adds context and can make the pattern more precise.</p></section>
             <InnerMap completedTestIds={completedTestIds} />
           </> : null}
+          {result.affiliateRecommendation?.url ? <section className="affiliate-recommendation" aria-labelledby="affiliate-recommendation-title">
+            <div className="affiliate-recommendation-copy"><span>Selected for your result</span><h2 id="affiliate-recommendation-title">A next step that may support you</h2><h3>{result.affiliateRecommendation.title}</h3><p>{result.affiliateRecommendation.description}</p><small>Affiliate disclosure: we may earn a commission if you choose to purchase through this link, at no extra cost to you.</small></div>
+            <a className="affiliate-recommendation-link" href={result.affiliateRecommendation.url} onClick={() => track("affiliate_link_clicked", questions.length + 4)} rel="sponsored nofollow noopener" target="_blank">{result.affiliateRecommendation.buttonLabel} <span aria-hidden="true">↗</span></a>
+          </section> : null}
           {recommendedTest ? <section className="next-exploration" style={{ "--test-accent": recommendedTest.accent } as React.CSSProperties}><div><span>Recommended next</span><h2>{recommendedTest.title}</h2><p>{recommendedTest.description}</p></div><button className="primary-button" onClick={() => openDetail(recommendedTest)} type="button">Explore this dimension →</button></section> : null}
         </article>
       ) : null}

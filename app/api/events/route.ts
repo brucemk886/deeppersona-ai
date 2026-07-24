@@ -11,6 +11,7 @@ const allowedEvents = new Set([
   "email_gate_viewed",
   "result_viewed",
   "upgrade_clicked",
+  "affiliate_link_clicked",
   "heartbeat",
 ]);
 

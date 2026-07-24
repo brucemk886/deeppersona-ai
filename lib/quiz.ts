@@ -23,6 +23,12 @@ export type QuizQuestion = {
   options: QuizOption[];
 };
 
+export type AffiliateRecommendation = {
+  title: string;
+  description: string;
+  url: string;
+  buttonLabel: string;
+};
 export type ResultProfile = {
   key: TraitKey;
   eyebrow: string;
@@ -31,6 +37,7 @@ export type ResultProfile = {
   strength: string;
   watchout: string;
   nextStep: string;
+  affiliateRecommendation?: AffiliateRecommendation;
 };
 
 export type QuizTest = {

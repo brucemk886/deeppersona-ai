@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import type { QuizQuestion, QuizTest, TraitKey } from "@/lib/quiz";
+import { TRAIT_KEYS, type QuizQuestion, type QuizTest, type TraitKey } from "@/lib/quiz";
 
 type AdminSection = "overview" | "tests" | "questions" | "traffic" | "emails" | "payments";
 
@@ -688,6 +688,19 @@ function TestManager({
   tests: QuizTest[];
   updateTest: (id: string, next: Partial<QuizTest>) => void;
 }) {
+  function updateAffiliateRecommendation(test: QuizTest, key: TraitKey, next: Partial<NonNullable<QuizTest["results"][TraitKey]["affiliateRecommendation"]>>) {
+    const current = test.results[key].affiliateRecommendation ?? { title: "", description: "", url: "", buttonLabel: "" };
+    updateTest(test.id, {
+      results: {
+        ...test.results,
+        [key]: {
+          ...test.results[key],
+          affiliateRecommendation: { ...current, ...next },
+        },
+      },
+    });
+  }
+
   return (
     <>
       <div className="admin-page-heading">
@@ -713,7 +726,7 @@ function TestManager({
               <label>英文简介<textarea rows={3} value={test.description} onChange={(event) => updateTest(test.id, { description: event.target.value })} /></label>
               <div className="field-row two"><label>封面拼图地址<input list="atlas-paths" value={test.coverAtlasPath} onChange={(event) => updateTest(test.id, { coverAtlasPath: event.target.value })} /></label><label>排序<input min="1" type="number" value={test.position} onChange={(event) => updateTest(test.id, { position: Number(event.target.value) })} /></label></div>
               <label>完整解析价格（USD，填 0 为免费且前台不展示价格）<input min="0" step="0.01" type="number" value={(test.reportPriceCents / 100).toFixed(2)} onChange={(event) => updateTest(test.id, { reportPriceCents: Math.max(0, Math.round(Number(event.target.value || 0) * 100)) })} /></label>
-
+              <details className="affiliate-config"><summary>按结果配置联盟推荐（可选）</summary><p>只会在对应结果的完整解析底部展示；产品名称、英文说明、跳转链接和按钮文案都需要填写。全部留空则前台不显示。</p><div className="affiliate-result-grid">{TRAIT_KEYS.map((key) => { const recommendation = test.results[key].affiliateRecommendation; return <fieldset key={key}><legend>{test.results[key].title}（{resultNames[key]}）</legend><label>产品名称（英文）<input placeholder="e.g. A guided communication journal" value={recommendation?.title ?? ""} onChange={(event) => updateAffiliateRecommendation(test, key, { title: event.target.value })} /></label><label>推荐说明（英文）<textarea placeholder="Why this product fits this result" rows={3} value={recommendation?.description ?? ""} onChange={(event) => updateAffiliateRecommendation(test, key, { description: event.target.value })} /></label><label>联盟跳转链接<input placeholder="https://..." type="url" value={recommendation?.url ?? ""} onChange={(event) => updateAffiliateRecommendation(test, key, { url: event.target.value })} /></label><label>按钮文案（英文）<input placeholder="View recommendation →" value={recommendation?.buttonLabel ?? ""} onChange={(event) => updateAffiliateRecommendation(test, key, { buttonLabel: event.target.value })} /></label></fieldset>; })}</div></details>
               <label className="featured-checkbox"><input checked={test.featured} onChange={(event) => updateTest(test.id, { featured: event.target.checked })} type="checkbox" />设为首页主推测试</label>
               <button className="admin-primary-button" disabled={savingId === test.id} onClick={() => void saveTest(test)}>{savingId === test.id ? "保存中…" : "保存测试"}</button>
             </div>
