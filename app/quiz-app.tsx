@@ -44,6 +44,7 @@ const optimizedAtlases: Record<string, { full: string; compact: string }> = {
 
 // Kept intact for a future relaunch; the current public flow focuses on individual tests.
 const RELATIONSHIP_NETWORK_ENABLED = false;
+const RETURNING_MAP_ENABLED = false;
 
 function AtlasImage({
   path,
@@ -608,7 +609,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
           </button>
         </section>
 
-        {completedTestIds.length ? <>
+        {RETURNING_MAP_ENABLED && completedTestIds.length ? <>
           <section className="returning-profile">
             <div className="returning-profile-copy"><span>Welcome back</span><h2>Your map remembers where you left off.</h2><p>{unlockedDimensions} of 6 dimensions discovered. One short reflection is enough to keep building.</p>{recommendedTest ? <button className="primary-button" onClick={() => openDetail(recommendedTest)} type="button">Continue with {recommendedTest.title} →</button> : null}</div>
             <InnerMap compact completedTestIds={completedTestIds} />
