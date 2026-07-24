@@ -11,6 +11,7 @@ import {
   type TraitKey,
 } from "@/lib/quiz";
 import { getDeepResultContent } from "@/lib/deep-results";
+import { validateEmailAddress } from "@/lib/email-validation";
 import {
   getDimensionProgress,
   recommendNextTest,
@@ -485,9 +486,14 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
   async function unlockResult(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedTest) return;
+    const emailValidation = validateEmailAddress(profile.email ?? email);
+    if (!emailValidation.valid) {
+      setError(emailValidation.message);
+      return;
+    }
+    const emailToSave = emailValidation.normalized;
     setError("");
-    const nextResult = calculateResult(answers, selectedTest.results);
-    setSubmitting(true);
+    const nextResult = calculateResult(answers, selectedTest.results);    setSubmitting(true);
     try {
       const response = await fetch("/api/submit", {
         method: "POST",
@@ -495,7 +501,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
         body: JSON.stringify({
           sessionId,
           testId: selectedTest.id,
-          email,
+          email: emailToSave,
           marketingConsent: false,
           answers,
           resultType: nextResult.key,
@@ -714,8 +720,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
             <span className="pill">{relationshipContext ? `A reflection with ${relationshipContext.nickname} is ready` : "Your first Inner Map discovery is ready"}</span>
             <h1>Save what you have uncovered.</h1>
             <p>{relationshipContext ? `Save this reflection to your private map of how this relationship feels from the inside.` : "You have already seen the meaning behind each choice. Save this dimension to your private DeepPersona profile and keep building your map over time."}</p>
-            {profile.email ? <div className="saved-profile-email"><span>Saving this reflection to</span><strong>{profile.email}</strong></div> : <><label htmlFor="email">Email address</label><input autoComplete="email" id="email" onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required type="email" value={email} /></>}
-            {error ? <p className="form-error" role="alert">{error}</p> : null}
+            {profile.email ? <div className="saved-profile-email"><span>Saving this reflection to</span><strong>{profile.email}</strong></div> : <><label htmlFor="email">Email address</label><input aria-invalid={Boolean(error)} autoComplete="email" id="email" onBlur={(event) => { const validation = validateEmailAddress(event.target.value); if (!validation.valid) setError(validation.message); }} onChange={(event) => { setEmail(event.target.value); setError(""); }} placeholder="name@gmail.com" required type="email" value={email} /><small className="email-hint">Use an email you can access. Test, placeholder, and malformed addresses are not accepted.</small></>}            {error ? <p className="form-error" role="alert">{error}</p> : null}
             <button className="primary-button full-button" disabled={submitting} type="submit">{submitting ? "Saving your discovery…" : profile.email ? "Add this to my map →" : "Save my map and reveal my profile →"}</button>
             <small className="privacy-note">No password is needed on this device. By continuing, you acknowledge our <Link href="/privacy">Privacy Policy</Link> and <Link href="/terms">Terms</Link>.</small>
           </form>

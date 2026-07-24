@@ -1,8 +1,7 @@
 import { submitQuiz } from "@/db/quiz-store";
+import { validateEmailAddress } from "@/lib/email-validation";
 import { TRAIT_KEYS, type TraitKey } from "@/lib/quiz";
 import { createProfileId, profileCookie, readProfileId } from "@/lib/profile-cookie";
-
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
   const body = (await request.json()) as {
@@ -17,23 +16,26 @@ export async function POST(request: Request) {
     testId?: string;
   };
 
+  const emailValidation = validateEmailAddress(body.email ?? "");
   if (
     !body.sessionId ||
-    !body.email ||
-    !emailPattern.test(body.email) ||
+    !emailValidation.valid ||
     !body.answers ||
     !body.resultType ||
     !body.testId ||
     !TRAIT_KEYS.includes(body.resultType)
   ) {
-    return Response.json({ error: "Please provide a valid email." }, { status: 400 });
+    return Response.json(
+      { error: emailValidation.valid ? "Please provide a valid email." : emailValidation.message },
+      { status: 400 },
+    );
   }
 
   const profileId = readProfileId(request) ?? createProfileId();
   const profile = await submitQuiz({
     sessionId: body.sessionId,
     profileId,
-    email: body.email.toLowerCase().slice(0, 254),
+    email: emailValidation.normalized,
     marketingConsent: Boolean(body.marketingConsent),
     answers: body.answers,
     resultType: body.resultType,

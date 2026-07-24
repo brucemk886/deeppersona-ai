@@ -1120,3 +1120,5 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .relationship-saved { margin-top: 26px; padding: 20px; }
   .relationship-saved h2 { font-size: 26px; }
 }
+.email-hint { display: block; margin: 8px 0 16px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.email-form input[aria-invalid="true"] { border-color: #b94b61; box-shadow: 0 0 0 3px rgba(185,75,97,.1); }
