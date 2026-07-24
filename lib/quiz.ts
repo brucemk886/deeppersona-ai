@@ -29,6 +29,16 @@ export type AffiliateRecommendation = {
   url: string;
   buttonLabel: string;
 };
+export type AffiliateProduct = {
+  id: string;
+  name: string;
+  description: string;
+  url: string;
+  buttonLabel: string;
+  active: boolean;
+  position: number;
+};
+
 export type ResultProfile = {
   key: TraitKey;
   eyebrow: string;
@@ -37,6 +47,7 @@ export type ResultProfile = {
   strength: string;
   watchout: string;
   nextStep: string;
+  affiliateProductId?: string;
   affiliateRecommendation?: AffiliateRecommendation;
 };
 

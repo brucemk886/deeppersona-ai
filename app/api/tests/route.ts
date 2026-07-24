@@ -4,18 +4,10 @@ import { TRAIT_KEYS, type QuizTest } from "@/lib/quiz";
 
 export const dynamic = "force-dynamic";
 
-function hasValidAffiliateRecommendation(test: QuizTest) {
+function hasValidAffiliateProductIds(test: QuizTest) {
   return TRAIT_KEYS.every((key) => {
-    const recommendation = test.results[key]?.affiliateRecommendation;
-    if (!recommendation) return true;
-    if (![recommendation.title, recommendation.description, recommendation.buttonLabel, recommendation.url].some((value) => value.trim())) return true;
-    if (!recommendation.title || !recommendation.description || !recommendation.buttonLabel || !recommendation.url) return false;
-    try {
-      const url = new URL(recommendation.url);
-      return url.protocol === "https:" || url.protocol === "http:";
-    } catch {
-      return false;
-    }
+    const productId = test.results[key]?.affiliateProductId;
+    return productId === undefined || (typeof productId === "string" && productId.length <= 100);
   });
 }
 
@@ -54,7 +46,7 @@ export async function PUT(request: Request) {
     Number.isFinite(body.position) &&
     body.results &&
     TRAIT_KEYS.every((key) => body.results[key]?.key === key) &&
-    hasValidAffiliateRecommendation(body);
+    hasValidAffiliateProductIds(body);
 
   if (!valid) return Response.json({ error: "Invalid test payload" }, { status: 400 });
   await saveTest(body);

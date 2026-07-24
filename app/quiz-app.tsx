@@ -6,6 +6,7 @@ import {
   calculateResult,
   defaultQuestions,
   type QuizQuestion,
+  type AffiliateProduct,
   type QuizTest,
   type ResultProfile,
   type TraitKey,
@@ -192,6 +193,7 @@ function RelationshipNetwork({
 }
 export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTest[]; initialTestId?: string }) {
   const [tests, setTests] = useState(initialTests);
+  const [affiliateProducts, setAffiliateProducts] = useState<AffiliateProduct[]>([]);
   const [selectedTest, setSelectedTest] = useState<QuizTest | null>(() => initialTestId ? initialTests.find((test) => test.id === initialTestId) ?? null : null);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [stage, setStage] = useState<Stage>(initialTestId ? "detail" : "home");
@@ -307,6 +309,12 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
         setProfile(data);
         if (data.email) setEmail(data.email);
       })
+      .catch(() => undefined);
+  }, []);
+  useEffect(() => {
+    void fetch("/api/affiliate-products", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { products?: AffiliateProduct[] } | null) => setAffiliateProducts(data?.products ?? []))
       .catch(() => undefined);
   }, []);
   useEffect(() => {
@@ -757,11 +765,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
             <section className="map-unlock-copy"><span>New dimension added</span><h2>{TEST_DIMENSIONS[selectedTest.id] ? `${mapDimensions.find((dimension) => dimension.id === TEST_DIMENSIONS[selectedTest.id])?.label} is now part of your map.` : "Your Inner Map has started."}</h2><p>This is not a fixed label. Every future reflection adds context and can make the pattern more precise.</p></section>
             <InnerMap completedTestIds={completedTestIds} />
           </> : null}
-          {result.affiliateRecommendation?.url ? <section className="affiliate-recommendation" aria-labelledby="affiliate-recommendation-title">
-            <div className="affiliate-recommendation-copy"><span>Selected for your result</span><h2 id="affiliate-recommendation-title">A next step that may support you</h2><h3>{result.affiliateRecommendation.title}</h3><p>{result.affiliateRecommendation.description}</p><small>Affiliate disclosure: we may earn a commission if you choose to purchase through this link, at no extra cost to you.</small></div>
-            <a className="affiliate-recommendation-link" href={result.affiliateRecommendation.url} onClick={() => track("affiliate_link_clicked", questions.length + 4)} rel="sponsored nofollow noopener" target="_blank">{result.affiliateRecommendation.buttonLabel} <span aria-hidden="true">↗</span></a>
-          </section> : null}
-          {recommendedTest ? <section className="next-exploration" style={{ "--test-accent": recommendedTest.accent } as React.CSSProperties}><div><span>Recommended next</span><h2>{recommendedTest.title}</h2><p>{recommendedTest.description}</p></div><button className="primary-button" onClick={() => openDetail(recommendedTest)} type="button">Explore this dimension →</button></section> : null}
+          {result.affiliateProductId && affiliateProducts.find((product) => product.id === result.affiliateProductId && product.active) ? (() => { const product = affiliateProducts.find((item) => item.id === result.affiliateProductId && item.active)!; return <section className="affiliate-recommendation" aria-labelledby="affiliate-recommendation-title"><div className="affiliate-recommendation-copy"><span>Selected for your result</span><h2 id="affiliate-recommendation-title">A next step that may support you</h2><h3>{product.name}</h3><p>{product.description}</p><small>Affiliate disclosure: we may earn a commission if you choose to purchase through this link, at no extra cost to you.</small></div><a className="affiliate-recommendation-link" href={product.url} onClick={() => track("affiliate_link_clicked", questions.length + 4)} rel="sponsored nofollow noopener" target="_blank">{product.buttonLabel} <span aria-hidden="true">↗</span></a></section>; })() : null}          {recommendedTest ? <section className="next-exploration" style={{ "--test-accent": recommendedTest.accent } as React.CSSProperties}><div><span>Recommended next</span><h2>{recommendedTest.title}</h2><p>{recommendedTest.description}</p></div><button className="primary-button" onClick={() => openDetail(recommendedTest)} type="button">Explore this dimension →</button></section> : null}
         </article>
       ) : null}
       {CROSS_TEST_REPORT_ENABLED ? <section className="premium-card"><div><span className="premium-label">Coming next · Cross-test report</span><h2>Connect your patterns across all eight tests.</h2><p>A combined projection map showing repeated choices, contradictions between profiles, and the situations that change your response.</p></div><button className="premium-button" onClick={() => { setShowUpgrade(true); track("upgrade_clicked", questions.length + 3); }}>Preview combined report <span>↗</span></button></section> : null}

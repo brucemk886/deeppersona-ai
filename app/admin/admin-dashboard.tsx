@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { TRAIT_KEYS, type QuizQuestion, type QuizTest, type TraitKey } from "@/lib/quiz";
+import { TRAIT_KEYS, type AffiliateProduct, type QuizQuestion, type QuizTest, type TraitKey } from "@/lib/quiz";
 
-type AdminSection = "overview" | "tests" | "questions" | "traffic" | "emails" | "payments";
+type AdminSection = "overview" | "tests" | "questions" | "traffic" | "emails" | "payments" | "affiliates";
 
 type Stats = {
   answerEvents: { option_label: string | null; question_id: string; session_id: string }[];
@@ -37,6 +37,7 @@ const navigation: { id: AdminSection; icon: string; label: string }[] = [
   { id: "traffic", icon: "流", label: "流量分析" },
   { id: "emails", icon: "邮", label: "邮箱用户" },
   { id: "payments", icon: "付", label: "支付设置" },
+  { id: "affiliates", icon: "链", label: "联盟产品" },
 ];
 
 const funnelOrder = [
@@ -162,6 +163,7 @@ export function AdminDashboard({
   const [stats, setStats] = useState<Stats | null>(null);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [tests, setTests] = useState<QuizTest[]>([]);
+  const [affiliateProducts, setAffiliateProducts] = useState<AffiliateProduct[]>([]);
   const [selectedTestId, setSelectedTestId] = useState("");
   const [savingId, setSavingId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -173,10 +175,11 @@ export function AdminDashboard({
   const loadData = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
     try {
-      const [statsResult, questionsResult, testsResult] = await Promise.allSettled([
+      const [statsResult, questionsResult, testsResult, productsResult] = await Promise.allSettled([
         fetchAdminJson<Stats>("/api/admin/stats"),
         fetchAdminJson<{ questions: QuizQuestion[] }>("/api/questions?all=1"),
         fetchAdminJson<{ tests: QuizTest[] }>("/api/tests?all=1"),
+        fetchAdminJson<{ products: AffiliateProduct[] }>("/api/affiliate-products?all=1"),
       ]);
       let loadedModules = 0;
       if (statsResult.status === "fulfilled") {
@@ -185,6 +188,10 @@ export function AdminDashboard({
       }
       if (questionsResult.status === "fulfilled") {
         setQuestions(questionsResult.value.questions ?? []);
+        loadedModules += 1;
+      }
+      if (productsResult.status === "fulfilled") {
+        setAffiliateProducts(productsResult.value.products ?? []);
         loadedModules += 1;
       }
       if (testsResult.status === "fulfilled") {
@@ -379,6 +386,34 @@ export function AdminDashboard({
     URL.revokeObjectURL(url);
   }
 
+  function updateAffiliateProduct(id: string, next: Partial<AffiliateProduct>) {
+    setAffiliateProducts((current) => current.map((product) => product.id === id ? { ...product, ...next } : product));
+  }
+
+  function addAffiliateProduct() {
+    const id = `affiliate-${Date.now()}`;
+    setAffiliateProducts((current) => [...current, { id, name: "", description: "", url: "", buttonLabel: "View recommendation", active: false, position: Math.max(0, ...current.map((product) => product.position)) + 1 }]);
+  }
+
+  async function saveAffiliateProduct(product: AffiliateProduct) {
+    setSavingId(product.id);
+    try {
+      const response = await fetch("/api/affiliate-products", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(product) });
+      if (!response.ok) throw new Error("保存联盟产品失败");
+      showNotice(product.active ? "联盟产品已保存并上架" : "联盟产品草稿已保存");
+      await loadData(true);
+    } catch (error) {
+      showNotice(error instanceof Error ? error.message : "保存联盟产品失败");
+    } finally { setSavingId(""); }
+  }
+
+  async function removeAffiliateProduct(product: AffiliateProduct) {
+    if (!window.confirm(`确定删除“${product.name || "未命名产品"}”吗？已关联的结果将不再展示此推荐。`)) return;
+    const response = await fetch(`/api/affiliate-products?id=${encodeURIComponent(product.id)}`, { method: "DELETE" });
+    if (!response.ok) { showNotice("删除联盟产品失败"); return; }
+    setAffiliateProducts((current) => current.filter((item) => item.id !== product.id));
+    showNotice("联盟产品已删除");
+  }
   return (
     <main className="admin-shell admin-cn">
       <aside className="admin-sidebar">
@@ -468,6 +503,7 @@ export function AdminDashboard({
 
           {activeSection === "tests" ? (
             <TestManager
+              products={affiliateProducts}
               saveTest={saveTest}
               savingId={savingId}
               tests={tests}
@@ -500,6 +536,9 @@ export function AdminDashboard({
           ) : null}
 
           {activeSection === "payments" ? <PaymentPanel /> : null}
+          {activeSection === "affiliates" ? (
+            <AffiliateProductsPanel addProduct={addAffiliateProduct} products={affiliateProducts} removeProduct={removeAffiliateProduct} saveProduct={saveAffiliateProduct} savingId={savingId} updateProduct={updateAffiliateProduct} />
+          ) : null}
         </div>
       </div>
     </main>
@@ -678,29 +717,18 @@ function SourceList({ sources }: { sources: Stats["sources"] }) {
 }
 
 function TestManager({
+  products,
   saveTest,
   savingId,
   tests,
   updateTest,
 }: {
+  products: AffiliateProduct[];
   saveTest: (test: QuizTest) => Promise<void>;
   savingId: string;
   tests: QuizTest[];
   updateTest: (id: string, next: Partial<QuizTest>) => void;
 }) {
-  function updateAffiliateRecommendation(test: QuizTest, key: TraitKey, next: Partial<NonNullable<QuizTest["results"][TraitKey]["affiliateRecommendation"]>>) {
-    const current = test.results[key].affiliateRecommendation ?? { title: "", description: "", url: "", buttonLabel: "" };
-    updateTest(test.id, {
-      results: {
-        ...test.results,
-        [key]: {
-          ...test.results[key],
-          affiliateRecommendation: { ...current, ...next },
-        },
-      },
-    });
-  }
-
   return (
     <>
       <div className="admin-page-heading">
@@ -726,7 +754,7 @@ function TestManager({
               <label>英文简介<textarea rows={3} value={test.description} onChange={(event) => updateTest(test.id, { description: event.target.value })} /></label>
               <div className="field-row two"><label>封面拼图地址<input list="atlas-paths" value={test.coverAtlasPath} onChange={(event) => updateTest(test.id, { coverAtlasPath: event.target.value })} /></label><label>排序<input min="1" type="number" value={test.position} onChange={(event) => updateTest(test.id, { position: Number(event.target.value) })} /></label></div>
               <label>完整解析价格（USD，填 0 为免费且前台不展示价格）<input min="0" step="0.01" type="number" value={(test.reportPriceCents / 100).toFixed(2)} onChange={(event) => updateTest(test.id, { reportPriceCents: Math.max(0, Math.round(Number(event.target.value || 0) * 100)) })} /></label>
-              <details className="affiliate-config"><summary>按结果配置联盟推荐（可选）</summary><p>只会在对应结果的完整解析底部展示；产品名称、英文说明、跳转链接和按钮文案都需要填写。全部留空则前台不显示。</p><div className="affiliate-result-grid">{TRAIT_KEYS.map((key) => { const recommendation = test.results[key].affiliateRecommendation; return <fieldset key={key}><legend>{test.results[key].title}（{resultNames[key]}）</legend><label>产品名称（英文）<input placeholder="e.g. A guided communication journal" value={recommendation?.title ?? ""} onChange={(event) => updateAffiliateRecommendation(test, key, { title: event.target.value })} /></label><label>推荐说明（英文）<textarea placeholder="Why this product fits this result" rows={3} value={recommendation?.description ?? ""} onChange={(event) => updateAffiliateRecommendation(test, key, { description: event.target.value })} /></label><label>联盟跳转链接<input placeholder="https://..." type="url" value={recommendation?.url ?? ""} onChange={(event) => updateAffiliateRecommendation(test, key, { url: event.target.value })} /></label><label>按钮文案（英文）<input placeholder="View recommendation →" value={recommendation?.buttonLabel ?? ""} onChange={(event) => updateAffiliateRecommendation(test, key, { buttonLabel: event.target.value })} /></label></fieldset>; })}</div></details>
+              <details className="affiliate-config"><summary>按结果选择联盟产品（可选）</summary><p>先在「联盟产品」建立产品库，再为每种结果选择一个产品。产品内容改动后，所有已关联结果会自动同步；不选择则前台不展示。</p><div className="affiliate-result-grid">{TRAIT_KEYS.map((key) => { const selectedId = test.results[key].affiliateProductId ?? ""; const exists = !selectedId || products.some((product) => product.id === selectedId); return <fieldset key={key}><legend>{test.results[key].title}（{resultNames[key]}）</legend><label>关联产品<select value={selectedId} onChange={(event) => updateTest(test.id, { results: { ...test.results, [key]: { ...test.results[key], affiliateProductId: event.target.value || undefined } } })}><option value="">不展示联盟推荐</option>{!exists ? <option value={selectedId}>已删除产品（请重新选择）</option> : null}{products.map((product) => <option key={product.id} value={product.id}>{product.active ? "" : "已下架 · "}{product.name || "未命名产品"}</option>)}</select></label></fieldset>; })}</div></details>
               <label className="featured-checkbox"><input checked={test.featured} onChange={(event) => updateTest(test.id, { featured: event.target.checked })} type="checkbox" />设为首页主推测试</label>
               <button className="admin-primary-button" disabled={savingId === test.id} onClick={() => void saveTest(test)}>{savingId === test.id ? "保存中…" : "保存测试"}</button>
             </div>
@@ -735,6 +763,15 @@ function TestManager({
       </div>
     </>
   );
+}
+
+
+function AffiliateProductsPanel({ addProduct, products, removeProduct, saveProduct, savingId, updateProduct }: { addProduct: () => void; products: AffiliateProduct[]; removeProduct: (product: AffiliateProduct) => Promise<void>; saveProduct: (product: AffiliateProduct) => Promise<void>; savingId: string; updateProduct: (id: string, next: Partial<AffiliateProduct>) => void; }) {
+  return <>
+    <div className="admin-page-heading question-heading-admin"><div><span className="admin-kicker">商业化配置</span><h1>联盟产品</h1><p>建立可复用的联盟产品库；再到「测试管理」按结果下拉关联。下架产品会从前台隐藏，但保留后台配置。</p></div><button className="admin-primary-button" onClick={addProduct}>＋ 新增联盟产品</button></div>
+    <div className="test-manager-grid affiliate-products-grid">{products.map((product) => <article className="test-editor-card affiliate-product-editor" key={product.id}><div className="test-editor-fields"><div className="test-editor-status"><small>ID: {product.id}</small><label className="status-switch"><input checked={product.active} onChange={(event) => updateProduct(product.id, { active: event.target.checked })} type="checkbox" /><i /><span>{product.active ? "已上架" : "已下架"}</span></label></div><label>产品名称（英文）<input placeholder="e.g. Guided communication journal" value={product.name} onChange={(event) => updateProduct(product.id, { name: event.target.value })} /></label><label>推荐说明（英文）<textarea rows={4} placeholder="Why this product fits the reader" value={product.description} onChange={(event) => updateProduct(product.id, { description: event.target.value })} /></label><label>联盟跳转链接<input type="url" placeholder="https://..." value={product.url} onChange={(event) => updateProduct(product.id, { url: event.target.value })} /></label><div className="field-row two"><label>按钮文案（英文）<input value={product.buttonLabel} onChange={(event) => updateProduct(product.id, { buttonLabel: event.target.value })} /></label><label>排序<input min="0" type="number" value={product.position} onChange={(event) => updateProduct(product.id, { position: Number(event.target.value) })} /></label></div><div className="affiliate-product-actions"><button className="admin-primary-button" disabled={savingId === product.id} onClick={() => void saveProduct(product)}>{savingId === product.id ? "保存中…" : "保存产品"}</button><button className="admin-ghost-button danger-button" onClick={() => void removeProduct(product)}>删除</button></div></div></article>)}</div>
+    {!products.length ? <div className="admin-empty-state"><strong>还没有联盟产品</strong><p>先新增一个产品，之后即可在测试结果中选择它。</p></div> : null}
+  </>;
 }
 
 function QuestionManager({

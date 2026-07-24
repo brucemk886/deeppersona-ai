@@ -1156,3 +1156,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .affiliate-recommendation-link { width: 100%; }
   .affiliate-result-grid { grid-template-columns: 1fr; }
 }
+.affiliate-product-actions { display: flex; gap: 10px; align-items: center; margin-top: 4px; }
+.affiliate-product-actions .danger-button { color: #9b3447; }
+.affiliate-products-grid .affiliate-product-editor { min-height: 0; }
+.affiliate-result-grid select { width: 100%; min-height: 40px; border: 1px solid #d8d0c1; border-radius: 8px; background: #fff; padding: 0 10px; color: #183e32; font: inherit; }

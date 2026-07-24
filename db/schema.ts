@@ -28,6 +28,18 @@ export const quizTests = sqliteTable("quiz_tests", {
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+
+export const affiliateProducts = sqliteTable("affiliate_products", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  url: text("url").notNull(),
+  buttonLabel: text("button_label").notNull(),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  position: integer("position").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
 export const quizSessions = sqliteTable("quiz_sessions", {
   id: text("id").primaryKey(),
   profileId: text("profile_id"),

@@ -4,6 +4,7 @@ import {
   defaultTests,
   TRAIT_KEYS,
   type QuizOption,
+  type AffiliateProduct,
   type QuizQuestion,
   type QuizTest,
   type ResultProfile,
@@ -51,6 +52,16 @@ type TestRow = {
   results_json: string;
   title: string;
 };
+
+type AffiliateProductRow = {
+  id: string;
+  name: string;
+  description: string;
+  url: string;
+  button_label: string;
+  active: number;
+  position: number;
+};
 type RelationshipRow = {
   id: string;
   nickname: string;
@@ -75,7 +86,17 @@ function getD1(): D1Database {
 async function createSchema(): Promise<void> {
   const db = getD1();
   await db.batch([
-    db.prepare(`CREATE TABLE IF NOT EXISTS quiz_tests (
+    db.prepare(`CREATE TABLE IF NOT EXISTS affiliate_products (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL,
+      url TEXT NOT NULL,
+      button_label TEXT NOT NULL,
+      active INTEGER NOT NULL DEFAULT 1,
+      position INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),    db.prepare(`CREATE TABLE IF NOT EXISTS quiz_tests (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
       kicker TEXT NOT NULL,
@@ -158,6 +179,7 @@ async function createSchema(): Promise<void> {
   });
 
   await db.batch([
+    db.prepare("CREATE INDEX IF NOT EXISTS affiliate_products_active_idx ON affiliate_products(active, position)"),
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_questions_test_idx ON quiz_questions(test_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_events_session_idx ON quiz_events(session_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_events_name_idx ON quiz_events(event_name)"),
@@ -229,6 +251,47 @@ function rowToTest(row: TestRow): QuizTest {
   };
 }
 
+
+function rowToAffiliateProduct(row: AffiliateProductRow): AffiliateProduct {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    url: row.url,
+    buttonLabel: row.button_label,
+    active: Boolean(row.active),
+    position: Number(row.position),
+  };
+}
+
+export async function listAffiliateProducts(includeInactive = false): Promise<AffiliateProduct[]> {
+  await ensureQuizSchema();
+  const where = includeInactive ? "" : "WHERE active = 1";
+  const result = await getD1().prepare(`SELECT * FROM affiliate_products ${where} ORDER BY position, id`).all<AffiliateProductRow>();
+  return result.results.map(rowToAffiliateProduct);
+}
+
+export async function saveAffiliateProduct(product: AffiliateProduct): Promise<void> {
+  await ensureQuizSchema();
+  await getD1().prepare(`INSERT INTO affiliate_products
+    (id, name, description, url, button_label, active, position, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(id) DO UPDATE SET
+      name = excluded.name,
+      description = excluded.description,
+      url = excluded.url,
+      button_label = excluded.button_label,
+      active = excluded.active,
+      position = excluded.position,
+      updated_at = CURRENT_TIMESTAMP`)
+    .bind(product.id, product.name, product.description, product.url, product.buttonLabel, product.active ? 1 : 0, product.position)
+    .run();
+}
+
+export async function deleteAffiliateProduct(id: string): Promise<void> {
+  await ensureQuizSchema();
+  await getD1().prepare("DELETE FROM affiliate_products WHERE id = ?").bind(id).run();
+}
 async function seedCatalogIfNeeded(): Promise<void> {
   const db = getD1();
   const count = await db.prepare("SELECT COUNT(*) AS total FROM quiz_tests").first<{ total: number }>();
