@@ -44,6 +44,7 @@ const optimizedAtlases: Record<string, { full: string; compact: string }> = {
 // Kept intact for a future relaunch; the current public flow focuses on individual tests.
 const RELATIONSHIP_NETWORK_ENABLED = false;
 const RETURNING_MAP_ENABLED = false;
+const RESULT_MAP_ENABLED = false;
 
 function AtlasImage({
   path,
@@ -751,13 +752,15 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
           <section className="reflection-card"><span>A question worth keeping</span><p>“{deepResult.lens.reflectionPrompt}”</p></section>
           <p className="result-disclaimer">This is a self-reflection tool based on four visual choices, not a clinical assessment or diagnosis.</p>          {relationshipContext ? <section className="relationship-saved"><span>Relationship map updated</span><h2>This reflection now belongs to your connection with {relationshipContext.nickname}.</h2><p>It records your experience in this relationship, not a conclusion about the other person. Return to your map to keep adding context over time.</p></section> : null}
 
-          <section className="map-unlock-copy"><span>New dimension added</span><h2>{TEST_DIMENSIONS[selectedTest.id] ? `${mapDimensions.find((dimension) => dimension.id === TEST_DIMENSIONS[selectedTest.id])?.label} is now part of your map.` : "Your Inner Map has started."}</h2><p>This is not a fixed label. Every future reflection adds context and can make the pattern more precise.</p></section>
-          <InnerMap completedTestIds={completedTestIds} />
+          {RESULT_MAP_ENABLED ? <>
+            <section className="map-unlock-copy"><span>New dimension added</span><h2>{TEST_DIMENSIONS[selectedTest.id] ? `${mapDimensions.find((dimension) => dimension.id === TEST_DIMENSIONS[selectedTest.id])?.label} is now part of your map.` : "Your Inner Map has started."}</h2><p>This is not a fixed label. Every future reflection adds context and can make the pattern more precise.</p></section>
+            <InnerMap completedTestIds={completedTestIds} />
+          </> : null}
           {recommendedTest ? <section className="next-exploration" style={{ "--test-accent": recommendedTest.accent } as React.CSSProperties}><div><span>Recommended next</span><h2>{recommendedTest.title}</h2><p>{recommendedTest.description}</p></div><button className="primary-button" onClick={() => openDetail(recommendedTest)} type="button">Explore this dimension →</button></section> : null}
         </article>
       ) : null}
       <section className="premium-card"><div><span className="premium-label">Coming next · Cross-test report</span><h2>Connect your patterns across all eight tests.</h2><p>A combined projection map showing repeated choices, contradictions between profiles, and the situations that change your response.</p></div><button className="premium-button" onClick={() => { setShowUpgrade(true); track("upgrade_clicked", questions.length + 3); }}>Preview combined report <span>↗</span></button></section>
-      <button className="retake-button" onClick={returnHome}>Return to my Inner Map</button>
+      <button className="retake-button" onClick={returnHome}>Explore more visual tests</button>
       {showUpgrade ? <div className="modal-backdrop" role="presentation" onClick={() => setShowUpgrade(false)}><div className="upgrade-modal" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" onClick={(event) => event.stopPropagation()}><button className="modal-close" aria-label="Close" onClick={() => setShowUpgrade(false)}>×</button><span className="result-seal">Premium preview</span><h2 id="upgrade-title">Your deeper report is almost here.</h2><p>The checkout hook is ready for Creem or Stripe. Payments stay disabled until a provider is connected.</p><div className="premium-list"><span>✓ Every choice explained in context</span><span>✓ Repeated relationship and stress signals</span><span>✓ Contradictions that reveal when your pattern changes</span></div><button className="primary-button full-button" disabled>Checkout coming soon</button><p className="checkout-legal">Future purchases will be subject to our <Link href="/terms">Terms</Link>, <Link href="/privacy">Privacy Policy</Link>, and <Link href="/refunds">Refund & Delivery Policy</Link>.</p></div></div> : null}
     </main>
   );
