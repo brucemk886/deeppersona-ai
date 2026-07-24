@@ -31,7 +31,8 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(quiz, /Explore the most popular test/);
   assert.match(quiz, /email_submitted|\/api\/submit/);
   assert.match(quiz, /upgrade_clicked/);
-  assert.match(quiz, /image_zoomed/);
+  assert.match(quiz, /Choose \$\{letter\}/);
+  assert.doesNotMatch(quiz, /image_zoomed|image-lightbox/);
   assert.match(quiz, /srcSet/);
   assert.match(quiz, /preloadAtlas/);
   assert.match(quiz, /defaultQuestions/);

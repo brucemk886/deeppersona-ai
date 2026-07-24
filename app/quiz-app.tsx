@@ -210,12 +210,6 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
   const [error, setError] = useState("");
   const [result, setResult] = useState<ResultProfile | null>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
-  const [zoomedOption, setZoomedOption] = useState<{
-    index: number;
-    label: string;
-    microcopy: string;
-    scoreKey: TraitKey;
-  } | null>(null);
   const [sessionId, setSessionId] = useState("");
   const questionsCache = useRef(new Map<string, QuizQuestion[]>());
   const questionRequests = useRef(new Map<string, Promise<QuizQuestion[]>>());
@@ -379,23 +373,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
     if (stage !== "quiz") return;
     const nextQuestion = questions[questionIndex + 1];
     if (nextQuestion) preloadAtlas(nextQuestion.atlasPath);
-  }, [questionIndex, questions, stage]);
-
-  useEffect(() => {
-    if (!zoomedOption) return;
-    const previousOverflow = document.body.style.overflow;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setZoomedOption(null);
-    };
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [zoomedOption]);
-
-  const previewImages = useMemo(() => {
+  }, [questionIndex, questions, stage]);const previewImages = useMemo(() => {
     const atlas = featuredTest?.coverAtlasPath ?? "/quiz/doors.png";
     return [0, 1, 2, 3].map((index) => ({ atlas, index }));
   }, [featuredTest]);
@@ -460,11 +438,6 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
     setAnswers((current) => ({ ...current, [activeQuestion.id]: scoreKey }));
     setAnswerChoices((current) => ({ ...current, [activeQuestion.id]: optionIndex }));
     track("answer_selected", questionIndex + 1, activeQuestion.id, optionLabel);
-  }
-
-
-  function continueQuiz() {
-    if (selectedOptionIndex === undefined) return;
     if (questionIndex < questions.length - 1) {
       const nextIndex = questionIndex + 1;
       setQuestionIndex(nextIndex);
@@ -475,6 +448,9 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
     setStage("email");
     track("email_gate_viewed", questions.length + 1);
   }
+
+
+
 
   async function unlockResult(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -536,7 +512,6 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
     setSessionId("");
     setEmail("");
     setError("");
-    setZoomedOption(null);
     setRelationshipContext(null);
     setRelationshipError("");
     window.history.replaceState({}, "", "/");
@@ -654,17 +629,8 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
               const letter = String.fromCharCode(65 + index);
               return (
                 <article className={`option-card ${selected ? "selected" : ""}`} key={`${activeQuestion.id}-${index}`}>
-                  <button
-                    aria-label={`Enlarge choice ${letter}: ${option.label}`}
-                    className="option-image-trigger"
-                    onClick={() => {
-                      setZoomedOption({ index, label: option.label, microcopy: option.microcopy, scoreKey: option.scoreKey });
-                      track("image_zoomed", questionIndex + 1, activeQuestion.id, option.label);
-                    }}
-                    type="button"
-                  >
+                  <button aria-label={`Choose ${letter}: ${option.label}`} className="option-image-trigger" onClick={() => chooseAnswer(option.scoreKey, option.label, index)} type="button">
                     <AtlasImage className="option-image" index={index} loading="eager" path={activeQuestion.atlasPath} priority={index === 0} />
-                    <span className="image-zoom-badge" aria-hidden="true">＋</span>
                   </button>
                   <button aria-checked={selected} className="option-select" onClick={() => chooseAnswer(option.scoreKey, option.label, index)} role="radio" type="button">
                     <span className="option-meta"><span className="option-letter">{letter}</span><span><strong>{option.label}</strong><small>{option.microcopy}</small></span><span className="selection-mark" aria-hidden="true">✓</span></span>
@@ -673,22 +639,9 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
               );
             })}
           </div>
-          <div className="quiz-actions"><button className="text-button" disabled={questionIndex === 0} onClick={() => setQuestionIndex((index) => Math.max(0, index - 1))}>← Back</button><button className="primary-button" disabled={selectedOptionIndex === undefined} onClick={continueQuiz}>{questionIndex === questions.length - 1 ? "Unlock what your choices reveal" : "Next question"} →</button></div>
+          <div className="quiz-actions"><button className="text-button" disabled={questionIndex === 0} onClick={() => setQuestionIndex((index) => Math.max(0, index - 1))}>← Back</button></div>
         </section>
-        {zoomedOption ? (
-          <div className="image-lightbox-backdrop" role="presentation" onClick={() => setZoomedOption(null)}>
-            <section aria-describedby="image-lightbox-description" aria-labelledby="image-lightbox-title" aria-modal="true" className="image-lightbox" onClick={(event) => event.stopPropagation()} role="dialog">
-              <button aria-label="Close enlarged image" className="image-lightbox-close" onClick={() => setZoomedOption(null)} type="button">×</button>
-              <div className="image-lightbox-visual">
-                <AtlasImage className="image-lightbox-image" index={zoomedOption.index} loading="eager" path={activeQuestion.atlasPath} priority sizes="(max-width: 640px) 720px, 1100px" />
-              </div>
-              <div className="image-lightbox-copy">
-                <div><span>Choice {String.fromCharCode(65 + zoomedOption.index)}</span><h2 id="image-lightbox-title">{zoomedOption.label}</h2><p id="image-lightbox-description">{zoomedOption.microcopy}</p></div>
-                <button className="primary-button" onClick={() => { chooseAnswer(zoomedOption.scoreKey, zoomedOption.label, zoomedOption.index); setZoomedOption(null); }} type="button">Choose this image →</button>
-              </div>
-            </section>
-          </div>
-        ) : null}
+
       </main>
     );
   }
