@@ -10,6 +10,7 @@ export async function POST(request: Request) {
     campaign?: string;
     email?: string;
     marketingConsent?: boolean;
+    relationshipId?: string;
     resultType?: TraitKey;
     sessionId?: string;
     source?: string;
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
     resultType: body.resultType,
     source: body.source?.slice(0, 120),
     campaign: body.campaign?.slice(0, 160),
+    relationshipId: body.relationshipId?.slice(0, 100),
     testId: body.testId.slice(0, 100),
   });
   return Response.json(

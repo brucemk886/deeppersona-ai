@@ -51,6 +51,25 @@ export const quizProfiles = sqliteTable("quiz_profiles", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+export const relationshipNodes = sqliteTable("relationship_nodes", {
+  id: text("id").primaryKey(),
+  profileId: text("profile_id").notNull(),
+  nickname: text("nickname").notNull(),
+  relationshipType: text("relationship_type").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const relationshipReflections = sqliteTable("relationship_reflections", {
+  id: text("id").primaryKey(),
+  relationshipId: text("relationship_id").notNull(),
+  sessionId: text("session_id"),
+  testId: text("test_id").notNull(),
+  dimensionId: text("dimension_id").notNull(),
+  resultType: text("result_type").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const quizEvents = sqliteTable("quiz_events", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   sessionId: text("session_id").notNull(),

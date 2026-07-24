@@ -10,7 +10,12 @@ import {
   type TraitKey,
 } from "@/lib/quiz";
 import { getOptionInsight } from "@/lib/choice-insights";
-import type { InnerProfileSummary } from "@/lib/inner-map";
+import { INNER_DIMENSIONS, TEST_DIMENSIONS, type InnerDimensionId, type InnerProfileSummary } from "@/lib/inner-map";
+import {
+  isRelationshipType,
+  type RelationshipNode,
+  type RelationshipType,
+} from "@/lib/relationship-network";
 
 type RuntimeEnv = {
   ADMIN_EMAILS?: string;
@@ -45,6 +50,14 @@ type TestRow = {
   question_count?: number;
   results_json: string;
   title: string;
+};
+type RelationshipRow = {
+  id: string;
+  nickname: string;
+  relationship_type: string;
+  reflection_count: number;
+  dimensions: string | null;
+  last_reflection_at: string | null;
 };
 
 let schemaReady: Promise<void> | undefined;
@@ -92,7 +105,25 @@ async function createSchema(): Promise<void> {
       email TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )`),    db.prepare(`CREATE TABLE IF NOT EXISTS quiz_sessions (
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS relationship_nodes (
+      id TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL,
+      nickname TEXT NOT NULL,
+      relationship_type TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS relationship_reflections (
+      id TEXT PRIMARY KEY,
+      relationship_id TEXT NOT NULL,
+      session_id TEXT,
+      test_id TEXT NOT NULL,
+      dimension_id TEXT NOT NULL,
+      result_type TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS quiz_sessions (
       id TEXT PRIMARY KEY,
       profile_id TEXT,
       test_id TEXT,
@@ -133,6 +164,9 @@ async function createSchema(): Promise<void> {
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_events_question_idx ON quiz_events(question_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_events_test_idx ON quiz_events(test_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_profiles_email_idx ON quiz_profiles(email)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS relationship_nodes_profile_idx ON relationship_nodes(profile_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS relationship_reflections_relationship_idx ON relationship_reflections(relationship_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS relationship_reflections_session_idx ON relationship_reflections(session_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_sessions_profile_idx ON quiz_sessions(profile_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_sessions_email_idx ON quiz_sessions(email)"),
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_sessions_test_idx ON quiz_sessions(test_id)"),
@@ -321,6 +355,57 @@ export async function recordEvent(input: {
   ]);
 }
 
+function rowToRelationship(row: RelationshipRow): RelationshipNode {
+  const validDimensionIds = new Set(INNER_DIMENSIONS.map((dimension) => dimension.id));
+  const exploredDimensionIds = (row.dimensions ?? "")
+    .split(",")
+    .filter((dimension): dimension is InnerDimensionId => validDimensionIds.has(dimension as InnerDimensionId));
+  return {
+    id: row.id,
+    nickname: row.nickname,
+    relationshipType: isRelationshipType(row.relationship_type) ? row.relationship_type : "other",
+    reflectionCount: Number(row.reflection_count ?? 0),
+    exploredDimensionIds,
+    ...(row.last_reflection_at ? { lastReflectionAt: row.last_reflection_at } : {}),
+  };
+}
+
+export async function listRelationships(profileId: string): Promise<RelationshipNode[]> {
+  await ensureQuizSchema();
+  const result = await getD1().prepare(`SELECT n.id, n.nickname, n.relationship_type,
+      COUNT(r.id) AS reflection_count,
+      GROUP_CONCAT(DISTINCT r.dimension_id) AS dimensions,
+      MAX(r.created_at) AS last_reflection_at
+    FROM relationship_nodes n
+    LEFT JOIN relationship_reflections r ON r.relationship_id = n.id
+    WHERE n.profile_id = ?
+    GROUP BY n.id, n.nickname, n.relationship_type
+    ORDER BY COALESCE(MAX(r.created_at), n.updated_at) DESC, n.created_at DESC`)
+    .bind(profileId)
+    .all<RelationshipRow>();
+  return result.results.map(rowToRelationship);
+}
+
+export async function createRelationship(input: {
+  profileId: string;
+  nickname: string;
+  relationshipType: RelationshipType;
+}): Promise<RelationshipNode> {
+  await ensureQuizSchema();
+  const id = crypto.randomUUID();
+  await getD1().prepare(`INSERT INTO relationship_nodes
+    (id, profile_id, nickname, relationship_type, created_at, updated_at)
+    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`)
+    .bind(id, input.profileId, input.nickname, input.relationshipType)
+    .run();
+  return {
+    id,
+    nickname: input.nickname,
+    relationshipType: input.relationshipType,
+    reflectionCount: 0,
+    exploredDimensionIds: [],
+  };
+}
 export async function getProfileSummary(profileId: string): Promise<InnerProfileSummary> {
   await ensureQuizSchema();
   const db = getD1();
@@ -344,6 +429,7 @@ export async function submitQuiz(input: {
   email: string;
   marketingConsent: boolean;
   profileId: string;
+  relationshipId?: string;
   resultType: TraitKey;
   sessionId: string;
   source?: string;
@@ -351,7 +437,15 @@ export async function submitQuiz(input: {
 }): Promise<InnerProfileSummary> {
   await ensureQuizSchema();
   const db = getD1();
-  await db.batch([
+  const relationshipDimension = input.relationshipId ? TEST_DIMENSIONS[input.testId] : undefined;
+  if (input.relationshipId) {
+    const relationship = await db.prepare("SELECT id FROM relationship_nodes WHERE id = ? AND profile_id = ?")
+      .bind(input.relationshipId, input.profileId)
+      .first<{ id: string }>();
+    if (!relationship) throw new Error("That relationship is not available in this profile.");
+  }
+
+  const writes = [
     db.prepare(`INSERT INTO quiz_profiles (id, email, created_at, updated_at)
       VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       ON CONFLICT(id) DO UPDATE SET email = excluded.email, updated_at = CURRENT_TIMESTAMP`)
@@ -374,7 +468,18 @@ export async function submitQuiz(input: {
     db.prepare(`INSERT INTO quiz_events (session_id, event_name, step, source, test_id, created_at)
       VALUES (?, 'email_submitted', ?, ?, ?, CURRENT_TIMESTAMP)`)
       .bind(input.sessionId, Object.keys(input.answers).length + 1, input.source ?? null, input.testId),
-  ]);
+  ];
+  if (input.relationshipId && relationshipDimension) {
+    writes.push(
+      db.prepare(`INSERT INTO relationship_reflections
+        (id, relationship_id, session_id, test_id, dimension_id, result_type, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`)
+        .bind(crypto.randomUUID(), input.relationshipId, input.sessionId, input.testId, relationshipDimension, input.resultType),
+      db.prepare("UPDATE relationship_nodes SET updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+        .bind(input.relationshipId),
+    );
+  }
+  await db.batch(writes);
   return getProfileSummary(input.profileId);
 }
 export async function getAdminStats() {

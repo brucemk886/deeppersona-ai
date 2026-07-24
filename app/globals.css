@@ -1063,3 +1063,60 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .next-exploration .primary-button { width: 100%; }
   .map-unlock-copy { margin-top: 38px; }
 }
+/* Relationship Network */
+.relationship-network { width: min(1180px, calc(100% - 40px)); margin: -38px auto 76px; padding: clamp(24px, 4vw, 46px); border: 1px solid #d8d0be; border-radius: 32px; color: var(--ink); background: #f4efe3; }
+.relationship-network-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 28px; }
+.relationship-network-heading > div { max-width: 700px; }
+.relationship-network-heading span,.relationship-saved > span { color: var(--wine); font-size: 10px; font-weight: 850; letter-spacing: .11em; text-transform: uppercase; }
+.relationship-network-heading h2 { margin: 9px 0 10px; font: 500 clamp(33px, 4vw, 50px)/1.03 Georgia, serif; letter-spacing: -.045em; }
+.relationship-network-heading p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.relationship-add-button { min-height: 48px; flex: 0 0 auto; padding: 0 18px; border: 1px solid var(--forest); border-radius: 999px; color: white; background: var(--forest); cursor: pointer; font: 800 11px/1 system-ui, sans-serif; }
+.relationship-add-button span { margin-left: 5px; color: inherit; font-size: 17px; vertical-align: -1px; }
+.relationship-form { max-width: 760px; margin: 28px 0 0; padding: 22px; border: 1px solid #d9d1c0; border-radius: 22px; background: rgba(255,255,255,.82); }
+.relationship-form > label,.relationship-form legend { display: block; margin-bottom: 8px; color: var(--ink); font-size: 11px; font-weight: 800; }
+.relationship-form input { width: 100%; min-height: 46px; box-sizing: border-box; padding: 0 14px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); background: white; font: 14px/1 system-ui, sans-serif; }
+.relationship-form fieldset { margin: 18px 0; padding: 0; border: 0; }
+.relationship-form fieldset > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.relationship-form fieldset button { min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); background: white; cursor: pointer; font: 750 10px/1 system-ui, sans-serif; }
+.relationship-form fieldset button.active { border-color: var(--forest); color: white; background: var(--forest); }
+.relationship-network-board { position: relative; min-height: 370px; max-width: 900px; margin: 32px auto 10px; }
+.relationship-network-board::before { content: ""; position: absolute; left: 50%; top: 50%; width: 260px; height: 260px; transform: translate(-50%,-50%); border: 1px solid rgba(31,76,60,.18); border-radius: 50%; background: radial-gradient(circle, rgba(227,233,218,.95), rgba(244,239,227,0) 68%); }
+.relationship-network-core { position: absolute; left: 50%; top: 50%; z-index: 2; width: 128px; height: 128px; transform: translate(-50%,-50%); display: grid; place-content: center; justify-items: center; border-radius: 50%; color: white; background: var(--forest); box-shadow: 0 17px 42px rgba(31,76,60,.22); }
+.relationship-network-core span { font-size: 9px; font-weight: 850; letter-spacing: .14em; }
+.relationship-network-core strong { margin: 3px 0; font: 500 37px/1 Georgia, serif; }
+.relationship-network-core small { font-size: 9px; opacity: .75; }
+.relationship-network-node { position: absolute; z-index: 3; width: 206px; min-height: 120px; box-sizing: border-box; padding: 16px; border: 1px solid #d7d1c4; border-radius: 19px; background: rgba(255,255,255,.94); box-shadow: 0 12px 30px rgba(29,42,33,.08); text-align: left; }
+.relationship-network-node > span { color: var(--wine); font-size: 9px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+.relationship-network-node h3 { margin: 6px 0 5px; font: 500 24px/1 Georgia, serif; letter-spacing: -.03em; }
+.relationship-network-node p { min-height: 28px; margin: 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.relationship-network-node button { margin-top: 12px; padding: 0; border: 0; color: var(--forest); background: transparent; cursor: pointer; font: 800 10px/1 system-ui, sans-serif; }
+.relationship-network-node button:disabled { opacity: .45; cursor: wait; }
+.relationship-network-node-1 { left: 50%; top: 0; transform: translateX(-50%); }
+.relationship-network-node-2 { right: 0; top: 74px; }
+.relationship-network-node-3 { right: 0; bottom: 22px; }
+.relationship-network-node-4 { left: 50%; bottom: 0; transform: translateX(-50%); }
+.relationship-network-node-5 { left: 0; bottom: 22px; }
+.relationship-network-node-6 { left: 0; top: 74px; }
+.relationship-network-empty { position: absolute; left: 50%; top: 50%; z-index: 3; width: min(310px, 82%); transform: translate(-50%,-50%); text-align: center; }
+.relationship-network-empty strong { display: block; font: 500 26px/1.12 Georgia, serif; letter-spacing: -.03em; }
+.relationship-network-empty p,.relationship-network-note { color: var(--muted); font-size: 11px; line-height: 1.65; }
+.relationship-network-empty p { margin: 10px 0 0; }
+.relationship-network-note { max-width: 650px; margin: 18px auto 0; text-align: center; }
+.relationship-error { width: min(1180px, calc(100% - 40px)); margin: -64px auto 62px; color: #9c3047; font-size: 12px; text-align: center; }
+.relationship-saved { margin: 32px 0 -6px; padding: 24px; border: 1px solid #bfcdbd; border-radius: 22px; background: #edf3e9; text-align: left; }
+.relationship-saved h2 { margin: 8px 0 8px; font: 500 29px/1.08 Georgia, serif; letter-spacing: -.035em; }
+.relationship-saved p { max-width: 650px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+@media (max-width: 760px) {
+  .relationship-network { width: calc(100% - 28px); margin: -28px auto 56px; padding: 23px 17px; border-radius: 25px; }
+  .relationship-network-heading { display: block; }
+  .relationship-network-heading h2 { font-size: 34px; }
+  .relationship-add-button { width: 100%; margin-top: 18px; }
+  .relationship-network-board { min-height: 0; display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 24px; }
+  .relationship-network-board::before { display: none; }
+  .relationship-network-core { position: relative; left: auto; top: auto; width: 106px; height: 106px; margin: 0 auto 5px; transform: none; }
+  .relationship-network-node { position: relative; inset: auto; width: auto; min-height: 0; transform: none; }
+  .relationship-network-empty { position: relative; left: auto; top: auto; width: auto; padding: 28px 10px; transform: none; }
+  .relationship-network-node h3 { font-size: 23px; }
+  .relationship-saved { margin-top: 26px; padding: 20px; }
+  .relationship-saved h2 { font-size: 26px; }
+}

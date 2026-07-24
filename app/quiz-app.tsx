@@ -16,7 +16,11 @@ import {
   recommendNextTest,
   TEST_DIMENSIONS,
   type InnerProfileSummary,
-} from "@/lib/inner-map";
+} from "@/lib/inner-map";import {
+  RELATIONSHIP_TYPES,
+  type RelationshipNode,
+  type RelationshipType,
+} from "@/lib/relationship-network";
 
 type Stage = "home" | "detail" | "quiz" | "email" | "result";
 type InsightReaction = "accurate" | "not_quite" | "more";
@@ -125,6 +129,61 @@ function InnerMap({ completedTestIds, compact = false }: { completedTestIds: str
     </section>
   );
 }
+function RelationshipNetwork({
+  relationships,
+  loading,
+  onCreate,
+  onExplore,
+}: {
+  relationships: RelationshipNode[];
+  loading: boolean;
+  onCreate: (nickname: string, relationshipType: RelationshipType) => Promise<boolean>;
+  onExplore: (relationship: RelationshipNode) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [nickname, setNickname] = useState("");
+  const [relationshipType, setRelationshipType] = useState<RelationshipType>("partner");
+  const [saving, setSaving] = useState(false);
+
+  async function addRelationship(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!nickname.trim()) return;
+    setSaving(true);
+    const created = await onCreate(nickname.trim(), relationshipType);
+    setSaving(false);
+    if (created) {
+      setNickname("");
+      setAdding(false);
+    }
+  }
+
+  return (
+    <section className="relationship-network" aria-labelledby="relationship-network-title">
+      <header className="relationship-network-heading">
+        <div><span>Your private relationship map</span><h2 id="relationship-network-title">See how your connections feel from the inside.</h2><p>Use a nickname only. This map reflects your experience in a relationship—it does not judge or diagnose the other person.</p></div>
+        <button className="relationship-add-button" onClick={() => setAdding((current) => !current)} type="button">{adding ? "Close" : "Add someone"} <span>＋</span></button>
+      </header>
+
+      {adding ? <form className="relationship-form" onSubmit={addRelationship}>
+        <label htmlFor="relationship-nickname">What should we call this connection?</label>
+        <input autoComplete="off" id="relationship-nickname" maxLength={48} onChange={(event) => setNickname(event.target.value)} placeholder="e.g. Mom, Sam, my manager" required value={nickname} />
+        <fieldset><legend>Relationship type</legend><div>{RELATIONSHIP_TYPES.map((type) => <button className={relationshipType === type.id ? "active" : ""} key={type.id} onClick={() => setRelationshipType(type.id)} type="button">{type.label}</button>)}</div></fieldset>
+        <button className="primary-button" disabled={saving} type="submit">{saving ? "Adding…" : "Add to my map →"}</button>
+      </form> : null}
+
+      <div className="relationship-network-board">
+        <div className="relationship-network-core"><span>YOU</span><strong>{relationships.length}</strong><small>{relationships.length === 1 ? "connection" : "connections"}</small></div>
+        {relationships.length ? relationships.slice(0, 6).map((relationship, index) => <article className={`relationship-network-node relationship-network-node-${index + 1}`} key={relationship.id}>
+          <span>{RELATIONSHIP_TYPES.find((type) => type.id === relationship.relationshipType)?.label ?? "Connection"}</span>
+          <h3>{relationship.nickname}</h3>
+          <p>{relationship.reflectionCount ? `${relationship.exploredDimensionIds.length}/6 dimensions explored · ${relationship.reflectionCount} reflection${relationship.reflectionCount === 1 ? "" : "s"}` : "Ready for a first reflection"}</p>
+          <button disabled={loading} onClick={() => onExplore(relationship)} type="button">{relationship.reflectionCount ? "Continue exploring →" : "Explore this connection →"}</button>
+        </article>) : <div className="relationship-network-empty"><strong>Your map starts with one honest connection.</strong><p>Add someone important using a nickname—no contacts, no real name required.</p></div>}
+      </div>
+      <p className="relationship-network-note">You can add, explore, and later remove individual connections. Nothing here is shared with the person you name.</p>
+    </section>
+  );
+}
 export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTest[]; initialTestId?: string }) {
   const [tests, setTests] = useState(initialTests);
   const [selectedTest, setSelectedTest] = useState<QuizTest | null>(() => initialTestId ? initialTests.find((test) => test.id === initialTestId) ?? null : null);
@@ -134,7 +193,10 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
   const [answers, setAnswers] = useState<Record<string, TraitKey>>({});
   const [answerChoices, setAnswerChoices] = useState<Record<string, number>>({});
   const [insightReactions, setInsightReactions] = useState<Record<string, InsightReaction>>({});
-  const [profile, setProfile] = useState<InnerProfileSummary>({ completedTestIds: [] });
+  const [profile, setProfile] = useState<InnerProfileSummary>({ completedTestIds: [] });  const [relationships, setRelationships] = useState<RelationshipNode[]>([]);
+  const [relationshipContext, setRelationshipContext] = useState<RelationshipNode | null>(null);
+  const [relationshipLoading, setRelationshipLoading] = useState(false);
+  const [relationshipError, setRelationshipError] = useState("");
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loadingTest, setLoadingTest] = useState("");
@@ -193,6 +255,45 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
     }
   }, []);
 
+  const loadRelationships = useCallback(async () => {
+    try {
+      const response = await fetch("/api/relationships", { cache: "no-store" });
+      const data = (await response.json()) as { error?: string; relationships?: RelationshipNode[] };
+      if (!response.ok) throw new Error(data.error ?? "Unable to load your relationship map.");
+      setRelationships(data.relationships ?? []);
+    } catch {
+      setRelationships([]);
+    }
+  }, []);
+
+  async function createRelationship(nickname: string, relationshipType: RelationshipType) {
+    setRelationshipLoading(true);
+    setRelationshipError("");
+    try {
+      const response = await fetch("/api/relationships", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ nickname, relationshipType }),
+      });
+      const data = (await response.json()) as { error?: string; relationship?: RelationshipNode };
+      if (!response.ok || !data.relationship) throw new Error(data.error ?? "Unable to add this connection.");
+      setRelationships((current) => [data.relationship!, ...current]);
+      track("relationship_added", 0, undefined, relationshipType);
+      return true;
+    } catch (createError) {
+      setRelationshipError(createError instanceof Error ? createError.message : "Unable to add this connection.");
+      return false;
+    } finally {
+      setRelationshipLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    const refresh = window.setTimeout(() => {
+      void loadRelationships();
+    }, 0);
+    return () => window.clearTimeout(refresh);
+  }, [loadRelationships]);
   useEffect(() => {
     void fetch("/api/profile", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
@@ -307,7 +408,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
     prepareDetail(test);
     window.location.assign(detailHref(test));
   }
-  async function startTest(test: QuizTest) {
+  async function startTest(test: QuizTest, relationship?: RelationshipNode) {
     setLoadingTest(test.id);
     setError("");
     try {
@@ -329,6 +430,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
       setInsightReactions({});
       setQuestionIndex(0);
       setResult(null);
+      setRelationshipContext(relationship ?? null);
       setStage("quiz");
       window.history.replaceState({}, "", `/?test=${encodeURIComponent(test.id)}`);
       const payload = {
@@ -399,6 +501,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
           resultType: nextResult.key,
           source: attribution.source,
           campaign: attribution.campaign,
+          relationshipId: relationshipContext?.id,
         }),
       });
       const data = (await response.json()) as { error?: string; profile?: InnerProfileSummary };
@@ -407,6 +510,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
         setProfile(data.profile);
         if (data.profile.email) setEmail(data.profile.email);
       }
+      if (relationshipContext) void loadRelationships();
       setResult(nextResult);
       setStage("result");
       track("result_viewed", questions.length + 2);
@@ -429,6 +533,8 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
     setEmail("");
     setError("");
     setZoomedOption(null);
+    setRelationshipContext(null);
+    setRelationshipError("");
     window.history.replaceState({}, "", "/");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -492,13 +598,19 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
           </button>
         </section>
 
-        {completedTestIds.length ? (
+        {completedTestIds.length ? <>
           <section className="returning-profile">
             <div className="returning-profile-copy"><span>Welcome back</span><h2>Your map remembers where you left off.</h2><p>{unlockedDimensions} of 6 dimensions discovered. One short reflection is enough to keep building.</p>{recommendedTest ? <button className="primary-button" onClick={() => openDetail(recommendedTest)} type="button">Continue with {recommendedTest.title} →</button> : null}</div>
             <InnerMap compact completedTestIds={completedTestIds} />
           </section>
-        ) : null}
-        <section className="test-library" id="tests">
+          <RelationshipNetwork
+            loading={relationshipLoading}
+            onCreate={createRelationship}
+            onExplore={(relationship) => featuredTest && void startTest(featuredTest, relationship)}
+            relationships={relationships}
+          />
+          {relationshipError ? <p className="relationship-error" role="alert">{relationshipError}</p> : null}
+        </> : null}        <section className="test-library" id="tests">
           <div className="library-heading"><span>Choose your question</span><h2>Eight ways to understand yourself a little better.</h2><p>Short, visual, and designed for reflection—not diagnosis.</p></div>
           <div className="test-card-grid">
             {tests.map((test, index) => (
@@ -525,11 +637,11 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
       <main className="quiz-shell">
         <header className="quiz-header">
           <button className="brand brand-button" onClick={returnHome}><span className="brand-mark">DP</span><span>DeepPersona AI</span></button>
-          <div className="progress-copy"><span>{selectedTest.title} · {questionIndex + 1} of {questions.length}</span><span>{Math.round(progress)}%</span></div>
+          <div className="progress-copy"><span>{relationshipContext ? `With ${relationshipContext.nickname} · ${selectedTest.title}` : selectedTest.title} · {questionIndex + 1} of {questions.length}</span><span>{Math.round(progress)}%</span></div>
           <div className="progress-track"><span style={{ width: `${progress}%`, background: selectedTest.accent }} /></div>
         </header>
         <section className="question-section">
-          <div className="question-heading"><span>{activeQuestion.kicker}</span><h1>{activeQuestion.prompt}</h1><p>There is no correct choice. Notice your first emotional response.</p></div>
+          <div className="question-heading"><span>{relationshipContext ? `Thinking of ${relationshipContext.nickname}` : activeQuestion.kicker}</span><h1>{activeQuestion.prompt}</h1><p>{relationshipContext ? `Keep ${relationshipContext.nickname} in mind. Notice the first response this relationship brings up.` : "There is no correct choice. Notice your first emotional response."}</p></div>
           <div className="option-grid" role="radiogroup" aria-label={activeQuestion.prompt}>
             {activeQuestion.options.map((option, index) => {
               const selected = selectedOptionIndex === index;
@@ -599,9 +711,9 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
         <section className="email-gate">
           <div className="result-teaser"><span className="result-seal">Profile found</span><div className="blurred-result"><span>{selectedTest.title}</span><h2>{preview.title}</h2><p>{preview.summary}</p></div></div>
           <form className="email-form" onSubmit={unlockResult}>
-            <span className="pill">Your first Inner Map discovery is ready</span>
+            <span className="pill">{relationshipContext ? `A reflection with ${relationshipContext.nickname} is ready` : "Your first Inner Map discovery is ready"}</span>
             <h1>Save what you have uncovered.</h1>
-            <p>You have already seen the meaning behind each choice. Save this dimension to your private DeepPersona profile and keep building your map over time.</p>
+            <p>{relationshipContext ? `Save this reflection to your private map of how this relationship feels from the inside.` : "You have already seen the meaning behind each choice. Save this dimension to your private DeepPersona profile and keep building your map over time."}</p>
             {profile.email ? <div className="saved-profile-email"><span>Saving this reflection to</span><strong>{profile.email}</strong></div> : <><label htmlFor="email">Email address</label><input autoComplete="email" id="email" onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required type="email" value={email} /></>}
             {error ? <p className="form-error" role="alert">{error}</p> : null}
             <button className="primary-button full-button" disabled={submitting} type="submit">{submitting ? "Saving your discovery…" : profile.email ? "Add this to my map →" : "Save my map and reveal my profile →"}</button>
@@ -665,7 +777,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
           </div>
 
           <section className="reflection-card"><span>A question worth keeping</span><p>“{deepResult.lens.reflectionPrompt}”</p></section>
-          <p className="result-disclaimer">This is a self-reflection tool based on four visual choices, not a clinical assessment or diagnosis.</p>
+          <p className="result-disclaimer">This is a self-reflection tool based on four visual choices, not a clinical assessment or diagnosis.</p>          {relationshipContext ? <section className="relationship-saved"><span>Relationship map updated</span><h2>This reflection now belongs to your connection with {relationshipContext.nickname}.</h2><p>It records your experience in this relationship, not a conclusion about the other person. Return to your map to keep adding context over time.</p></section> : null}
 
           <section className="map-unlock-copy"><span>New dimension added</span><h2>{TEST_DIMENSIONS[selectedTest.id] ? `${mapDimensions.find((dimension) => dimension.id === TEST_DIMENSIONS[selectedTest.id])?.label} is now part of your map.` : "Your Inner Map has started."}</h2><p>This is not a fixed label. Every future reflection adds context and can make the pattern more precise.</p></section>
           <InnerMap completedTestIds={completedTestIds} />
