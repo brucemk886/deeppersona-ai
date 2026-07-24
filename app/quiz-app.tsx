@@ -206,12 +206,14 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
   const [relationshipError, setRelationshipError] = useState("");
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [isAdvancing, setIsAdvancing] = useState(false);
   const [loadingTest, setLoadingTest] = useState("");
   const [error, setError] = useState("");
   const [result, setResult] = useState<ResultProfile | null>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [sessionId, setSessionId] = useState("");
   const questionsCache = useRef(new Map<string, QuizQuestion[]>());
+  const answerTransitionTimer = useRef<number | null>(null);
   const questionRequests = useRef(new Map<string, Promise<QuizQuestion[]>>());
   const [attribution] = useState(() =>
     typeof window === "undefined" ? { source: "direct", campaign: "" } : getAttribution(),
@@ -342,6 +344,9 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
     [attribution, selectedTest, sessionId],
   );
 
+  useEffect(() => () => {
+    if (answerTransitionTimer.current) window.clearTimeout(answerTransitionTimer.current);
+  }, []);
   useEffect(() => {
     if (!sessionId || stage === "home") return;
     const timer = window.setInterval(() => track("heartbeat"), 60_000);
@@ -434,23 +439,25 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
   }
 
   function chooseAnswer(scoreKey: TraitKey, optionLabel: string, optionIndex: number) {
-    if (!activeQuestion) return;
+    if (!activeQuestion || isAdvancing) return;
     setAnswers((current) => ({ ...current, [activeQuestion.id]: scoreKey }));
     setAnswerChoices((current) => ({ ...current, [activeQuestion.id]: optionIndex }));
+    setIsAdvancing(true);
     track("answer_selected", questionIndex + 1, activeQuestion.id, optionLabel);
-    if (questionIndex < questions.length - 1) {
-      const nextIndex = questionIndex + 1;
-      setQuestionIndex(nextIndex);
-      track("question_viewed", nextIndex + 1, questions[nextIndex]?.id);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
-    setStage("email");
-    track("email_gate_viewed", questions.length + 1);
+    answerTransitionTimer.current = window.setTimeout(() => {
+      if (questionIndex < questions.length - 1) {
+        const nextIndex = questionIndex + 1;
+        setQuestionIndex(nextIndex);
+        track("question_viewed", nextIndex + 1, questions[nextIndex]?.id);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        setStage("email");
+        track("email_gate_viewed", questions.length + 1);
+      }
+      setIsAdvancing(false);
+      answerTransitionTimer.current = null;
+    }, 450);
   }
-
-
-
 
   async function unlockResult(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -628,18 +635,18 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
               const selected = selectedOptionIndex === index;
               const letter = String.fromCharCode(65 + index);
               return (
-                <article className={`option-card ${selected ? "selected" : ""}`} key={`${activeQuestion.id}-${index}`}>
-                  <button aria-label={`Choose ${letter}: ${option.label}`} className="option-image-trigger" onClick={() => chooseAnswer(option.scoreKey, option.label, index)} type="button">
+                <article className={`option-card ${selected ? "selected" : ""} ${isAdvancing && selected ? "is-confirming" : ""}`} key={`${activeQuestion.id}-${index}`}>
+                  <button aria-label={`Choose ${letter}: ${option.label}`} className="option-image-trigger" disabled={isAdvancing} onClick={() => chooseAnswer(option.scoreKey, option.label, index)} type="button">
                     <AtlasImage className="option-image" index={index} loading="eager" path={activeQuestion.atlasPath} priority={index === 0} />
                   </button>
-                  <button aria-checked={selected} className="option-select" onClick={() => chooseAnswer(option.scoreKey, option.label, index)} role="radio" type="button">
+                  <button aria-checked={selected} className="option-select" disabled={isAdvancing} onClick={() => chooseAnswer(option.scoreKey, option.label, index)} role="radio" type="button">
                     <span className="option-meta"><span className="option-letter">{letter}</span><span><strong>{option.label}</strong><small>{option.microcopy}</small></span><span className="selection-mark" aria-hidden="true">✓</span></span>
                   </button>
                 </article>
               );
             })}
           </div>
-          <div className="quiz-actions"><button className="text-button" disabled={questionIndex === 0} onClick={() => setQuestionIndex((index) => Math.max(0, index - 1))}>← Back</button></div>
+          <div className="quiz-actions"><button className="text-button" disabled={questionIndex === 0 || isAdvancing} onClick={() => setQuestionIndex((index) => Math.max(0, index - 1))}>← Back</button></div>
         </section>
 
       </main>
