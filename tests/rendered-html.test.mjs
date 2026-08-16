@@ -46,7 +46,7 @@ test("builds the complete DeepPersona AI experience", async () => {
     readFile(new URL("../app/disclaimer/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/_components/legal-page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/catalog/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/api/integrations/psychology-questions/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/psychology-sync.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(quiz, /DeepPersona AI/);
@@ -76,7 +76,8 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(publicCatalog, /listTests\(false\)/);
   assert.match(publicCatalog, /listAffiliateProducts\(false\)/);
   assert.match(psychologySync, /testTitle/);
-  assert.match(psychologySync, /listTests\(false\)/);
+  assert.match(psychologySync, /question: question.prompt/);
+  assert.match(psychologySync, /text: option.label/);
   assert.match(psychologySync, /Local Factory/);
   assert.match(deepResults, /How you try to restore safety in closeness/);
   assert.match(choiceInsights, /getOptionInsight/);
