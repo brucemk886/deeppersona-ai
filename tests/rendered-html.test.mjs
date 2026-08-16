@@ -9,12 +9,14 @@ test("builds the complete DeepPersona AI experience", async () => {
   await access(new URL("../public/quiz/doors.webp", import.meta.url));
   await access(new URL("../public/quiz/doors-768.webp", import.meta.url));
 
-  const [quiz, catalog, choiceInsights, deepResults, admin, adminStyles, store, layout, hosting, privacy, terms, refunds, contact, disclaimer, legalPage] = await Promise.all([
+  const [quiz, catalog, choiceInsights, deepResults, adminShell, testEditor, leadsPanel, adminStyles, store, layout, hosting, privacy, terms, refunds, contact, disclaimer, legalPage] = await Promise.all([
     readFile(new URL("../app/quiz-app.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/quiz.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/choice-insights.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/deep-results.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/admin/admin-dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/admin/_components/admin-shell.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/admin/_components/test-editor.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/admin/_components/leads-panel.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../db/quiz-store.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
@@ -56,22 +58,23 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(catalog, /attachment-style/);
   assert.match(catalog, /hidden-strength/);
   assert.equal((catalog.match(/id: "[a-z-]+",\n    title:/g) ?? []).length, 8);
-  assert.match(admin, /测试管理/);
-  assert.match(admin, /题目管理/);
-  assert.match(admin, /邮箱用户/);
-  assert.match(admin, /DeepPersona AI/);
-  assert.match(admin, /用户答题档案/);
-  assert.match(admin, /营销分群标签/);
-  assert.match(admin, /逐题选择/);
-  assert.match(admin, /导出分群 CSV/);
-  assert.match(admin, /一个“测试”对应前台的一张测试卡/);
+  assert.match(adminShell, /测试内容/);
+  assert.match(adminShell, /邮箱线索/);
+  assert.match(adminShell, /DeepPersona AI/);
+  assert.match(testEditor, /题目管理/);
+  assert.match(testEditor, /一个“测试”对应前台的一张测试卡/);
+  assert.match(leadsPanel, /用户答题档案/);
+  assert.match(leadsPanel, /营销分群标签/);
+  assert.match(leadsPanel, /逐题选择/);
+  assert.match(leadsPanel, /导出分群 CSV/);
   assert.match(adminStyles, /\/\* Admin readability scale \*\//);
   assert.match(adminStyles, /\.test-card-image \.atlas-image img/);
   assert.match(adminStyles, /aspect-ratio: 4 \/ 5/);
   assert.match(adminStyles, /\.lead-table-cn \{ font-size: 13px; \}/);
   assert.match(store, /COUNT\(DISTINCT id\) AS users FROM quiz_sessions/);
   assert.match(store, /s\.answers_json/);
-  assert.match(store, /answerEvents: answerEvents\.results/);
+  assert.match(store, /listAdminLeads/);
+  assert.match(store, /getAdminLeadDetail/);
   assert.doesNotMatch(store, /COUNT\(DISTINCT session_id\) AS users FROM quiz_sessions/);
   assert.match(layout, /DeepPersona AI — Visual Psychology Tests/);
   assert.match(layout, /og-deep-persona\.png/);

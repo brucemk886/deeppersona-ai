@@ -55,4 +55,12 @@ export function isCorrectAdminCredential(username: string, password: string): bo
   try { const configured = credentials(); return constantTimeEqual(username, configured.username) && constantTimeEqual(password, configured.password); } catch { return false; }
 }
 
+export function getAdminUsername(): string {
+  try {
+    return credentials().username;
+  } catch {
+    return "admin";
+  }
+}
+
 export const adminCookie = { name: COOKIE_NAME, maxAge: SESSION_MAX_AGE };
