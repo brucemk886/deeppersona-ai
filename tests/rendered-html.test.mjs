@@ -27,7 +27,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   await access(new URL("../public/quiz/doors.webp", import.meta.url));
   await access(new URL("../public/quiz/doors-768.webp", import.meta.url));
 
-  const [quiz, catalog, choiceInsights, deepResults, adminShell, testEditor, leadsPanel, adminStyles, store, layout, hosting, privacy, terms, refunds, contact, disclaimer, legalPage, publicCatalog] = await Promise.all([
+  const [quiz, catalog, choiceInsights, deepResults, adminShell, testEditor, leadsPanel, adminStyles, store, layout, hosting, privacy, terms, refunds, contact, disclaimer, legalPage, publicCatalog, psychologySync] = await Promise.all([
     readQuizSurface(),
     readFile(new URL("../lib/quiz.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/choice-insights.ts", import.meta.url), "utf8"),
@@ -46,6 +46,7 @@ test("builds the complete DeepPersona AI experience", async () => {
     readFile(new URL("../app/disclaimer/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/_components/legal-page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/catalog/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/integrations/psychology-questions/route.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(quiz, /DeepPersona AI/);
@@ -74,6 +75,9 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(quiz, /\/api\/catalog/);
   assert.match(publicCatalog, /listTests\(false\)/);
   assert.match(publicCatalog, /listAffiliateProducts\(false\)/);
+  assert.match(psychologySync, /testTitle/);
+  assert.match(psychologySync, /listTests\(false\)/);
+  assert.match(psychologySync, /Local Factory/);
   assert.match(deepResults, /How you try to restore safety in closeness/);
   assert.match(choiceInsights, /getOptionInsight/);
   assert.match(choiceInsights, /attachment-style/);
