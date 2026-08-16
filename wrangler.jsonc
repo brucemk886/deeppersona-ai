@@ -1,0 +1,31 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "deeppersona-ai",
+  "main": "./dist/server/index.js",
+  "assets": {
+    "directory": "./dist/client"
+  },
+  "compatibility_date": "2026-08-16",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "deeppersonaai.com",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.deeppersonaai.com",
+      "custom_domain": true
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "deeppersona-ai",
+      "database_id": "5bc9493a-92ab-4ca9-8bac-692c906c75bf"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}
