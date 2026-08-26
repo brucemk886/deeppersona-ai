@@ -1,8 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-export const SUPPORT_EMAIL = "bruce@loversdaily.com";
-export const POLICY_DATE = "July 21, 2026";
+export const SUPPORT_EMAIL = "bruce@deeppersonaai.com";
+export const POLICY_DATE = "August 26, 2026";
 
 const legalLinks = [
   { href: "/privacy", label: "Privacy" },
