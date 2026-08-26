@@ -1,4 +1,5 @@
-import { getRuntimeEnv, listQuestions } from "@/db/quiz-store";
+import { buildPsychologySyncFeed } from "@/lib/psychology-sync";
+import { getRuntimeEnv, listQuestions, listTests } from "@/db/quiz-store";
 
 export const dynamic = "force-dynamic";
 
@@ -17,33 +18,12 @@ async function hasValidApiKey(value: string | null): Promise<boolean> {
   return difference === 0;
 }
 
-function absoluteHttpsUrl(value: string, request: Request): string {
-  const url = new URL(value, request.url);
-  url.protocol = "https:";
-  return url.toString();
-}
-
+/** Content-sync feed for Local Factory psychology automation. Active catalog only. */
 export async function GET(request: Request) {
-  if (!await hasValidApiKey(request.headers.get("X-API-Key"))) {
+  if (!(await hasValidApiKey(request.headers.get("X-API-Key")))) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const questions = await listQuestions();
-  return Response.json({
-    items: questions.map((question) => ({
-      id: question.id,
-      testId: question.testId,
-      kicker: question.kicker,
-      prompt: question.prompt,
-      imageUrl: absoluteHttpsUrl(question.atlasPath, request),
-      position: question.position,
-      options: question.options.map((option) => ({
-        label: option.label,
-        microcopy: option.microcopy,
-        scoreKey: option.scoreKey,
-        meaning: option.meaning,
-        projection: option.projection,
-      })),
-    })),
-  });
+  const [tests, questions] = await Promise.all([listTests(false), listQuestions(undefined, false)]);
+  return Response.json(buildPsychologySyncFeed(tests, questions, request.url));
 }

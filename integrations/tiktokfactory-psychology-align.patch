@@ -1,0 +1,717 @@
+From e719882e8d18ec032d583314f094bb36460f1819 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 16 Aug 2026 11:32:53 +0000
+Subject: [PATCH 1/2] Align psychology automation with DeepPersona test catalog
+
+Preserve test titles, option insights, and search grouping when
+syncing from the live /api/integrations/psychology-questions feed.
+---
+ public/psychology-topics.html     |  8 ++++----
+ public/psychology-topics.js       |  3 ++-
+ public/psychology.js              | 10 +++++-----
+ scripts/psychology-topics.js      | 18 +++++++++++++++---
+ scripts/psychology-topics.test.js | 28 ++++++++++++++++++++++++++--
+ 5 files changed, 52 insertions(+), 15 deletions(-)
+
+diff --git a/public/psychology-topics.html b/public/psychology-topics.html
+index 901fcff..677ed76 100644
+--- a/public/psychology-topics.html
++++ b/public/psychology-topics.html
+@@ -29,7 +29,7 @@
+     </aside>
+     <main class="module-main">
+       <header class="module-header">
+-        <div><p class="module-kicker">PSYCHOLOGY LIBRARY</p><h1>心理学题目</h1><p>从外部心理学网站同步题库，筛选后直接进入视频自动化。</p></div>
++        <div><p class="module-kicker">PSYCHOLOGY LIBRARY</p><h1>心理学题目</h1><p>从 DeepPersona 线上题库同步，按测试分组后进入视频自动化。</p></div>
+         <button id="syncBtn" class="module-button primary" type="button">更新题库</button>
+       </header>
+       <div class="module-shell">
+@@ -41,7 +41,7 @@
+         <details class="module-panel" open>
+           <summary>外部题库连接配置</summary>
+           <div class="module-grid" style="margin-top:16px">
+-            <label class="module-field"><span>题库 API 地址</span><input id="apiUrl" type="url" placeholder="https://example.com/api/psychology/questions" /></label>
++            <label class="module-field"><span>题库 API 地址</span><input id="apiUrl" type="url" placeholder="https://deeppersonaai.com/api/integrations/psychology-questions" /></label>
+             <label class="module-field"><span>鉴权方式</span><select id="authType"><option value="none">无鉴权</option><option value="bearer">Bearer Token</option><option value="x-api-key">X-API-Key</option></select></label>
+             <label class="module-field"><span>Token / API Key</span><input id="apiToken" type="password" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" placeholder="留空保留已保存密钥" /></label>
+             <button id="saveSettingsBtn" class="module-button" type="button">保存连接</button>
+@@ -49,8 +49,8 @@
+           <div id="settingsStatus" class="module-status"></div>
+         </details>
+         <section class="module-panel">
+-          <div class="module-panel-head"><div><h2>题目列表</h2><p>支持题目、钩子和结果解释搜索。</p></div><span id="resultCount">0 条</span></div>
+-          <div class="topic-toolbar"><label class="module-field"><input id="query" type="search" placeholder="搜索心理学题目" /></label><button id="searchBtn" class="module-button" type="button">搜索</button></div>
++          <div class="module-panel-head"><div><h2>题目列表</h2><p>支持按测试名称、题目和结果解释搜索。</p></div><span id="resultCount">0 条</span></div>
++          <div class="topic-toolbar"><label class="module-field"><input id="query" type="search" placeholder="搜索测试或题目，例如 attachment-style" /></label><button id="searchBtn" class="module-button" type="button">搜索</button></div>
+           <div id="topicList" class="topic-list" style="margin-top:14px"><div class="module-empty">尚未同步题库。</div></div>
+           <div class="module-pagination" style="margin-top:14px"><button id="prevBtn" class="module-button" type="button">上一页</button><span id="pageText">1 / 1</span><button id="nextBtn" class="module-button" type="button">下一页</button></div>
+         </section>
+diff --git a/public/psychology-topics.js b/public/psychology-topics.js
+index 2dea415..2d8412e 100644
+--- a/public/psychology-topics.js
++++ b/public/psychology-topics.js
+@@ -65,7 +65,8 @@ function renderTopics() {
+   if (!state.items.length) return $("#topicList").innerHTML = '<div class="module-empty">没有匹配的题目。</div>';
+   $("#topicList").innerHTML = state.items.map((item) => {
+     const options = (item.options || []).map((option) => `${option.label}. ${option.text}`).join(" · ") || item.answerGuide || "暂无选项说明";
+-    return `<article class="topic-card"><h3>${escapeHtml(item.question)}</h3><div class="topic-options">${escapeHtml(options)}</div><div class="topic-card-footer"><span>${escapeHtml(item.id)}</span><button class="module-button primary" type="button" data-use-topic="${escapeHtml(item.id)}">用于生成视频</button></div></article>`;
++    const testLabel = item.testTitle || item.testId || "未分组测试";
++    return `<article class="topic-card"><div class="topic-card-footer" style="margin-bottom:8px"><span>${escapeHtml(testLabel)}</span></div><h3>${escapeHtml(item.question)}</h3><div class="topic-options">${escapeHtml(options)}</div><div class="topic-card-footer"><span>${escapeHtml(item.id)}</span><button class="module-button primary" type="button" data-use-topic="${escapeHtml(item.id)}">用于生成视频</button></div></article>`;
+   }).join("");
+ }
+ 
+diff --git a/public/psychology.js b/public/psychology.js
+index d810b71..58a0f77 100644
+--- a/public/psychology.js
++++ b/public/psychology.js
+@@ -295,7 +295,7 @@ async function loadPreparedContent() {
+       $("#hookTitle").value = topic.hookTitle || topic.question || "";
+       $("#sourceImageUrl").value = topic.imageUrl || "";
+       $("#answerGuide").value = [optionText, topic.answerGuide || ""].filter(Boolean).join("\n\n");
+-      $("#taskName").value = `心理学测试 · ${String(topic.question || "").slice(0, 24)}`;
++      $("#taskName").value = `心理学测试 · ${String(topic.testTitle || topic.testId || "").slice(0, 18)} · ${String(topic.question || "").slice(0, 24)}`;
+       setStatus("已从心理学题库载入题目，可以继续调整并生成。");
+     } catch (error) {
+       setStatus(error.message || "读取题目失败", true);
+@@ -491,9 +491,9 @@ function renderBatchTopics() {
+   const list = $("#batchTopicList");
+   if (!list) return;
+   const query = $("#batchTopicQuery").value.trim().toLowerCase();
+-  const visible = batchTopics.filter((topic) => !query || `${topic.question || ""} ${topic.hookTitle || ""} ${topic.answerGuide || ""}`.toLowerCase().includes(query));
++  const visible = batchTopics.filter((topic) => !query || `${topic.question || ""} ${topic.hookTitle || ""} ${topic.answerGuide || ""} ${topic.testTitle || ""} ${topic.testId || ""}`.toLowerCase().includes(query));
+   if (!visible.length) { list.innerHTML = `<div class="empty">没有匹配的题目，请先到“心理学题目”同步题库。</div>`; updateBatchTopicSelection(); return; }
+-  list.innerHTML = visible.map((topic) => { const options = (topic.options || []).map((item) => `${item.label || ""}. ${item.text || ""}`).join(" · "); return `<label class="batch-topic-card"><input type="checkbox" data-topic-id="${escapeHtml(topic.id)}" ${selectedBatchTopicIds.has(String(topic.id)) ? "checked" : ""} /><span><strong>${escapeHtml(topic.question || topic.hookTitle || "未命名题目")}</strong><small>${escapeHtml(options || topic.answerGuide || "生成时由 AI 补全四个视觉选项")}</small></span></label>`; }).join("");
++  list.innerHTML = visible.map((topic) => { const options = (topic.options || []).map((item) => `${item.label || ""}. ${item.text || ""}`).join(" · "); const testLabel = topic.testTitle || topic.testId || ""; return `<label class="batch-topic-card"><input type="checkbox" data-topic-id="${escapeHtml(topic.id)}" ${selectedBatchTopicIds.has(String(topic.id)) ? "checked" : ""} /><span><strong>${escapeHtml(topic.question || topic.hookTitle || "未命名题目")}</strong><small>${escapeHtml([testLabel, options || topic.answerGuide || "生成时由 AI 补全四个视觉选项"].filter(Boolean).join(" · "))}</small></span></label>`; }).join("");
+   updateBatchTopicSelection();
+ }
+ 
+@@ -505,7 +505,7 @@ function syncSingleTopicEditor(topic) {
+   $("#hookTitle").value = String(topic.hookTitle || question).trim();
+   $("#sourceImageUrl").value = String(topic.imageUrl || "").trim();
+   $("#answerGuide").value = topicAnswerGuide(topic);
+-  $("#taskName").value = `心理学测试 · ${question.slice(0, 24)}`;
++  $("#taskName").value = `心理学测试 · ${String(topic.testTitle || topic.testId || "").slice(0, 18)} · ${question.slice(0, 24)}`;
+   $("#narration").value = "";
+   $("#imagePrompt").value = "";
+   delete $("#imagePrompt").dataset.generatedAspect;
+@@ -583,7 +583,7 @@ async function createBatchTasks() {
+       const topic = topics[index % topics.length];
+       const topicRound = Math.floor(index / topics.length) + 1;
+       setStatus(`正在创建 ${index + 1}/${totalVideos}：${String(topic.question || "").slice(0, 28)}`);
+-      const payload = { taskType: "psychology", name: `心理学测试 · ${String(topic.question || "").slice(0, 24)} · ${topicRound}`, generation: { question: String(topic.question || "").trim(), hookTitle: String(topic.hookTitle || topic.question || "").trim(), sourceImageUrl: "", fallbackImageUrl: String(topic.imageUrl || "").trim(), answerGuide: topicAnswerGuide(topic), narration: "", imagePrompt: "", creativeVariant: index + 1, imageModels: models, totalVideos: 1, aspectRatio: $("#aspectRatio").value, titlePosition: numberValue("#titlePosition", 14), titleFontSize: numberValue("#titleFontSize", 68), motion: $("#motion").value, backgroundMusicDir: $("#backgroundMusicDir").value.trim(), backgroundMusicVolume: numberValue("#backgroundMusicVolume", 0.10), elevenLabsVoiceId: $("#voiceId").value.trim(), elevenLabsModelId: $("#voiceModel").value }, publish: buildPsychologyPublish(selected, autoPublish, baseScheduleAt + index * numberValue("#intervalMinutes", 15) * 60) };
++      const payload = { taskType: "psychology", name: `心理学测试 · ${String(topic.testTitle || topic.testId || topic.question || "").slice(0, 18)} · ${topicRound}`, generation: { question: String(topic.question || "").trim(), hookTitle: String(topic.hookTitle || topic.question || "").trim(), sourceImageUrl: "", fallbackImageUrl: String(topic.imageUrl || "").trim(), answerGuide: topicAnswerGuide(topic), narration: "", imagePrompt: "", creativeVariant: index + 1, imageModels: models, totalVideos: 1, aspectRatio: $("#aspectRatio").value, titlePosition: numberValue("#titlePosition", 14), titleFontSize: numberValue("#titleFontSize", 68), motion: $("#motion").value, backgroundMusicDir: $("#backgroundMusicDir").value.trim(), backgroundMusicVolume: numberValue("#backgroundMusicVolume", 0.10), elevenLabsVoiceId: $("#voiceId").value.trim(), elevenLabsModelId: $("#voiceModel").value }, publish: buildPsychologyPublish(selected, autoPublish, baseScheduleAt + index * numberValue("#intervalMinutes", 15) * 60) };
+       const response = await fetch("/api/auto-tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+       const data = await response.json();
+       if (!response.ok) throw new Error(data.error || `第 ${index + 1} 条视频任务创建失败。`);
+diff --git a/scripts/psychology-topics.js b/scripts/psychology-topics.js
+index fb6469a..2f05176 100644
+--- a/scripts/psychology-topics.js
++++ b/scripts/psychology-topics.js
+@@ -66,7 +66,7 @@ export function createPsychologyTopicsService({ workDir, fetchImpl = globalThis.
+     const library = readLibrary();
+     const keyword = String(query).trim().toLowerCase();
+     const filtered = keyword
+-      ? library.topics.filter((item) => `${item.question} ${item.hookTitle} ${item.answerGuide}`.toLowerCase().includes(keyword))
++      ? library.topics.filter((item) => `${item.question} ${item.hookTitle} ${item.answerGuide} ${item.testTitle} ${item.testId}`.toLowerCase().includes(keyword))
+       : library.topics;
+     const safePageSize = clampInt(pageSize, 1, 100, 20);
+     const safePage = clampInt(page, 1, Math.max(1, Math.ceil(filtered.length / safePageSize)), 1);
+@@ -133,9 +133,12 @@ function normalizeTopic(value, index) {
+   );
+   const hookTitle = firstText(value?.hookTitle, value?.headline, question);
+   const imageUrl = firstText(value?.imageUrl, value?.image, value?.cover, value?.thumbnail);
++  const testId = firstText(value?.testId, value?.test_id);
++  const testTitle = firstText(value?.testTitle, value?.test_title, value?.testName);
++  const testKicker = firstText(value?.testKicker, value?.test_kicker);
+   const sourceId = firstText(value?.id, value?._id, value?.uuid, value?.slug);
+   const id = sourceId || crypto.createHash("sha1").update(`${question}|${index}`).digest("hex").slice(0, 16);
+-  return { id, question, hookTitle, answerGuide, options, imageUrl };
++  return { id, testId, testTitle, testKicker, question, hookTitle, answerGuide, options, imageUrl };
+ }
+ 
+ function normalizeOptions(value) {
+@@ -145,10 +148,19 @@ function normalizeOptions(value) {
+     const explicitText = firstText(item?.text, item?.content, item?.title, item?.value, item?.description);
+     const sourceLabel = firstText(item?.label, item?.key, item?.id);
+     const sourceUsesLabelAsText = !explicitText && sourceLabel && sourceLabel.length > 2;
+-    return {
++    const option = {
+       label: sourceUsesLabelAsText ? String.fromCharCode(65 + index) : firstText(sourceLabel, String.fromCharCode(65 + index)),
+       text: firstText(explicitText, sourceUsesLabelAsText ? sourceLabel : "")
+     };
++    const scoreKey = firstText(item?.scoreKey, item?.score_key);
++    const meaning = firstText(item?.meaning);
++    const projection = firstText(item?.projection);
++    const microcopy = firstText(item?.microcopy);
++    if (scoreKey) option.scoreKey = scoreKey;
++    if (meaning) option.meaning = meaning;
++    if (projection) option.projection = projection;
++    if (microcopy) option.microcopy = microcopy;
++    return option;
+   }).filter((item) => item.text);
+ }
+ 
+diff --git a/scripts/psychology-topics.test.js b/scripts/psychology-topics.test.js
+index 362f93b..f9a2c05 100644
+--- a/scripts/psychology-topics.test.js
++++ b/scripts/psychology-topics.test.js
+@@ -17,6 +17,30 @@ test("deduplicates repeated topic text", () => {
+   assert.equal(topics.length, 1);
+ });
+ 
++test("keeps DeepPersona test grouping and option insights", () => {
++  const topics = normalizeTopics({
++    source: "deeppersona-ai",
++    tests: [{ id: "stress-reset", title: "How You Reset Under Pressure" }],
++    items: [{
++      id: "stress-reset-1",
++      testId: "stress-reset",
++      testTitle: "How You Reset Under Pressure",
++      testKicker: "Stress",
++      prompt: "What do you notice first?",
++      imageUrl: "https://deeppersonaai.com/quiz/doors.png",
++      options: [
++        { label: "Ask what changed", scoreKey: "connector", meaning: "You prefer direct repair.", projection: "You move toward uncertainty." },
++        { label: "Give them space", scoreKey: "architect", meaning: "You prefer room to regulate." }
++      ]
++    }]
++  });
++
++  assert.equal(topics[0].testId, "stress-reset");
++  assert.equal(topics[0].testTitle, "How You Reset Under Pressure");
++  assert.equal(topics[0].options[0].scoreKey, "connector");
++  assert.equal(topics[0].options[0].meaning, "You prefer direct repair.");
++});
++
+ test("normalizes DeepPersona options that store option text in label", () => {
+   const topics = normalizeTopics({ items: [{
+     id: "stress-1",
+@@ -29,8 +53,8 @@ test("normalizes DeepPersona options that store option text in label", () => {
+   }] });
+ 
+   assert.deepEqual(topics[0].options, [
+-    { label: "A", text: "Ask what changed" },
+-    { label: "B", text: "Give them space" }
++    { label: "A", text: "Ask what changed", meaning: "You prefer direct repair.", projection: "You move toward uncertainty." },
++    { label: "B", text: "Give them space", meaning: "You prefer room to regulate." }
+   ]);
+   assert.match(topics[0].answerGuide, /Ask what changed/);
+   assert.match(topics[0].answerGuide, /You move toward uncertainty/);
+-- 
+2.43.0
+
+
+From ff6a03c84e34f11de04ee0bedcebb3d50812bb83 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 16 Aug 2026 11:37:52 +0000
+Subject: [PATCH 2/2] Use official DeepPersona questions and images in
+ psychology videos
+
+Default the topic sync to the live catalog, keep test grouping, and
+prefer official quiz images instead of regenerating the same items.
+---
+ public/module-pages.css           |  4 +-
+ public/psychology-topics.html     |  8 +--
+ public/psychology-topics.js       | 38 +++++++++++---
+ public/psychology.html            |  4 +-
+ public/psychology.js              | 15 +++---
+ scripts/auto-task-manager.js      |  2 +-
+ scripts/psychology-topics.js      | 87 +++++++++++++++++++++++++++----
+ scripts/psychology-topics.test.js | 63 +++++++++++++++++++---
+ scripts/psychology-video-job.js   |  2 +-
+ scripts/server.js                 |  1 +
+ 10 files changed, 182 insertions(+), 42 deletions(-)
+
+diff --git a/public/module-pages.css b/public/module-pages.css
+index d4fa4d1..484d6de 100644
+--- a/public/module-pages.css
++++ b/public/module-pages.css
+@@ -25,7 +25,9 @@ body.module-page { min-width:1024px; min-height:100vh; margin:0; color:var(--mod
+ .module-metric { padding:15px; border:1px solid var(--module-line); background:var(--lf-surface); }
+ .module-metric span,.module-metric small { display:block; color:var(--module-muted); font-size:10px; }
+ .module-metric strong { display:block; margin:6px 0 3px; font-size:22px; }
+-.topic-toolbar { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; }
++.topic-toolbar { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(180px,.8fr) auto; gap:10px; }
++.topic-group { grid-column:1/-1; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
++.topic-group-title { grid-column:1/-1; margin:6px 0 0; color:var(--module-accent); font-size:12px; font-weight:800; letter-spacing:.04em; }
+ .topic-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+ .topic-card { min-width:0; padding:16px; border:1px solid var(--module-line); border-radius:5px; background:var(--lf-surface); }
+ .topic-card h3 { margin:0 0 10px; font-size:14px; line-height:1.45; }
+diff --git a/public/psychology-topics.html b/public/psychology-topics.html
+index 677ed76..b86054e 100644
+--- a/public/psychology-topics.html
++++ b/public/psychology-topics.html
+@@ -29,7 +29,7 @@
+     </aside>
+     <main class="module-main">
+       <header class="module-header">
+-        <div><p class="module-kicker">PSYCHOLOGY LIBRARY</p><h1>心理学题目</h1><p>从 DeepPersona 线上题库同步，按测试分组后进入视频自动化。</p></div>
++        <div><p class="module-kicker">PSYCHOLOGY LIBRARY</p><h1>心理学题目</h1><p>与 DeepPersona 线上 8 套测试对齐：同步官方题目、选项和原图后，再进入视频自动化。</p></div>
+         <button id="syncBtn" class="module-button primary" type="button">更新题库</button>
+       </header>
+       <div class="module-shell">
+@@ -42,15 +42,15 @@
+           <summary>外部题库连接配置</summary>
+           <div class="module-grid" style="margin-top:16px">
+             <label class="module-field"><span>题库 API 地址</span><input id="apiUrl" type="url" placeholder="https://deeppersonaai.com/api/integrations/psychology-questions" /></label>
+-            <label class="module-field"><span>鉴权方式</span><select id="authType"><option value="none">无鉴权</option><option value="bearer">Bearer Token</option><option value="x-api-key">X-API-Key</option></select></label>
++            <label class="module-field"><span>鉴权方式</span><select id="authType"><option value="none">无鉴权</option><option value="bearer">Bearer Token</option><option value="x-api-key" selected>X-API-Key</option></select></label>
+             <label class="module-field"><span>Token / API Key</span><input id="apiToken" type="password" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" placeholder="留空保留已保存密钥" /></label>
+             <button id="saveSettingsBtn" class="module-button" type="button">保存连接</button>
+           </div>
+           <div id="settingsStatus" class="module-status"></div>
+         </details>
+         <section class="module-panel">
+-          <div class="module-panel-head"><div><h2>题目列表</h2><p>支持按测试名称、题目和结果解释搜索。</p></div><span id="resultCount">0 条</span></div>
+-          <div class="topic-toolbar"><label class="module-field"><input id="query" type="search" placeholder="搜索测试或题目，例如 attachment-style" /></label><button id="searchBtn" class="module-button" type="button">搜索</button></div>
++          <div class="module-panel-head"><div><h2>题目列表</h2><p>按线上测试筛选，题目、选项和原图与 deeppersonaai.com 保持一致。</p></div><span id="resultCount">0 条</span></div>
++          <div class="topic-toolbar"><label class="module-field"><input id="query" type="search" placeholder="搜索测试或题目，例如 How You Attach" /></label><label class="module-field"><select id="testFilter"><option value="">全部测试</option></select></label><button id="searchBtn" class="module-button" type="button">搜索</button></div>
+           <div id="topicList" class="topic-list" style="margin-top:14px"><div class="module-empty">尚未同步题库。</div></div>
+           <div class="module-pagination" style="margin-top:14px"><button id="prevBtn" class="module-button" type="button">上一页</button><span id="pageText">1 / 1</span><button id="nextBtn" class="module-button" type="button">下一页</button></div>
+         </section>
+diff --git a/public/psychology-topics.js b/public/psychology-topics.js
+index 2d8412e..57d1b48 100644
+--- a/public/psychology-topics.js
++++ b/public/psychology-topics.js
+@@ -5,6 +5,7 @@ $("#saveSettingsBtn").addEventListener("click", saveSettings);
+ $("#syncBtn").addEventListener("click", syncTopics);
+ $("#searchBtn").addEventListener("click", () => loadTopics(1));
+ $("#query").addEventListener("keydown", (event) => { if (event.key === "Enter") loadTopics(1); });
++$("#testFilter").addEventListener("change", () => loadTopics(1));
+ $("#prevBtn").addEventListener("click", () => loadTopics(Math.max(1, state.page - 1)));
+ $("#nextBtn").addEventListener("click", () => loadTopics(state.page + 1));
+ $("#topicList").addEventListener("click", (event) => {
+@@ -18,8 +19,8 @@ loadTopics(1);
+ async function loadSettings() {
+   try {
+     const data = await api("/api/psychology-topics/settings");
+-    $("#apiUrl").value = data.apiUrl || "";
+-    $("#authType").value = data.authType || "none";
++    $("#apiUrl").value = data.apiUrl || "https://deeppersonaai.com/api/integrations/psychology-questions";
++    $("#authType").value = data.authType || "x-api-key";
+     $("#apiToken").placeholder = data.tokenConfigured ? "已保存，留空保持不变" : "填写 Token 或 API Key";
+     renderSummary(data);
+   } catch (error) { showStatus(error.message, true); }
+@@ -49,8 +50,10 @@ async function syncTopics() {
+ async function loadTopics(page) {
+   try {
+     const query = encodeURIComponent($("#query").value.trim());
+-    const data = await api(`/api/psychology-topics?query=${query}&page=${page}&pageSize=${state.pageSize}`);
++    const testId = encodeURIComponent($("#testFilter").value.trim());
++    const data = await api(`/api/psychology-topics?query=${query}&testId=${testId}&page=${page}&pageSize=${state.pageSize}`);
+     state = data;
++    renderTestFilter(data.tests || []);
+     renderTopics();
+   } catch (error) { $("#topicList").innerHTML = `<div class="module-empty">${escapeHtml(error.message)}</div>`; }
+ }
+@@ -63,11 +66,30 @@ function renderTopics() {
+   $("#prevBtn").disabled = state.page <= 1;
+   $("#nextBtn").disabled = state.page >= pages;
+   if (!state.items.length) return $("#topicList").innerHTML = '<div class="module-empty">没有匹配的题目。</div>';
+-  $("#topicList").innerHTML = state.items.map((item) => {
+-    const options = (item.options || []).map((option) => `${option.label}. ${option.text}`).join(" · ") || item.answerGuide || "暂无选项说明";
+-    const testLabel = item.testTitle || item.testId || "未分组测试";
+-    return `<article class="topic-card"><div class="topic-card-footer" style="margin-bottom:8px"><span>${escapeHtml(testLabel)}</span></div><h3>${escapeHtml(item.question)}</h3><div class="topic-options">${escapeHtml(options)}</div><div class="topic-card-footer"><span>${escapeHtml(item.id)}</span><button class="module-button primary" type="button" data-use-topic="${escapeHtml(item.id)}">用于生成视频</button></div></article>`;
+-  }).join("");
++  const groups = new Map();
++  for (const item of state.items) {
++    const key = item.testTitle || item.testId || "未分组测试";
++    if (!groups.has(key)) groups.set(key, []);
++    groups.get(key).push(item);
++  }
++  $("#topicList").innerHTML = Array.from(groups.entries()).map(([title, items]) => `
++    <section class="topic-group">
++      <h3 class="topic-group-title">${escapeHtml(title)} · ${items.length} 题</h3>
++      ${items.map((item) => {
++        const options = (item.options || []).map((option) => `${option.letter || option.label}. ${option.text || option.label}`).join(" · ") || item.answerGuide || "暂无选项说明";
++        return `<article class="topic-card"><h3>${escapeHtml(item.question)}</h3><div class="topic-options">${escapeHtml(options)}</div><div class="topic-card-footer"><span>${escapeHtml(item.id)}</span><button class="module-button primary" type="button" data-use-topic="${escapeHtml(item.id)}">用于生成视频</button></div></article>`;
++      }).join("")}
++    </section>`).join("");
++}
++
++function renderTestFilter(tests) {
++  const select = $("#testFilter");
++  const current = select.value;
++  const options = ['<option value="">全部测试</option>'].concat(
++    tests.map((test) => `<option value="${escapeHtml(test.id)}">${escapeHtml(test.title || test.id)}</option>`)
++  );
++  select.innerHTML = options.join("");
++  if (tests.some((test) => test.id === current)) select.value = current;
+ }
+ 
+ function renderSummary(data) {
+diff --git a/public/psychology.html b/public/psychology.html
+index a7c03c8..a3e6318 100644
+--- a/public/psychology.html
++++ b/public/psychology.html
+@@ -36,7 +36,7 @@
+ 
+     <main class="psy-main">
+       <header class="psy-header">
+-        <div><p class="eyebrow">PSYCHOLOGY AUTOMATION</p><h1>心理学视频自动化</h1><p>从题库选择或输入题目，自动完成生图、配音、合成与 GeeLark 发布。</p></div>
++        <div><p class="eyebrow">PSYCHOLOGY AUTOMATION</p><h1>心理学视频自动化</h1><p>默认使用 DeepPersona 线上原题和原图，再自动完成配音、合成与发布。</p></div>
+         <div class="header-actions"><a class="quiet-link" href="/psychology-topics">从题库选择</a><span id="statusText">准备创建任务</span><button id="createBtn" type="button">加入生成队列</button></div>
+       </header>
+ 
+@@ -48,7 +48,7 @@
+             <label class="field"><span>心理测试题目</span><textarea id="question" rows="3" placeholder="例如：你在压力大的时候，会下意识选择哪种方式缓解？"></textarea></label>
+             <label class="field"><span>选项含义或结果提示 <em>可选</em></span><textarea id="answerGuide" rows="3" placeholder="可以填写四个选项及含义；留空时由 AI 设计"></textarea></label>
+             <label class="field"><span>视频顶部钩子标题</span><input id="hookTitle" type="text" placeholder="一句简短钩子，默认使用测试题目" /></label>
+-            <label class="field"><span>题库参考图地址 <em>默认由 Nano Banana 重新生图，仅在生图失败时备用</em></span><input id="sourceImageUrl" type="url" placeholder="https://example.com/psychology-test.png" /></label>
++            <label class="field"><span>线上原图地址 <em>有地址时使用 DeepPersona 原题图；清空后才重新生图</em></span><input id="sourceImageUrl" type="url" placeholder="https://deeppersonaai.com/quiz/doors.png" /></label>
+ <div class="aspect-prompt-row">
+               <label class="field aspect-field"><span>图片与视频画幅</span><select id="aspectRatio"><option value="16:9" selected>横版 16:9（四图横排）</option><option value="9:16">竖版 9:16</option></select></label>
+               <div class="aspect-prompt-note"><strong id="aspectPromptTitle">当前：横版 16:9</strong><span id="aspectPromptHint">AI 将生成 A/B/C/D 四图横排描述，视频使用 Remotion 横版模板。</span></div>
+diff --git a/public/psychology.js b/public/psychology.js
+index 58a0f77..9f560a7 100644
+--- a/public/psychology.js
++++ b/public/psychology.js
+@@ -216,7 +216,7 @@ async function createPreview() {
+       generation: {
+         question,
+         hookTitle: $("#hookTitle").value.trim() || question,
+-        sourceImageUrl: "",
++        sourceImageUrl: $("#sourceImageUrl").value.trim(),
+         fallbackImageUrl: $("#sourceImageUrl").value.trim(),
+         answerGuide: $("#answerGuide").value.trim(),
+         narration: $("#narration").value.trim(),
+@@ -290,7 +290,7 @@ async function loadPreparedContent() {
+       const data = await response.json();
+       if (!response.ok) throw new Error(data.error || "读取题目失败");
+       const topic = data.topic || {};
+-      const optionText = (topic.options || []).map((item) => `${item.label}. ${item.text}`).join("\n");
++      const optionText = (topic.options || []).map((item) => `${item.letter || item.label}. ${item.text || item.label}`).join("\n");
+       $("#question").value = topic.question || "";
+       $("#hookTitle").value = topic.hookTitle || topic.question || "";
+       $("#sourceImageUrl").value = topic.imageUrl || "";
+@@ -391,7 +391,7 @@ async function createTask() {
+       generation: {
+         question,
+         hookTitle: $("#hookTitle").value.trim() || question,
+-        sourceImageUrl: "",
++        sourceImageUrl: $("#sourceImageUrl").value.trim(),
+         fallbackImageUrl: $("#sourceImageUrl").value.trim(),
+         answerGuide: $("#answerGuide").value.trim(),
+         narration: $("#narration").value.trim(),
+@@ -439,7 +439,7 @@ function initTopicSelection() {
+   batch.id = "batchContentSection";
+   batch.className = "psy-section batch-content-section";
+   batch.hidden = false;
+-  batch.innerHTML = `<div class="section-head"><span>01</span><div><h2>选择心理学题目</h2><p>勾选 1 道题目即生成单个视频；勾选多道题目即批量生成。每道题都会独立生成 AI 配音文案和生图描述。</p></div></div><div class="batch-topic-toolbar"><input id="batchTopicQuery" type="search" placeholder="搜索题库题目" /><button id="refreshBatchTopicsBtn" class="quiet" type="button">刷新题库</button></div><div class="batch-topic-summary"><strong id="batchTopicSelectedCount">已选 0 道题目</strong><span>题目来自心理学题库；每道题按下方模型和每题视频数独立生成。</span></div><div id="batchTopicList" class="batch-topic-list"><div class="empty">正在读取心理学题库...</div></div>`;
++  batch.innerHTML = `<div class="section-head"><span>01</span><div><h2>选择心理学题目</h2><p>勾选线上题库题目。有官方原图时直接用原题图；没有原图时才重新生图。配音文案仍可自动生成。</p></div></div><div class="batch-topic-toolbar"><input id="batchTopicQuery" type="search" placeholder="搜索测试或题目" /><button id="refreshBatchTopicsBtn" class="quiet" type="button">刷新题库</button></div><div class="batch-topic-summary"><strong id="batchTopicSelectedCount">已选 0 道题目</strong><span>题目来自 DeepPersona 线上题库，默认使用官方原图。</span></div><div id="batchTopicList" class="batch-topic-list"><div class="empty">正在读取心理学题库...</div></div>`;
+   singleSection.hidden = true;
+   singleSection.insertAdjacentElement("afterend", batch);
+   batch.insertAdjacentElement("afterend", singleSection);
+@@ -493,7 +493,7 @@ function renderBatchTopics() {
+   const query = $("#batchTopicQuery").value.trim().toLowerCase();
+   const visible = batchTopics.filter((topic) => !query || `${topic.question || ""} ${topic.hookTitle || ""} ${topic.answerGuide || ""} ${topic.testTitle || ""} ${topic.testId || ""}`.toLowerCase().includes(query));
+   if (!visible.length) { list.innerHTML = `<div class="empty">没有匹配的题目，请先到“心理学题目”同步题库。</div>`; updateBatchTopicSelection(); return; }
+-  list.innerHTML = visible.map((topic) => { const options = (topic.options || []).map((item) => `${item.label || ""}. ${item.text || ""}`).join(" · "); const testLabel = topic.testTitle || topic.testId || ""; return `<label class="batch-topic-card"><input type="checkbox" data-topic-id="${escapeHtml(topic.id)}" ${selectedBatchTopicIds.has(String(topic.id)) ? "checked" : ""} /><span><strong>${escapeHtml(topic.question || topic.hookTitle || "未命名题目")}</strong><small>${escapeHtml([testLabel, options || topic.answerGuide || "生成时由 AI 补全四个视觉选项"].filter(Boolean).join(" · "))}</small></span></label>`; }).join("");
++  list.innerHTML = visible.map((topic) => { const options = (topic.options || []).map((item) => `${item.letter || item.label || ""}. ${item.text || item.label || ""}`).join(" · "); const testLabel = topic.testTitle || topic.testId || ""; const imageHint = topic.imageUrl ? "线上原图" : "无原图，将重新生图"; return `<label class="batch-topic-card"><input type="checkbox" data-topic-id="${escapeHtml(topic.id)}" ${selectedBatchTopicIds.has(String(topic.id)) ? "checked" : ""} /><span><strong>${escapeHtml(topic.question || topic.hookTitle || "未命名题目")}</strong><small>${escapeHtml([testLabel, imageHint, options || topic.answerGuide || "生成时由 AI 补全四个视觉选项"].filter(Boolean).join(" · "))}</small></span></label>`; }).join("");
+   updateBatchTopicSelection();
+ }
+ 
+@@ -554,7 +554,7 @@ function updateBatchTopicSelection() {
+   if (hint) hint.textContent = remainder ? `按题目顺序轮转：前 ${remainder} 道各生成 ${base + 1} 条，其余各生成 ${base} 条。` : `平均分配：每道题各生成 ${base} 条。`;
+ }
+ 
+-function topicAnswerGuide(topic) { const options = (topic.options || []).map((item) => `${item.label || ""}. ${item.text || ""}`).filter(Boolean).join("\n"); return [options, topic.answerGuide || ""].filter(Boolean).join("\n\n"); }
++function topicAnswerGuide(topic) { const options = (topic.options || []).map((item) => `${item.letter || item.label || ""}. ${item.text || item.label || ""}`).filter(Boolean).join("\n"); return [options, topic.answerGuide || ""].filter(Boolean).join("\n\n"); }
+ 
+ function buildPsychologyPublish(selected, autoPublish, scheduleAt) {
+   const accounts = selected.map((input) => { const phone = phones.find((item) => String(item.id) === input.value) || {}; return { id: input.value, name: phone.serialName || "", serialNo: phone.serialNo || "", groupName: phone.groupName || "", remark: phone.remark || "" }; });
+@@ -583,7 +583,8 @@ async function createBatchTasks() {
+       const topic = topics[index % topics.length];
+       const topicRound = Math.floor(index / topics.length) + 1;
+       setStatus(`正在创建 ${index + 1}/${totalVideos}：${String(topic.question || "").slice(0, 28)}`);
+-      const payload = { taskType: "psychology", name: `心理学测试 · ${String(topic.testTitle || topic.testId || topic.question || "").slice(0, 18)} · ${topicRound}`, generation: { question: String(topic.question || "").trim(), hookTitle: String(topic.hookTitle || topic.question || "").trim(), sourceImageUrl: "", fallbackImageUrl: String(topic.imageUrl || "").trim(), answerGuide: topicAnswerGuide(topic), narration: "", imagePrompt: "", creativeVariant: index + 1, imageModels: models, totalVideos: 1, aspectRatio: $("#aspectRatio").value, titlePosition: numberValue("#titlePosition", 14), titleFontSize: numberValue("#titleFontSize", 68), motion: $("#motion").value, backgroundMusicDir: $("#backgroundMusicDir").value.trim(), backgroundMusicVolume: numberValue("#backgroundMusicVolume", 0.10), elevenLabsVoiceId: $("#voiceId").value.trim(), elevenLabsModelId: $("#voiceModel").value }, publish: buildPsychologyPublish(selected, autoPublish, baseScheduleAt + index * numberValue("#intervalMinutes", 15) * 60) };
++      const officialImage = String(topic.imageUrl || "").trim();
++      const payload = { taskType: "psychology", name: `心理学测试 · ${String(topic.testTitle || topic.testId || topic.question || "").slice(0, 18)} · ${topicRound}`, generation: { question: String(topic.question || "").trim(), hookTitle: String(topic.hookTitle || topic.question || "").trim(), sourceImageUrl: officialImage, fallbackImageUrl: officialImage, answerGuide: topicAnswerGuide(topic), narration: "", imagePrompt: "", creativeVariant: index + 1, imageModels: models, totalVideos: 1, aspectRatio: $("#aspectRatio").value, titlePosition: numberValue("#titlePosition", 14), titleFontSize: numberValue("#titleFontSize", 68), motion: $("#motion").value, backgroundMusicDir: $("#backgroundMusicDir").value.trim(), backgroundMusicVolume: numberValue("#backgroundMusicVolume", 0.10), elevenLabsVoiceId: $("#voiceId").value.trim(), elevenLabsModelId: $("#voiceModel").value }, publish: buildPsychologyPublish(selected, autoPublish, baseScheduleAt + index * numberValue("#intervalMinutes", 15) * 60) };
+       const response = await fetch("/api/auto-tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+       const data = await response.json();
+       if (!response.ok) throw new Error(data.error || `第 ${index + 1} 条视频任务创建失败。`);
+diff --git a/scripts/auto-task-manager.js b/scripts/auto-task-manager.js
+index 81406be..229ba65 100644
+--- a/scripts/auto-task-manager.js
++++ b/scripts/auto-task-manager.js
+@@ -640,7 +640,7 @@ function normalizePsychologyGenerationPayload(value = {}) {
+   return {
+     question: String(value.question || "").trim(),
+     hookTitle: String(value.hookTitle || value.question || "").trim().slice(0, 160),
+-    sourceImageUrl: String(value.sourceImageUrl || "").trim(),
++    sourceImageUrl: String(value.sourceImageUrl || value.fallbackImageUrl || "").trim(),
+     fallbackImageUrl: String(value.fallbackImageUrl || value.sourceImageUrl || "").trim(),
+     answerGuide: String(value.answerGuide || "").trim(),
+     narration: String(value.narration || "").trim(),
+diff --git a/scripts/psychology-topics.js b/scripts/psychology-topics.js
+index 2f05176..d99aa14 100644
+--- a/scripts/psychology-topics.js
++++ b/scripts/psychology-topics.js
+@@ -3,6 +3,7 @@ import fs from "node:fs";
+ import path from "node:path";
+ 
+ const DEFAULT_TIMEOUT_MS = 45_000;
++export const DEFAULT_PSYCHOLOGY_API_URL = "https://deeppersonaai.com/api/integrations/psychology-questions";
+ 
+ export function createPsychologyTopicsService({ workDir, fetchImpl = globalThis.fetch, timeoutMs = DEFAULT_TIMEOUT_MS }) {
+   const settingsPath = path.join(workDir, "psychology-topics-settings.json");
+@@ -11,8 +12,8 @@ export function createPsychologyTopicsService({ workDir, fetchImpl = globalThis.
+   function readSettings() {
+     const saved = readJson(settingsPath, {});
+     return {
+-      apiUrl: String(saved.apiUrl || "").trim(),
+-      authType: normalizeAuthType(saved.authType),
++      apiUrl: String(saved.apiUrl || DEFAULT_PSYCHOLOGY_API_URL).trim(),
++      authType: normalizeAuthType(saved.authType || "x-api-key"),
+       apiToken: String(saved.apiToken || "").trim(),
+       updatedAt: Number(saved.updatedAt) || 0
+     };
+@@ -57,17 +58,25 @@ export function createPsychologyTopicsService({ workDir, fetchImpl = globalThis.
+     try { payload = JSON.parse(raw); } catch { throw externalError("题库接口没有返回有效 JSON。"); }
+     const topics = normalizeTopics(payload);
+     if (!topics.length) throw externalError("接口已连接，但没有识别到题目。请确认返回中包含 items、questions、tests 或 data 数组。");
+-    const library = { syncedAt: new Date().toISOString(), sourceUrl: settings.apiUrl, topics };
++    const library = {
++      syncedAt: new Date().toISOString(),
++      sourceUrl: settings.apiUrl,
++      topics,
++      tests: normalizeTests(payload, topics)
++    };
+     fs.mkdirSync(path.dirname(libraryPath), { recursive: true });
+     fs.writeFileSync(libraryPath, JSON.stringify(library, null, 2), "utf8");
+     return { syncedAt: library.syncedAt, total: topics.length };  }
+ 
+-  function list({ query = "", page = 1, pageSize = 20 } = {}) {
++  function list({ query = "", testId = "", page = 1, pageSize = 20 } = {}) {
+     const library = readLibrary();
+     const keyword = String(query).trim().toLowerCase();
+-    const filtered = keyword
+-      ? library.topics.filter((item) => `${item.question} ${item.hookTitle} ${item.answerGuide} ${item.testTitle} ${item.testId}`.toLowerCase().includes(keyword))
+-      : library.topics;
++    const selectedTestId = String(testId || "").trim();
++    const filtered = library.topics.filter((item) => {
++      if (selectedTestId && item.testId !== selectedTestId) return false;
++      if (!keyword) return true;
++      return `${item.question} ${item.hookTitle} ${item.answerGuide} ${item.testTitle} ${item.testId} ${item.testKicker}`.toLowerCase().includes(keyword);
++    });
+     const safePageSize = clampInt(pageSize, 1, 100, 20);
+     const safePage = clampInt(page, 1, Math.max(1, Math.ceil(filtered.length / safePageSize)), 1);
+     const start = (safePage - 1) * safePageSize;
+@@ -77,7 +86,8 @@ export function createPsychologyTopicsService({ workDir, fetchImpl = globalThis.
+       page: safePage,
+       pageSize: safePageSize,
+       syncedAt: library.syncedAt || "",
+-      sourceUrl: library.sourceUrl || ""
++      sourceUrl: library.sourceUrl || "",
++      tests: library.tests
+     };
+   }
+ 
+@@ -87,10 +97,12 @@ export function createPsychologyTopicsService({ workDir, fetchImpl = globalThis.
+ 
+   function readLibrary() {
+     const saved = readJson(libraryPath, {});
++    const topics = Array.isArray(saved.topics) ? saved.topics : [];
+     return {
+       syncedAt: String(saved.syncedAt || ""),
+       sourceUrl: String(saved.sourceUrl || ""),
+-      topics: Array.isArray(saved.topics) ? saved.topics : []
++      topics,
++      tests: Array.isArray(saved.tests) && saved.tests.length ? saved.tests : normalizeTests({ tests: [] }, topics)
+     };
+   }
+ 
+@@ -98,8 +110,17 @@ export function createPsychologyTopicsService({ workDir, fetchImpl = globalThis.
+ }
+ 
+ export function normalizeTopics(payload) {
++  const testById = indexTests(payload);
+   const source = findTopicArray(payload);
+-  const topics = source.map(normalizeTopic).filter((item) => item.question);
++  const topics = source.map((value, index) => {
++    const topic = normalizeTopic(value, index);
++    const test = testById.get(topic.testId);
++    if (test) {
++      topic.testTitle = topic.testTitle || test.title;
++      topic.testKicker = topic.testKicker || test.kicker;
++    }
++    return topic;
++  }).filter((item) => item.question);
+   const seen = new Set();
+   return topics.filter((item) => {
+     const key = item.question.toLowerCase();
+@@ -109,6 +130,52 @@ export function normalizeTopics(payload) {
+   });
+ }
+ 
++export function normalizeTests(payload, topics = []) {
++  const fromPayload = Array.from(indexTests(payload).values());
++  if (fromPayload.length) {
++    return fromPayload.map((test) => ({
++      ...test,
++      questionCount: topics.filter((topic) => topic.testId === test.id).length || test.questionCount || 0
++    }));
++  }
++  const derived = new Map();
++  for (const topic of topics) {
++    const id = topic.testId || topic.testTitle || "";
++    if (!id || derived.has(id)) continue;
++    derived.set(id, {
++      id,
++      title: topic.testTitle || id,
++      kicker: topic.testKicker || "",
++      questionCount: topics.filter((item) => (item.testId || item.testTitle) === id).length
++    });
++  }
++  return Array.from(derived.values());
++}
++
++export function resolvePsychologySourceImage(value = {}) {
++  return firstText(value.sourceImageUrl, value.fallbackImageUrl, value.imageUrl);
++}
++
++function indexTests(payload) {
++  const tests = Array.isArray(payload?.tests) ? payload.tests : [];
++  const map = new Map();
++  for (const test of tests) {
++    const id = firstText(test?.id);
++    if (!id) continue;
++    if (firstText(test?.prompt, test?.question) && !firstText(test?.title, test?.name)) continue;
++    map.set(id, {
++      id,
++      title: firstText(test?.title, test?.name, id),
++      kicker: firstText(test?.kicker),
++      description: firstText(test?.description),
++      coverImageUrl: firstText(test?.coverImageUrl, test?.cover, test?.imageUrl),
++      position: Number(test?.position) || 0,
++      questionCount: Number(test?.questionCount) || 0
++    });
++  }
++  return map;
++}
++
+ function findTopicArray(payload) {
+   if (Array.isArray(payload)) return payload;
+   const candidates = [
+diff --git a/scripts/psychology-topics.test.js b/scripts/psychology-topics.test.js
+index f9a2c05..d6b8a4c 100644
+--- a/scripts/psychology-topics.test.js
++++ b/scripts/psychology-topics.test.js
+@@ -1,6 +1,9 @@
+ import assert from "node:assert/strict";
++import fs from "node:fs";
++import os from "node:os";
++import path from "node:path";
+ import test from "node:test";
+-import { fetchTextWithRetry, normalizeTopics, resolveSecretInput } from "./psychology-topics.js";
++import { createPsychologyTopicsService, DEFAULT_PSYCHOLOGY_API_URL, fetchTextWithRetry, normalizeTests, normalizeTopics, resolvePsychologySourceImage, resolveSecretInput } from "./psychology-topics.js";
+ 
+ test("normalizes common psychology topic API payloads", () => {
+   const topics = normalizeTopics({ data: { questions: [
+@@ -18,27 +21,71 @@ test("deduplicates repeated topic text", () => {
+ });
+ 
+ test("keeps DeepPersona test grouping and option insights", () => {
+-  const topics = normalizeTopics({
++  const payload = {
+     source: "deeppersona-ai",
+-    tests: [{ id: "stress-reset", title: "How You Reset Under Pressure" }],
++    tests: [{ id: "stress-reset", title: "How You Reset Under Pressure", kicker: "Stress" }],
+     items: [{
+       id: "stress-reset-1",
+       testId: "stress-reset",
+-      testTitle: "How You Reset Under Pressure",
+-      testKicker: "Stress",
+       prompt: "What do you notice first?",
++      question: "What do you notice first?",
+       imageUrl: "https://deeppersonaai.com/quiz/doors.png",
+       options: [
+-        { label: "Ask what changed", scoreKey: "connector", meaning: "You prefer direct repair.", projection: "You move toward uncertainty." },
+-        { label: "Give them space", scoreKey: "architect", meaning: "You prefer room to regulate." }
++        { letter: "A", label: "Ask what changed", text: "Ask what changed", scoreKey: "connector", meaning: "You prefer direct repair.", projection: "You move toward uncertainty." },
++        { letter: "B", label: "Give them space", text: "Give them space", scoreKey: "architect", meaning: "You prefer room to regulate." }
+       ]
+     }]
+-  });
++  };
++  const topics = normalizeTopics(payload);
++  const tests = normalizeTests(payload, topics);
+ 
+   assert.equal(topics[0].testId, "stress-reset");
+   assert.equal(topics[0].testTitle, "How You Reset Under Pressure");
++  assert.equal(topics[0].testKicker, "Stress");
++  assert.equal(topics[0].imageUrl, "https://deeppersonaai.com/quiz/doors.png");
+   assert.equal(topics[0].options[0].scoreKey, "connector");
+   assert.equal(topics[0].options[0].meaning, "You prefer direct repair.");
++  assert.equal(tests[0].id, "stress-reset");
++  assert.equal(tests[0].questionCount, 1);
++});
++
++test("defaults to the live DeepPersona sync feed and can filter by test", async () => {
++  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "psychology-topics-"));
++  const service = createPsychologyTopicsService({
++    workDir,
++    fetchImpl: async () => new Response(JSON.stringify({
++      source: "deeppersona-ai",
++      tests: [
++        { id: "attachment-style", title: "How You Attach in Love" },
++        { id: "stress-reset", title: "How You Reset Under Pressure" }
++      ],
++      items: [
++        { id: "attachment-style-1", testId: "attachment-style", prompt: "Which door feels like your next move?", imageUrl: "https://deeppersonaai.com/quiz/doors.png", options: [{ text: "Ask what changed" }] },
++        { id: "stress-reset-1", testId: "stress-reset", prompt: "Which landscape lowers stress?", imageUrl: "https://deeppersonaai.com/quiz/landscapes.png", options: [{ text: "A coastal walk" }] }
++      ]
++    }), { status: 200 })
++  });
++
++  const settings = service.getPublicSettings();
++  assert.equal(settings.apiUrl, DEFAULT_PSYCHOLOGY_API_URL);
++  assert.equal(settings.authType, "x-api-key");
++
++  const synced = await service.sync();
++  assert.equal(synced.total, 2);
++  const filtered = service.list({ testId: "attachment-style" });
++  assert.equal(filtered.total, 1);
++  assert.equal(filtered.items[0].testTitle, "How You Attach in Love");
++  assert.equal(filtered.tests.length, 2);
++});
++
++test("uses official DeepPersona image before AI fallback", () => {
++  assert.equal(resolvePsychologySourceImage({
++    sourceImageUrl: "",
++    fallbackImageUrl: "https://deeppersonaai.com/quiz/doors.png"
++  }), "https://deeppersonaai.com/quiz/doors.png");
++  assert.equal(resolvePsychologySourceImage({
++    imageUrl: "https://deeppersonaai.com/quiz/rooms.png"
++  }), "https://deeppersonaai.com/quiz/rooms.png");
+ });
+ 
+ test("normalizes DeepPersona options that store option text in label", () => {
+diff --git a/scripts/psychology-video-job.js b/scripts/psychology-video-job.js
+index 445b014..b1ba2ff 100644
+--- a/scripts/psychology-video-job.js
++++ b/scripts/psychology-video-job.js
+@@ -38,7 +38,7 @@ async function main() {
+   if (!voiceId) throw new Error("ElevenLabs Voice ID 未配置。");
+ 
+   patchJob({ status: "running", percent: 3, message: "正在准备短钩子配音与测试画面..." });
+-  const sourceImageUrl = String(payload.sourceImageUrl || "").trim();
++  const sourceImageUrl = String(payload.sourceImageUrl || payload.fallbackImageUrl || "").trim();
+   const narration = String(payload.narration || "").trim() || normalizeHookNarration(await generateNarration(kieApiKey));
+   const imagePrompt = sourceImageUrl ? String(payload.imagePrompt || "").trim() : (String(payload.imagePrompt || "").trim() || await generateImagePrompt(kieApiKey));
+   const narrationAudioPath = await synthesizeSpeech({ text: narration, apiKey: elevenLabsApiKey, voiceId });
+diff --git a/scripts/server.js b/scripts/server.js
+index 60eaa12..ac77936 100644
+--- a/scripts/server.js
++++ b/scripts/server.js
+@@ -866,6 +866,7 @@ const server = http.createServer(async (req, res) => {
+     if (req.method === "GET" && url.pathname === "/api/psychology-topics") {
+       return sendJson(res, 200, psychologyTopics.list({
+         query: url.searchParams.get("query") || "",
++        testId: url.searchParams.get("testId") || "",
+         page: url.searchParams.get("page") || 1,
+         pageSize: url.searchParams.get("pageSize") || 20
+       }));
+-- 
+2.43.0
+

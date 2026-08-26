@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   return response;
 }
 
-export function DELETE(request: Request) {
+export function DELETE() {
   const response = Response.json({ ok: true });
   response.headers.append("Set-Cookie", `${adminCookie.name}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`);
   return response;

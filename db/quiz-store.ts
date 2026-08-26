@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import type { AdminAnswerEvent, AdminLeadRow } from "@/lib/admin/types";
 import {
   defaultQuestions,
   defaultTests,
@@ -549,18 +550,9 @@ export async function getAdminStats() {
   await ensureQuizSchema();
   await seedCatalogIfNeeded();
   const db = getD1();
-  const [funnel, sources, emails, answerEvents, totals, online, today, sevenDays, popularQuestions, popularTests] = await Promise.all([
+  const [funnel, sources, totals, online, today, sevenDays, popularQuestions, popularTests] = await Promise.all([
     db.prepare(`SELECT event_name, COUNT(DISTINCT session_id) AS users FROM quiz_events GROUP BY event_name`).all<{ event_name: string; users: number }>(),
     db.prepare(`SELECT COALESCE(source, 'direct') AS source, COUNT(DISTINCT id) AS users FROM quiz_sessions GROUP BY COALESCE(source, 'direct') ORDER BY users DESC LIMIT 8`).all<{ source: string; users: number }>(),
-    db.prepare(`SELECT s.id AS session_id, s.email, s.marketing_consent, s.answers_json, s.result_type, s.source, s.campaign, s.completed_at, s.test_id, COALESCE(t.title, s.test_id) AS test_title
-      FROM quiz_sessions s LEFT JOIN quiz_tests t ON t.id = s.test_id
-      WHERE s.email IS NOT NULL ORDER BY s.completed_at DESC LIMIT 500`).all<{ answers_json: string | null; campaign: string | null; completed_at: string; email: string; marketing_consent: number; result_type: string; session_id: string; source: string | null; test_id: string | null; test_title: string | null }>(),
-    db.prepare(`SELECT e.session_id, e.question_id, e.option_label
-      FROM quiz_events e
-      WHERE e.event_name = 'answer_selected'
-        AND e.question_id IS NOT NULL
-        AND e.session_id IN (SELECT id FROM quiz_sessions WHERE email IS NOT NULL ORDER BY completed_at DESC LIMIT 500)
-      ORDER BY e.id DESC`).all<{ option_label: string | null; question_id: string; session_id: string }>(),
     db.prepare(`SELECT COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads, SUM(CASE WHEN marketing_consent = 1 THEN 1 ELSE 0 END) AS consented FROM quiz_sessions`).first<{ consented: number; leads: number; sessions: number }>(),
     db.prepare(`SELECT COUNT(DISTINCT session_id) AS users FROM quiz_events WHERE created_at >= datetime('now', '-5 minutes')`).first<{ users: number }>(),
     db.prepare(`SELECT COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads FROM quiz_sessions WHERE date(started_at) = date('now')`).first<{ leads: number; sessions: number }>(),
@@ -580,8 +572,6 @@ export async function getAdminStats() {
   return {
     funnel: funnel.results,
     sources: sources.results,
-    emails: emails.results,
-    answerEvents: answerEvents.results,
     onlineNow: online?.users ?? 0,
     today: today ?? { sessions: 0, leads: 0 },
     sevenDays: completeSevenDays,
@@ -589,4 +579,68 @@ export async function getAdminStats() {
     popularTests: popularTests.results,
     totals: totals ?? { sessions: 0, leads: 0, consented: 0 },
   };
+}
+
+export async function listAdminLeads(input: {
+  consentOnly?: boolean;
+  limit?: number;
+  offset?: number;
+  query?: string;
+  segment?: string;
+} = {}): Promise<{ leads: AdminLeadRow[]; total: number }> {
+  await ensureQuizSchema();
+  const limit = Math.min(200, Math.max(1, Math.floor(input.limit ?? 50)));
+  const offset = Math.max(0, Math.floor(input.offset ?? 0));
+  const filters = ["s.email IS NOT NULL"];
+  const values: Array<string | number> = [];
+
+  if (input.consentOnly) filters.push("s.marketing_consent = 1");
+  if (input.segment && input.segment !== "all") {
+    filters.push("s.result_type = ?");
+    values.push(input.segment);
+  }
+  if (input.query?.trim()) {
+    filters.push("(LOWER(s.email) LIKE ? OR LOWER(COALESCE(t.title, s.test_id, '')) LIKE ? OR LOWER(s.result_type) LIKE ?)");
+    const needle = `%${input.query.trim().toLowerCase()}%`;
+    values.push(needle, needle, needle);
+  }
+
+  const where = `WHERE ${filters.join(" AND ")}`;
+  const db = getD1();
+  const [rows, countRow] = await Promise.all([
+    db.prepare(`SELECT s.id AS session_id, s.email, s.marketing_consent, s.answers_json, s.result_type, s.source, s.campaign, s.completed_at, s.test_id, COALESCE(t.title, s.test_id) AS test_title
+      FROM quiz_sessions s LEFT JOIN quiz_tests t ON t.id = s.test_id
+      ${where}
+      ORDER BY s.completed_at DESC
+      LIMIT ? OFFSET ?`).bind(...values, limit, offset).all<AdminLeadRow>(),
+    db.prepare(`SELECT COUNT(*) AS total
+      FROM quiz_sessions s LEFT JOIN quiz_tests t ON t.id = s.test_id
+      ${where}`).bind(...values).first<{ total: number }>(),
+  ]);
+
+  return { leads: rows.results, total: countRow?.total ?? 0 };
+}
+
+export async function getAdminLeadDetail(sessionId: string): Promise<{
+  answerEvents: AdminAnswerEvent[];
+  lead: AdminLeadRow;
+} | null> {
+  await ensureQuizSchema();
+  const db = getD1();
+  const lead = await db.prepare(`SELECT s.id AS session_id, s.email, s.marketing_consent, s.answers_json, s.result_type, s.source, s.campaign, s.completed_at, s.test_id, COALESCE(t.title, s.test_id) AS test_title
+    FROM quiz_sessions s LEFT JOIN quiz_tests t ON t.id = s.test_id
+    WHERE s.id = ? AND s.email IS NOT NULL`).bind(sessionId).first<AdminLeadRow>();
+  if (!lead) return null;
+
+  const answerEvents = await db.prepare(`SELECT session_id, question_id, option_label
+    FROM quiz_events
+    WHERE event_name = 'answer_selected' AND session_id = ? AND question_id IS NOT NULL
+    ORDER BY id DESC`).bind(sessionId).all<AdminAnswerEvent>();
+
+  return { lead, answerEvents: answerEvents.results };
+}
+
+export async function getTestById(id: string, includeInactive = true): Promise<QuizTest | null> {
+  const tests = await listTests(includeInactive);
+  return tests.find((test) => test.id === id) ?? null;
 }
