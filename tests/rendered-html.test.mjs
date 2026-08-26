@@ -82,7 +82,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(refunds, /14 calendar days/);
   assert.match(refunds, /Digital delivery/);
   assert.match(contact, /SUPPORT_EMAIL/);
-  assert.match(legalPage, /bruce@loversdaily\.com/);
+  assert.match(legalPage, /bruce@deeppersonaai\.com/);
   assert.match(disclaimer, /not validated diagnostic instruments/);
   assert.match(hosting, /"d1": "DB"/);
   assert.doesNotMatch(quiz + layout, /codex-preview|react-loading-skeleton/);
