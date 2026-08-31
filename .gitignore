@@ -42,3 +42,6 @@ next-env.d.ts
 /outputs/
 /work/
 *.tsbuildinfo
+
+# Local export archive; production source is tracked separately.
+/site-package.tgz

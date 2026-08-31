@@ -13,6 +13,7 @@ import {
 } from "@/lib/quiz";
 import { getDeepResultContent } from "@/lib/deep-results";
 import { validateEmailAddress } from "@/lib/email-validation";
+import { getInsightCardsForTest } from "@/lib/insights-index";
 import {
   getDimensionProgress,
   recommendNextTest,
@@ -531,7 +532,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
     const detailPrompt = detailQuestion?.prompt ?? "Which image pulls you in before you can explain why?";
     return (
       <main className="test-detail-shell">
-        <nav className="nav-bar" aria-label="Main navigation"><Link className="brand" href="/"><span className="brand-mark">DP</span><span>DeepPersona AI</span></Link><Link className="nav-note nav-link" href="/#tests">All visual tests ↓</Link></nav>
+        <nav className="nav-bar" aria-label="Main navigation"><Link className="brand" href="/"><span className="brand-mark">DP</span><span>DeepPersona AI</span></Link><div className="main-nav-links"><Link className="nav-note nav-link" href="/insights">Insights</Link><Link className="nav-note nav-link" href="/#tests">All visual tests ↓</Link></div></nav>
         <section className="detail-stage" style={{ "--test-accent": selectedTest.accent } as React.CSSProperties}>
           <div className="detail-gallery" aria-label="Four visual choices preview">
             {[0, 1, 2, 3].map((index) => <AtlasImage index={index} key={index} loading="eager" path={selectedTest.coverAtlasPath} priority={index === 0} sizes="(max-width: 640px) 50vw, 340px" />)}
@@ -548,7 +549,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
             {error ? <p className="form-error" role="alert">{error}</p> : null}
           </div>
         </section>
-        <footer className="site-footer"><div><strong>DeepPersona AI © 2026</strong></div><nav aria-label="Legal links"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds & delivery</Link><Link href="/contact">Contact</Link></nav></footer>
+        <footer className="site-footer"><div><strong>DeepPersona AI © 2026</strong></div><nav aria-label="Legal links"><Link href="/insights">Insights</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds & delivery</Link><Link href="/contact">Contact</Link></nav></footer>
       </main>
     );
   }
@@ -557,7 +558,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
       <main className="landing-shell">
         <nav className="nav-bar" aria-label="Main navigation">
           <a className="brand" href="#top" aria-label="DeepPersona AI home"><span className="brand-mark">DP</span><span>DeepPersona AI</span></a>
-          <a className="nav-note nav-link" href="#tests">Explore 8 visual tests ↓</a>
+          <div className="main-nav-links"><Link className="nav-note nav-link" href="/insights">Insights</Link><a className="nav-note nav-link" href="#tests">Explore 8 visual tests ↓</a></div>
         </nav>
 
         <section className="hero" id="top">
@@ -615,7 +616,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
         </section>
 
         <section className="how-it-works"><span>01 · Notice</span><p>Let your eyes land before your reasoning catches up.</p><span>02 · Choose</span><p>Pick the image that creates the strongest first response.</p><span>03 · Reveal</span><p>Get your type, strength, watchout, and a practical next step.</p></section>
-        <footer className="site-footer site-footer-expanded"><div><strong>DeepPersona AI © 2026</strong><span>For self-reflection, not clinical diagnosis.</span></div><nav aria-label="Legal and support links"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds & delivery</Link><Link href="/disclaimer">Disclaimer</Link><Link href="/contact">Contact</Link></nav></footer>
+        <footer className="site-footer site-footer-expanded"><div><strong>DeepPersona AI © 2026</strong><span>For self-reflection, not clinical diagnosis.</span></div><nav aria-label="Legal and support links"><Link href="/insights">Insights</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds & delivery</Link><Link href="/disclaimer">Disclaimer</Link><Link href="/contact">Contact</Link></nav></footer>
       </main>
     );
   }
@@ -673,6 +674,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
   }
 
   const deepResult = result && selectedTest ? getDeepResultContent(selectedTest.id, result) : null;
+  const relatedInsights = selectedTest ? getInsightCardsForTest(selectedTest.id).slice(0, 2) : [];
   const answeredChoices = questions.flatMap((question, index) => {
     const selectedIndex = answerChoices[question.id];
     const option = selectedIndex === undefined ? undefined : question.options[selectedIndex];
@@ -731,7 +733,9 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
             <section className="map-unlock-copy"><span>New dimension added</span><h2>{TEST_DIMENSIONS[selectedTest.id] ? `${mapDimensions.find((dimension) => dimension.id === TEST_DIMENSIONS[selectedTest.id])?.label} is now part of your map.` : "Your Inner Map has started."}</h2><p>This is not a fixed label. Every future reflection adds context and can make the pattern more precise.</p></section>
             <InnerMap completedTestIds={completedTestIds} />
           </> : null}
-          {result.affiliateProductId && affiliateProducts.find((product) => product.id === result.affiliateProductId && product.active) ? (() => { const product = affiliateProducts.find((item) => item.id === result.affiliateProductId && item.active)!; return <section className="affiliate-recommendation" aria-labelledby="affiliate-recommendation-title"><div className="affiliate-recommendation-copy"><span>Selected for your result</span><h2 id="affiliate-recommendation-title">A next step that may support you</h2><h3>{product.name}</h3><p>{product.description}</p><small>Affiliate disclosure: we may earn a commission if you choose to purchase through this link, at no extra cost to you.</small></div><a className="affiliate-recommendation-link" href={product.url} onClick={() => track("affiliate_link_clicked", questions.length + 4)} rel="sponsored nofollow noopener" target="_blank">{product.buttonLabel} <span aria-hidden="true">↗</span></a></section>; })() : null}          {recommendedTest ? <section className="next-exploration" style={{ "--test-accent": recommendedTest.accent } as React.CSSProperties}><div><span>Recommended next</span><h2>{recommendedTest.title}</h2><p>{recommendedTest.description}</p></div><button className="primary-button" onClick={() => openDetail(recommendedTest)} type="button">Explore this dimension →</button></section> : null}
+          {result.affiliateProductId && affiliateProducts.find((product) => product.id === result.affiliateProductId && product.active) ? (() => { const product = affiliateProducts.find((item) => item.id === result.affiliateProductId && item.active)!; return <section className="affiliate-recommendation" aria-labelledby="affiliate-recommendation-title"><div className="affiliate-recommendation-copy"><span>Selected for your result</span><h2 id="affiliate-recommendation-title">A next step that may support you</h2><h3>{product.name}</h3><p>{product.description}</p><small>Affiliate disclosure: we may earn a commission if you choose to purchase through this link, at no extra cost to you.</small></div><a className="affiliate-recommendation-link" href={product.url} onClick={() => track("affiliate_link_clicked", questions.length + 4)} rel="sponsored nofollow noopener" target="_blank">{product.buttonLabel} <span aria-hidden="true">↗</span></a></section>; })() : null}
+          {relatedInsights.length ? <section className="result-related-reading" aria-labelledby="result-related-reading-title"><div><span>Continue the reflection</span><h2 id="result-related-reading-title">Read what may sit behind this pattern</h2></div><div className="result-related-reading-links">{relatedInsights.map((article) => <Link href={`/insights/${article.slug}?utm_source=result&utm_medium=internal&utm_campaign=${selectedTest.id}`} key={article.slug}><strong>{article.title}</strong><span>{article.excerpt}</span><em>Read the insight →</em></Link>)}</div></section> : null}
+          {recommendedTest ? <section className="next-exploration" style={{ "--test-accent": recommendedTest.accent } as React.CSSProperties}><div><span>Recommended next</span><h2>{recommendedTest.title}</h2><p>{recommendedTest.description}</p></div><button className="primary-button" onClick={() => openDetail(recommendedTest)} type="button">Explore this dimension →</button></section> : null}
         </article>
       ) : null}
       {CROSS_TEST_REPORT_ENABLED ? <section className="premium-card"><div><span className="premium-label">Coming next · Cross-test report</span><h2>Connect your patterns across all eight tests.</h2><p>A combined projection map showing repeated choices, contradictions between profiles, and the situations that change your response.</p></div><button className="premium-button" onClick={() => { setShowUpgrade(true); track("upgrade_clicked", questions.length + 3); }}>Preview combined report <span>↗</span></button></section> : null}

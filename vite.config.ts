@@ -13,7 +13,9 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 
 const localBindingConfig = {
   main: "./worker/index.ts",
-  compatibility_flags: ["nodejs_compat"],
+  // Match the workerd version bundled with the local Vite runtime. Production
+  // continues to use the newer date declared in wrangler.jsonc.
+  compatibility_date: "2026-05-22",
   d1_databases: d1
     ? [
         {
