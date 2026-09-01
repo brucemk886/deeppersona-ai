@@ -21,15 +21,24 @@ export function GoogleAnalytics() {
   const [choosing, setChoosing] = useState(false);
 
   useEffect(() => {
+    let active = true;
     if (!window.sessionStorage.getItem(LANDING_LOCATION_KEY)) {
       window.sessionStorage.setItem(LANDING_LOCATION_KEY, window.location.href);
     }
     const storedConsent = getAnalyticsConsent();
     const effectiveConsent = storedConsent ?? "granted";
     if (storedConsent === null) updateGoogleAnalyticsConsent(effectiveConsent);
-    setConsent(effectiveConsent);
-    setChoosing(false);
     if (effectiveConsent === "granted") initializeGoogleAnalytics();
+
+    queueMicrotask(() => {
+      if (!active) return;
+      setConsent(effectiveConsent);
+      setChoosing(false);
+    });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
