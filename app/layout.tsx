@@ -21,6 +21,10 @@ export async function generateMetadata(): Promise<Metadata> {
     description:
       "Eight short visual tests reveal how you connect, reset, set boundaries, and move through relationships.",
     applicationName: "DeepPersona AI",
+    icons: {
+      icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+      shortcut: "/favicon.svg",
+    },
     openGraph: {
       title: "One image can say what words miss.",
       description: "Explore eight 2-minute visual psychology tests from DeepPersona AI.",

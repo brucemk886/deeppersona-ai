@@ -6,6 +6,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   await access(new URL("../dist/server/index.js", import.meta.url));
   await access(new URL("../dist/.openai/hosting.json", import.meta.url));
   await access(new URL("../public/og-deep-persona.png", import.meta.url));
+  await access(new URL("../public/favicon.svg", import.meta.url));
   await access(new URL("../public/quiz/doors.webp", import.meta.url));
   await access(new URL("../public/quiz/doors-768.webp", import.meta.url));
 
@@ -77,6 +78,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.doesNotMatch(store, /COUNT\(DISTINCT session_id\) AS users FROM quiz_sessions/);
   assert.match(layout, /DeepPersona AI — Visual Psychology Tests/);
   assert.match(layout, /og-deep-persona\.png/);
+  assert.match(layout, /favicon\.svg/);
   assert.match(layout, /width: "device-width"/);
   assert.match(layout, /GoogleAnalytics/);
   assert.match(analytics, /G-WS2Z8SKMY1/);
