@@ -13,6 +13,7 @@ import {
 } from "@/lib/quiz";
 import { getDeepResultContent } from "@/lib/deep-results";
 import { validateEmailAddress } from "@/lib/email-validation";
+import { trackGoogleAnalyticsEvent, trackQuizGoogleAnalyticsEvent } from "@/lib/google-analytics";
 import { getInsightCardsForTest } from "@/lib/insights-index";
 import {
   getDimensionProgress,
@@ -326,6 +327,12 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
   const track = useCallback(
     (eventName: string, step = 0, questionId?: string, optionLabel?: string, overrideTestId?: string) => {
       if (!sessionId) return;
+      trackQuizGoogleAnalyticsEvent(eventName, {
+        test_id: overrideTestId ?? selectedTest?.id,
+        step,
+        traffic_source: attribution.source,
+        campaign: attribution.campaign || undefined,
+      });
       void fetch("/api/events", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -431,6 +438,8 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
       void fetch("/api/events", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...payload, eventName: "session_started" }) });
       void fetch("/api/events", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...payload, eventName: "quiz_started", step: 1 }) });
       void fetch("/api/events", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...payload, eventName: "question_viewed", step: 1, questionId: readyQuestions[0].id }) });
+      trackQuizGoogleAnalyticsEvent("quiz_started", { test_id: test.id, step: 1, traffic_source: attribution.source, campaign: attribution.campaign || undefined });
+      trackQuizGoogleAnalyticsEvent("question_viewed", { test_id: test.id, step: 1, traffic_source: attribution.source, campaign: attribution.campaign || undefined });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to open this test.");
@@ -502,6 +511,12 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
       if (relationshipContext) void loadRelationships();
       setResult(nextResult);
       setStage("result");
+      trackGoogleAnalyticsEvent("generate_lead", {
+        method: "email_unlock",
+        test_id: selectedTest.id,
+        traffic_source: attribution.source,
+        campaign: attribution.campaign || undefined,
+      });
       track("result_viewed", questions.length + 2);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (submitError) {

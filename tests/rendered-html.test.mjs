@@ -9,7 +9,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   await access(new URL("../public/quiz/doors.webp", import.meta.url));
   await access(new URL("../public/quiz/doors-768.webp", import.meta.url));
 
-  const [quiz, catalog, choiceInsights, deepResults, admin, adminStyles, store, layout, hosting, privacy, terms, refunds, contact, disclaimer, legalPage] = await Promise.all([
+  const [quiz, catalog, choiceInsights, deepResults, admin, adminStyles, store, layout, analytics, analyticsUi, hosting, privacy, terms, refunds, contact, disclaimer, legalPage] = await Promise.all([
     readFile(new URL("../app/quiz-app.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/quiz.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/choice-insights.ts", import.meta.url), "utf8"),
@@ -18,6 +18,8 @@ test("builds the complete DeepPersona AI experience", async () => {
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../db/quiz-store.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/google-analytics.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/_components/google-analytics.tsx", import.meta.url), "utf8"),
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
     readFile(new URL("../app/privacy/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/terms/page.tsx", import.meta.url), "utf8"),
@@ -76,7 +78,14 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(layout, /DeepPersona AI — Visual Psychology Tests/);
   assert.match(layout, /og-deep-persona\.png/);
   assert.match(layout, /width: "device-width"/);
+  assert.match(layout, /GoogleAnalytics/);
+  assert.match(analytics, /G-WS2Z8SKMY1/);
+  assert.match(analytics, /generate_lead|quiz_start/);
+  assert.match(analyticsUi, /Allow analytics/);
+  assert.match(analyticsUi, /Necessary only/);
+  assert.doesNotMatch(quiz + analytics, /emailToSave.*trackGoogleAnalyticsEvent|optionLabel.*trackGoogleAnalyticsEvent/);
   assert.match(privacy, /Test information/);
+  assert.match(privacy, /Google Analytics 4/);
   assert.match(privacy, /marketing emails/);
   assert.match(terms, /Not healthcare or professional advice/);
   assert.match(refunds, /14 calendar days/);

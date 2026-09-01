@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 export const SUPPORT_EMAIL = "bruce@deeppersonaai.com";
-export const POLICY_DATE = "August 26, 2026";
+export const POLICY_DATE = "September 1, 2026";
 
 const legalLinks = [
   { href: "/privacy", label: "Privacy" },
