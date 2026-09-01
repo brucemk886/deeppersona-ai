@@ -81,8 +81,9 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(layout, /GoogleAnalytics/);
   assert.match(analytics, /G-WS2Z8SKMY1/);
   assert.match(analytics, /generate_lead|quiz_start/);
-  assert.match(analyticsUi, /Allow analytics/);
-  assert.match(analyticsUi, /Necessary only/);
+  assert.match(analyticsUi, /Keep analytics on/);
+  assert.match(analyticsUi, /Turn off analytics/);
+  assert.match(analyticsUi, /setChoosing\(false\)/);
   assert.doesNotMatch(quiz + analytics, /emailToSave.*trackGoogleAnalyticsEvent|optionLabel.*trackGoogleAnalyticsEvent/);
   assert.match(privacy, /Test information/);
   assert.match(privacy, /Google Analytics 4/);

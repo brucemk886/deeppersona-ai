@@ -25,9 +25,11 @@ export function GoogleAnalytics() {
       window.sessionStorage.setItem(LANDING_LOCATION_KEY, window.location.href);
     }
     const storedConsent = getAnalyticsConsent();
-    setConsent(storedConsent);
-    setChoosing(storedConsent === null);
-    if (storedConsent === "granted") initializeGoogleAnalytics();
+    const effectiveConsent = storedConsent ?? "granted";
+    if (storedConsent === null) updateGoogleAnalyticsConsent(effectiveConsent);
+    setConsent(effectiveConsent);
+    setChoosing(false);
+    if (effectiveConsent === "granted") initializeGoogleAnalytics();
   }, []);
 
   useEffect(() => {
@@ -76,12 +78,12 @@ export function GoogleAnalytics() {
       {choosing ? (
         <section className="analytics-consent" aria-labelledby="analytics-consent-title" role="region">
           <div>
-            <strong id="analytics-consent-title">Help us improve DeepPersona AI</strong>
-            <p>Optional Google Analytics helps us understand visits and test completion. We never send your email, image choices, or reflection result to Google. Read our <Link href="/privacy">Privacy Policy</Link>.</p>
+            <strong id="analytics-consent-title">Analytics preferences</strong>
+            <p>Google Analytics helps us understand visits and test completion. We never send your email, image choices, or reflection result to Google. Read our <Link href="/privacy">Privacy Policy</Link>.</p>
           </div>
           <div className="analytics-consent-actions">
-            <button className="analytics-decline" onClick={useNecessaryOnly} type="button">Necessary only</button>
-            <button className="analytics-allow" onClick={allowAnalytics} type="button">Allow analytics</button>
+            <button className="analytics-decline" onClick={useNecessaryOnly} type="button">Turn off analytics</button>
+            <button className="analytics-allow" onClick={allowAnalytics} type="button">Keep analytics on</button>
           </div>
         </section>
       ) : (
