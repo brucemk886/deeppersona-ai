@@ -4,6 +4,7 @@ import { LegalPage, PolicySection, SUPPORT_EMAIL } from "@/app/_components/legal
 export const metadata: Metadata = {
   title: "Refund & Delivery Policy — DeepPersona AI",
   description: "Refund eligibility, digital delivery, cancellation, and payment processing information.",
+  alternates: { canonical: "/refunds" },
 };
 
 export default function RefundsPage() {

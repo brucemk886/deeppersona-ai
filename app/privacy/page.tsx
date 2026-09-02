@@ -4,6 +4,7 @@ import { LegalPage, PolicySection, SUPPORT_EMAIL } from "@/app/_components/legal
 export const metadata: Metadata = {
   title: "Privacy Policy — DeepPersona AI",
   description: "How DeepPersona AI collects, uses, stores, and protects personal information.",
+  alternates: { canonical: "/privacy" },
 };
 
 export default function PrivacyPage() {

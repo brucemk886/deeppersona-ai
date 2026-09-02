@@ -10,7 +10,8 @@ test("builds the complete DeepPersona AI experience", async () => {
   await access(new URL("../public/quiz/doors.webp", import.meta.url));
   await access(new URL("../public/quiz/doors-768.webp", import.meta.url));
 
-  const [quiz, catalog, choiceInsights, deepResults, admin, adminStyles, store, layout, analytics, analyticsUi, hosting, privacy, terms, refunds, contact, disclaimer, legalPage] = await Promise.all([
+  const [home, quiz, catalog, choiceInsights, deepResults, admin, adminStyles, store, layout, analytics, analyticsUi, hosting, privacy, terms, refunds, contact, disclaimer, legalPage] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/quiz-app.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/quiz.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/choice-insights.ts", import.meta.url), "utf8"),
@@ -96,6 +97,9 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(contact, /SUPPORT_EMAIL/);
   assert.match(legalPage, /bruce@deeppersonaai\.com/);
   assert.match(disclaimer, /not validated diagnostic instruments/);
+  for (const [page, canonical] of [[home, "/"], [privacy, "/privacy"], [terms, "/terms"], [refunds, "/refunds"], [contact, "/contact"], [disclaimer, "/disclaimer"]]) {
+    assert.match(page, new RegExp(`alternates: \\{ canonical: "${canonical}" \\}`));
+  }
   assert.match(hosting, /"d1": "DB"/);
   assert.doesNotMatch(quiz + layout, /codex-preview|react-loading-skeleton/);
 });

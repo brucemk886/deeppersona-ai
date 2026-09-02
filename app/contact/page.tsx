@@ -5,6 +5,7 @@ import { LegalPage, PolicySection, SUPPORT_EMAIL } from "@/app/_components/legal
 export const metadata: Metadata = {
   title: "Contact & Support — DeepPersona AI",
   description: "Contact DeepPersona AI for product, privacy, billing, and refund support.",
+  alternates: { canonical: "/contact" },
 };
 
 export default function ContactPage() {

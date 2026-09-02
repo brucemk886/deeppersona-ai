@@ -4,6 +4,7 @@ import { LegalPage, PolicySection } from "@/app/_components/legal-page";
 export const metadata: Metadata = {
   title: "Self-Reflection Disclaimer — DeepPersona AI",
   description: "Important limits of DeepPersona AI visual psychology tests and automated interpretations.",
+  alternates: { canonical: "/disclaimer" },
 };
 
 export default function DisclaimerPage() {

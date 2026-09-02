@@ -5,6 +5,7 @@ import { LegalPage, PolicySection, SUPPORT_EMAIL } from "@/app/_components/legal
 export const metadata: Metadata = {
   title: "Terms of Service — DeepPersona AI",
   description: "Terms governing use of DeepPersona AI visual tests and digital reports.",
+  alternates: { canonical: "/terms" },
 };
 
 export default function TermsPage() {
