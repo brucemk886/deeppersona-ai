@@ -10,7 +10,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   await access(new URL("../public/quiz/doors.webp", import.meta.url));
   await access(new URL("../public/quiz/doors-768.webp", import.meta.url));
 
-  const [home, quiz, catalog, choiceInsights, deepResults, admin, adminStyles, store, layout, analytics, analyticsUi, hosting, privacy, terms, refunds, contact, disclaimer, legalPage] = await Promise.all([
+  const [home, quiz, catalog, choiceInsights, deepResults, admin, adminStyles, store, layout, analytics, analyticsUi, hosting, privacy, terms, refunds, contact, disclaimer, legalPage, testDetail, sitemap] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/quiz-app.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/quiz.ts", import.meta.url), "utf8"),
@@ -29,6 +29,8 @@ test("builds the complete DeepPersona AI experience", async () => {
     readFile(new URL("../app/contact/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/disclaimer/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/_components/legal-page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/tests/[id]/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/sitemap.xml/route.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(quiz, /DeepPersona AI/);
@@ -100,6 +102,15 @@ test("builds the complete DeepPersona AI experience", async () => {
   for (const [page, canonical] of [[home, "/"], [privacy, "/privacy"], [terms, "/terms"], [refunds, "/refunds"], [contact, "/contact"], [disclaimer, "/disclaimer"]]) {
     assert.match(page, new RegExp(`alternates: \\{ canonical: "${canonical}" \\}`));
   }
+  assert.match(testDetail, /generateMetadata/);
+  assert.match(testDetail, /alternates: \{ canonical \}/);
+  assert.match(testDetail, /\/tests\/\$\{test\.id\}/);
+  assert.match(sitemap, /Content-Type": "application\/xml/);
+  assert.match(sitemap, /export async function GET/);
+  assert.match(sitemap, /defaultTests/);
+  assert.match(sitemap, /insightClusters/);
+  assert.match(sitemap, /insightArticleCards/);
+  assert.match(sitemap, /https:\/\/deeppersonaai\.com/);
   assert.match(hosting, /"d1": "DB"/);
   assert.doesNotMatch(quiz + layout, /codex-preview|react-loading-skeleton/);
 });
