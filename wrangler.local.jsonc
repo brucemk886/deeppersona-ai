@@ -1,0 +1,8 @@
+{
+  // Local Vite/Miniflare config. Keep this file free of production D1 IDs and
+  // compatibility dates newer than the pinned local workerd binary (currently
+  // max 2026-05-22 in wrangler 4.92.0). Production deploy still uses wrangler.jsonc.
+  "name": "deeppersona-ai-local",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-05-22"
+}
