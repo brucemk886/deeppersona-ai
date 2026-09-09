@@ -15,12 +15,19 @@ export const ADMIN_STATS_RANGE_LABELS: Record<AdminStatsRange, string> = {
   "30d": "近30天",
 };
 
+const SHANGHAI = "Asia/Shanghai";
+
 export function resolveAdminStatsRange(raw?: string | null): AdminStatsRange {
   return ADMIN_STATS_RANGES.includes(raw as AdminStatsRange) ? (raw as AdminStatsRange) : "7d";
 }
 
 export function isHourlyAdminStatsRange(range: AdminStatsRange): boolean {
   return range === "today" || range === "yesterday";
+}
+
+function shanghaiShift(daysAgo: number, extra = "") {
+  const dayPart = daysAgo === 0 ? "" : `, '-${daysAgo} days'`;
+  return `datetime('now', '+8 hours'${dayPart}${extra}, 'start of day', '-8 hours')`;
 }
 
 export function adminStatsRangeWindow(range: AdminStatsRange): {
@@ -32,28 +39,28 @@ export function adminStatsRangeWindow(range: AdminStatsRange): {
   switch (range) {
     case "today":
       return {
-        startExpr: "datetime('now', 'start of day')",
-        endExpr: "datetime('now', '+1 day', 'start of day')",
+        startExpr: shanghaiShift(0),
+        endExpr: shanghaiShift(0, ", '+1 day'"),
         buckets: 24,
         hourly: true,
       };
     case "yesterday":
       return {
-        startExpr: "datetime('now', '-1 day', 'start of day')",
-        endExpr: "datetime('now', 'start of day')",
+        startExpr: shanghaiShift(1),
+        endExpr: shanghaiShift(0),
         buckets: 24,
         hourly: true,
       };
     case "7d":
       return {
-        startExpr: "datetime('now', '-6 days', 'start of day')",
+        startExpr: shanghaiShift(6),
         endExpr: null,
         buckets: 7,
         hourly: false,
       };
     case "30d":
       return {
-        startExpr: "datetime('now', '-29 days', 'start of day')",
+        startExpr: shanghaiShift(29),
         endExpr: null,
         buckets: 30,
         hourly: false,
@@ -66,15 +73,29 @@ export function adminStatsTimePredicate(column: string, range: AdminStatsRange):
   return endExpr ? `${column} >= ${startExpr} AND ${column} < ${endExpr}` : `${column} >= ${startExpr}`;
 }
 
-function pad2(value: number) {
-  return String(value).padStart(2, "0");
+export function shanghaiDayExpr(column: string) {
+  return `date(${column}, '+8 hours')`;
 }
 
-export function utcHourKey(date: Date) {
-  return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())} ${pad2(date.getUTCHours())}:00`;
+export function shanghaiHourExpr(column: string) {
+  return `strftime('%Y-%m-%d %H:00', ${column}, '+8 hours')`;
 }
 
-export function utcDayKey(date: Date) {
+export function shanghaiYmd(now = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: SHANGHAI,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+function ymdToUtcDate(ymd: string) {
+  const [year, month, day] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function utcDateToYmd(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
@@ -85,21 +106,21 @@ export function completeAdminStatsSeries(
 ): AdminStatsBucket[] {
   const byKey = new Map(rows.map((item) => [item.day, item]));
   if (isHourlyAdminStatsRange(range)) {
-    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const start = ymdToUtcDate(shanghaiYmd(now));
     if (range === "yesterday") start.setUTCDate(start.getUTCDate() - 1);
+    const day = utcDateToYmd(start);
     return Array.from({ length: 24 }, (_, hour) => {
-      const date = new Date(start);
-      date.setUTCHours(hour);
-      const day = utcHourKey(date);
-      return byKey.get(day) ?? { day, leads: 0, sessions: 0 };
+      const key = `${day} ${String(hour).padStart(2, "0")}:00`;
+      return byKey.get(key) ?? { day: key, leads: 0, sessions: 0 };
     });
   }
 
   const days = range === "30d" ? 30 : 7;
+  const end = ymdToUtcDate(shanghaiYmd(now));
   return Array.from({ length: days }, (_, index) => {
-    const date = new Date(now);
+    const date = new Date(end);
     date.setUTCDate(date.getUTCDate() - (days - 1 - index));
-    const day = utcDayKey(date);
+    const day = utcDateToYmd(date);
     return byKey.get(day) ?? { day, leads: 0, sessions: 0 };
   });
 }
