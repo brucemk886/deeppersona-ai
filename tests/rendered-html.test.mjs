@@ -38,7 +38,9 @@ test("builds the complete DeepPersona AI experience", async () => {
   ]);
 
   assert.match(quiz, /DeepPersona AI/);
-  assert.match(quiz, /Explore the most popular test/);
+  assert.match(quiz, /Enter the test number from the video/);
+  assert.match(quiz, /matchTestByQuery/);
+  assert.match(quiz, /hero-search/);
   assert.match(quiz, /email_submitted|\/api\/submit/);
   assert.match(quiz, /upgrade_clicked/);
   assert.match(quiz, /Choose \$\{letter\}/);
@@ -47,7 +49,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(quiz, /preloadAtlas/);
   assert.match(quiz, /defaultQuestions/);
   assert.match(quiz, /AbortController/);
-  assert.match(quiz, /className="hero-mosaic"/);
+  assert.doesNotMatch(quiz, /className="hero-mosaic"/);
   assert.match(quiz, /className={`test-card/);
   assert.match(quiz, /Your choices, decoded/);
   assert.match(quiz, /What this choice represents/);

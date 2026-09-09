@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { matchTestByQuery } from "@/lib/test-search";
 import { currentAttribution } from "@/lib/traffic";
 import { requestJson } from '@/lib/browser-request';
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type QuizQuestion,
   type AffiliateProduct,
@@ -193,6 +194,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
   const [isAdvancing, setIsAdvancing] = useState(false);
   const [loadingTest, setLoadingTest] = useState("");
   const [error, setError] = useState("");
+  const [testQuery, setTestQuery] = useState("");
   const [result, setResult] = useState<ResultProfile | null>(null);
   const [reportData, setReportData] = useState<ReportResponse | null>(null);
   const [reportLoading, setReportLoading] = useState(Boolean(initialReportId));
@@ -425,15 +427,13 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
     if (stage !== "quiz") return;
     const nextQuestion = questions[questionIndex + 1];
     if (nextQuestion) preloadAtlas(nextQuestion.atlasPath);
-  }, [questionIndex, questions, stage]);const previewImages = useMemo(() => {
-    const atlas = featuredTest?.coverAtlasPath ?? "/quiz/doors.png";
-    return [0, 1, 2, 3].map((index) => ({ atlas, index }));
-  }, [featuredTest]);
+  }, [questionIndex, questions, stage]);
 
-  function detailHref(test: QuizTest) {
+  function detailHref(test: QuizTest, content?: string) {
     const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
     const source = currentAttribution();
     if (!params.has('utm_source') && source.source !== 'direct') params.set('utm_source', source.source);
+    if (content && !params.get('utm_content')) params.set('utm_content', content.replace(/[^a-zA-Z0-9._ -]/g, '').slice(0, 120));
     const query = params.size ? '?' + params.toString() : '';
     return `/tests/${encodeURIComponent(test.id)}${query}`;
   }
@@ -443,9 +443,19 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
     void loadQuestions(test.id).catch(() => undefined);
   }
 
-  function openDetail(test: QuizTest) {
+  function openDetail(test: QuizTest, content?: string) {
     prepareDetail(test);
-    window.location.assign(detailHref(test));
+    window.location.assign(detailHref(test, content));
+  }
+
+  function submitTestSearch() {
+    const matched = matchTestByQuery(testQuery, tests);
+    if (!matched) {
+      setError("No matching test. Try 01–08 or a test name.");
+      return;
+    }
+    setError("");
+    openDetail(matched, testQuery.trim());
   }
   async function startTest(test: QuizTest, relationship?: RelationshipNode) {
     setLoadingTest(test.id);
@@ -631,28 +641,27 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
           <div className="main-nav-links"><Link className="nav-note nav-link" href="/insights">Insights</Link><a className="nav-note nav-link" href="#tests">Explore 8 visual tests ↓</a></div>
         </nav>
 
-        <section className="hero" id="top">
-          <div className="hero-copy">
-            <span className="pill">Visual self-reflection tests · 2 minutes</span>
-            <h1>One image can say what words miss.</h1>
-            <p className="hero-lede">Choose what pulls you in. Get a concise reflection on how you connect, reset, set boundaries, and move through relationships.</p>
-            {featuredTest ? <button className="primary-button hero-cta" disabled={loadingTest === featuredTest.id} onClick={() => openDetail(featuredTest)}>{loadingTest === featuredTest.id ? "Opening…" : "Explore the most popular test"} <span aria-hidden="true">↗</span></button> : null}            <div className="trust-row" aria-label="Test details"><span>No right answers</span><i /><span>Private by design</span><i /><span>4 visual choices</span></div>
-            {error ? <p className="form-error" role="alert">{error}</p> : null}
-          </div>
-
-          <button className="hero-mosaic" aria-label={featuredTest ? `Start ${featuredTest.title}` : "A preview of four visual choices"} disabled={!featuredTest || loadingTest === featuredTest.id} onClick={() => featuredTest && openDetail(featuredTest)} type="button">
-            {previewImages.map((item) => (
-              <AtlasImage
-                index={item.index}
-                key={item.index}
-                loading="eager"
-                path={item.atlas}
-                priority={item.index === 0}
-                sizes="(max-width: 640px) 360px, 560px"
+        <section className="hero hero-search-stage" id="top">
+          <form className="hero-search" onSubmit={(event) => { event.preventDefault(); submitTestSearch(); }} role="search">
+            <label className="hero-search-label" htmlFor="test-code">Enter the test number from the video</label>
+            <div className="hero-search-row">
+              <input
+                autoComplete="off"
+                autoFocus
+                id="test-code"
+                inputMode="search"
+                onChange={(event) => { setTestQuery(event.target.value); if (error) setError(""); }}
+                placeholder="01"
+                spellCheck={false}
+                value={testQuery}
               />
-            ))}
-            <div className="mosaic-prompt">Which one feels safest?</div>
-          </button>
+              <button className="primary-button" disabled={!testQuery.trim() || Boolean(loadingTest)} type="submit">
+                {loadingTest ? "Opening…" : "Go"}
+              </button>
+            </div>
+            <p className="hero-search-hint">Use 01–08, or search a test name.</p>
+            {error ? <p className="form-error" role="alert">{error}</p> : null}
+          </form>
         </section>
 
         {RETURNING_MAP_ENABLED && completedTestIds.length ? <>
