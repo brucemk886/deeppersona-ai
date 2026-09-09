@@ -502,7 +502,7 @@ export function AdminDashboard({
           ) : null}
 
           {activeSection === "traffic" ? (
-            <TrafficReport data={stats?.traffic} />
+            <TrafficReport data={stats?.traffic} onRangeChange={setStatsRange} range={statsRange} rangeLabel={rangeLabel} />
           ) : null}
 
           {activeSection === "emails" ? (

@@ -1517,6 +1517,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 @media (max-width: 800px) { .mail-summary { grid-template-columns: repeat(2,minmax(0,1fr)); } .mail-filters label { width: 100%; } .mail-filters input { width: 100%; } }
 .order-overview { margin-bottom: 24px; }
 .order-trend { display: flex; gap: 12px; overflow-x: auto; padding: 24px 4px 8px; }
+.order-trend.hourly { gap: 6px; }
+.order-trend.hourly .order-trend-day { min-width: 28px; }
 .order-trend-day { flex: 1; min-width: 38px; text-align: center; font-size: 13px; }
 .order-trend-track { height: 120px; display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px solid #dce4df; margin: 8px 0; }
 .order-trend-track span { width: 65%; max-width: 40px; background: #204e3e; border-radius: 5px 5px 0 0; }

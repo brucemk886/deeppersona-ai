@@ -10,7 +10,10 @@ export async function GET(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
   const range = new URL(request.url).searchParams.get("range");
-  const traffic = await getTrafficStats();
-  const [stats, orders] = await Promise.all([getAdminStats(range), getOrderStats()]);
+  const [stats, orders, traffic] = await Promise.all([
+    getAdminStats(range),
+    getOrderStats(),
+    getTrafficStats(range),
+  ]);
   return Response.json({ ...stats, orders, traffic }, { headers: { "Cache-Control": "no-store" } });
 }

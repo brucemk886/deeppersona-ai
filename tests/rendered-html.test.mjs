@@ -10,7 +10,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   await access(new URL("../public/quiz/doors.webp", import.meta.url));
   await access(new URL("../public/quiz/doors-768.webp", import.meta.url));
 
-  const [home, quiz, catalog, choiceInsights, deepResults, admin, adminStyles, store, layout, analytics, analyticsUi, hosting, privacy, terms, refunds, contact, disclaimer, legalPage, testDetail, sitemap, adminStatsRoute, adminStatsRange] = await Promise.all([
+  const [home, quiz, catalog, choiceInsights, deepResults, admin, adminStyles, store, layout, analytics, analyticsUi, hosting, privacy, terms, refunds, contact, disclaimer, legalPage, testDetail, sitemap, adminStatsRoute, adminStatsRange, trafficPanel, trafficStats] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/quiz-app.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/quiz-content.ts", import.meta.url), "utf8"),
@@ -33,6 +33,8 @@ test("builds the complete DeepPersona AI experience", async () => {
     readFile(new URL("../app/sitemap.xml/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/admin/stats/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/admin-stats-range.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/admin/traffic-panel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../db/traffic-stats.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(quiz, /DeepPersona AI/);
@@ -90,6 +92,12 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(adminStyles, /\.stats-range-switcher/);
   assert.match(adminStyles, /--chart-cols/);
   assert.match(adminStatsRoute, /searchParams\.get\("range"\)/);
+  assert.match(adminStatsRoute, /getTrafficStats\(range\)/);
+  assert.match(trafficStats, /adminStatsTimePredicate/);
+  assert.match(trafficStats, /completeAdminStatsSeries/);
+  assert.match(trafficPanel, /stats-range-switcher/);
+  assert.match(trafficPanel, /onRangeChange/);
+  assert.doesNotMatch(trafficPanel, /近 14 天/);
   assert.match(store, /answerEvents: answerEvents\.results/);
   assert.match(store, /adminStatsTimePredicate/);
   assert.match(store, /strftime\('%Y-%m-%d %H:00', s\.started_at/);
