@@ -7,5 +7,6 @@ export async function GET(request: Request) {
   if (!await isAdminRequest(request)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  return Response.json(await getAdminStats());
+  const range = new URL(request.url).searchParams.get("range");
+  return Response.json(await getAdminStats(range));
 }
