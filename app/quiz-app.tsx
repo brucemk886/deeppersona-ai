@@ -678,8 +678,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
             />
             {relationshipError ? <p className="relationship-error" role="alert">{relationshipError}</p> : null}
           </> : null}
-        </> : null}        <section className="test-library" id="tests">
-          <div className="library-heading"><span>Choose your question</span><h2>Eight ways to understand yourself a little better.</h2><p>Short, visual, and designed for reflection—not diagnosis.</p></div>
+        </> : null}        <section className="test-library" id="tests" aria-label="Visual tests">
           <div className="test-card-grid">
             {tests.map((test, index) => (
               <button aria-label={`View details for ${test.title}`} className={`test-card ${test.featured ? "featured" : ""}`} disabled={loadingTest === test.id} key={test.id} onClick={() => openDetail(test)} onFocus={() => prepareDetail(test)} onPointerEnter={() => prepareDetail(test)} style={{ "--test-accent": test.accent } as React.CSSProperties} type="button">
