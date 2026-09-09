@@ -16,6 +16,8 @@ import {
   completeAdminStatsSeries,
   isHourlyAdminStatsRange,
   resolveAdminStatsRange,
+  shanghaiDayExpr,
+  shanghaiHourExpr,
 } from "@/lib/admin-stats-range";
 import { INNER_DIMENSIONS, TEST_DIMENSIONS, type InnerDimensionId, type InnerProfileSummary } from "@/lib/inner-map";
 import {
@@ -174,6 +176,67 @@ async function createSchema(): Promise<void> {
       option_label TEXT,
       test_id TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS admin_test_sessions (
+      session_id TEXT PRIMARY KEY,
+      marked_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS admin_deleted_leads (
+      session_id TEXT PRIMARY KEY,
+      deleted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS traffic_anonymous_pages (
+      id TEXT PRIMARY KEY,
+      page TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS quiz_attribution (
+      session_id TEXT PRIMARY KEY,
+      visit_id TEXT,
+      source TEXT NOT NULL,
+      campaign TEXT NOT NULL,
+      medium TEXT NOT NULL,
+      content TEXT NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS payment_orders (
+      id TEXT PRIMARY KEY NOT NULL,
+      report_id TEXT NOT NULL,
+      amount_cents INTEGER NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'usd',
+      status TEXT NOT NULL DEFAULT 'pending',
+      stripe_session_id TEXT,
+      payment_intent_id TEXT,
+      attempt INTEGER NOT NULL DEFAULT 0,
+      livemode INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      paid_at TEXT,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS quiz_reports (
+      id TEXT PRIMARY KEY NOT NULL,
+      session_id TEXT NOT NULL,
+      profile_id TEXT NOT NULL,
+      test_id TEXT NOT NULL,
+      email TEXT NOT NULL,
+      snapshot_json TEXT NOT NULL,
+      free INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS report_emails (
+      id TEXT PRIMARY KEY,
+      report_id TEXT NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      token TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      attempts INTEGER NOT NULL DEFAULT 0,
+      resend_id TEXT,
+      error TEXT,
+      created_at INTEGER NOT NULL,
+      expires_at INTEGER NOT NULL,
+      next_attempt INTEGER NOT NULL DEFAULT 0,
+      sent_at INTEGER,
+      first_access_at INTEGER,
+      lease_until INTEGER NOT NULL DEFAULT 0
     )`),
   ]);
 
@@ -551,44 +614,132 @@ export async function submitQuiz(input: {
   await db.batch(writes);
   return getProfileSummary(input.profileId);
 }
+const LIVE_ORDER = `livemode = 1 AND id NOT LIKE 'preview_%'`;
+const REAL_SESSION = `id NOT IN (SELECT session_id FROM admin_test_sessions)`;
+const REAL_EVENT_SESSION = `session_id NOT IN (SELECT session_id FROM admin_test_sessions)`;
+
+function countRow(row?: { consented?: number | null; leads?: number | null; sessions?: number | null } | null) {
+  return {
+    consented: Number(row?.consented ?? 0),
+    leads: Number(row?.leads ?? 0),
+    sessions: Number(row?.sessions ?? 0),
+  };
+}
+
+export async function getAdminPayments() {
+  await ensureQuizSchema();
+  const db = getD1();
+  const orders = await db.prepare(`SELECT o.id, o.amount_cents, o.currency, o.status, o.livemode, o.created_at,
+      COALESCE(r.email, '') AS email, COALESCE(t.title, r.test_id, '') AS test_title,
+      e.status AS email_status, e.error AS email_error, e.first_access_at AS email_link_access_at
+    FROM payment_orders o
+    LEFT JOIN quiz_reports r ON r.id = o.report_id
+    LEFT JOIN quiz_tests t ON t.id = r.test_id
+    LEFT JOIN report_emails e ON e.report_id = o.report_id
+    ORDER BY o.created_at DESC
+    LIMIT 100`).all<{
+    amount_cents: number;
+    created_at: string;
+    currency: string;
+    email: string;
+    email_error: string | null;
+    email_link_access_at: number | null;
+    email_status: string | null;
+    id: string;
+    livemode: number;
+    status: string;
+    test_title: string;
+  }>();
+  const ready = Boolean((await db.prepare("SELECT COUNT(*) AS n FROM payment_orders").first<{ n: number }>())?.n >= 0);
+  const sandbox = orders.results.some((item) => !item.livemode);
+  return { orders: orders.results, ready, sandbox };
+}
+
 export async function getAdminStats(rangeInput?: string | null) {
   await ensureQuizSchema();
   await seedCatalogIfNeeded();
   const db = getD1();
   const range = resolveAdminStatsRange(rangeInput);
-  const sessionPredicate = adminStatsTimePredicate("started_at", range);
-  const eventPredicate = adminStatsTimePredicate("created_at", range);
+  const sessionPredicate = `${adminStatsTimePredicate("started_at", range)} AND ${REAL_SESSION}`;
+  const eventPredicate = `${adminStatsTimePredicate("created_at", range)} AND ${REAL_EVENT_SESSION}`;
+  const orderTime = adminStatsTimePredicate("COALESCE(paid_at, created_at)", range);
+  const pagePredicate = adminStatsTimePredicate("created_at", range);
   const hourly = isHourlyAdminStatsRange(range);
-  const seriesSql = hourly
-    ? `SELECT strftime('%Y-%m-%d %H:00', started_at) AS day, COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads FROM quiz_sessions WHERE ${sessionPredicate} GROUP BY day ORDER BY day`
-    : `SELECT date(started_at) AS day, COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads FROM quiz_sessions WHERE ${sessionPredicate} GROUP BY date(started_at) ORDER BY day`;
-  const [funnel, sources, emails, answerEvents, totals, period, online, today, seriesRows, popularQuestions, popularTests] = await Promise.all([
+  const bucketExpr = hourly ? shanghaiHourExpr("started_at") : shanghaiDayExpr("started_at");
+  const seriesSql = `SELECT ${bucketExpr} AS day, COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads FROM quiz_sessions WHERE ${sessionPredicate} GROUP BY day ORDER BY day`;
+  const [funnel, sources, emails, answerEvents, totals, period, online, today, seriesRows, popularQuestions, popularTests, pageviews, operations, trafficDays, attribution, dropoff, paidToday, paidYesterday, paidLastSeven, paidPrevSeven, paidDays] = await Promise.all([
     db.prepare(`SELECT event_name, COUNT(DISTINCT session_id) AS users FROM quiz_events WHERE ${eventPredicate} GROUP BY event_name`).all<{ event_name: string; users: number }>(),
     db.prepare(`SELECT COALESCE(source, 'direct') AS source, COUNT(DISTINCT id) AS users FROM quiz_sessions WHERE ${sessionPredicate} GROUP BY COALESCE(source, 'direct') ORDER BY users DESC LIMIT 8`).all<{ source: string; users: number }>(),
     db.prepare(`SELECT s.id AS session_id, s.email, s.marketing_consent, s.answers_json, s.result_type, s.source, s.campaign, s.completed_at, s.test_id, COALESCE(t.title, s.test_id) AS test_title
       FROM quiz_sessions s LEFT JOIN quiz_tests t ON t.id = s.test_id
-      WHERE s.email IS NOT NULL ORDER BY s.completed_at DESC LIMIT 500`).all<{ answers_json: string | null; campaign: string | null; completed_at: string; email: string; marketing_consent: number; result_type: string; session_id: string; source: string | null; test_id: string | null; test_title: string | null }>(),
+      WHERE s.email IS NOT NULL AND s.id NOT IN (SELECT session_id FROM admin_deleted_leads)
+      ORDER BY s.completed_at DESC LIMIT 500`).all<{ answers_json: string | null; campaign: string | null; completed_at: string; email: string; marketing_consent: number; result_type: string; session_id: string; source: string | null; test_id: string | null; test_title: string | null }>(),
     db.prepare(`SELECT e.session_id, e.question_id, e.option_label
       FROM quiz_events e
       WHERE e.event_name = 'answer_selected'
         AND e.question_id IS NOT NULL
         AND e.session_id IN (SELECT id FROM quiz_sessions WHERE email IS NOT NULL ORDER BY completed_at DESC LIMIT 500)
       ORDER BY e.id DESC`).all<{ option_label: string | null; question_id: string; session_id: string }>(),
-    db.prepare(`SELECT COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads, SUM(CASE WHEN marketing_consent = 1 THEN 1 ELSE 0 END) AS consented FROM quiz_sessions`).first<{ consented: number; leads: number; sessions: number }>(),
+    db.prepare(`SELECT COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads, SUM(CASE WHEN marketing_consent = 1 THEN 1 ELSE 0 END) AS consented FROM quiz_sessions WHERE ${REAL_SESSION}`).first<{ consented: number; leads: number; sessions: number }>(),
     db.prepare(`SELECT COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads, SUM(CASE WHEN marketing_consent = 1 THEN 1 ELSE 0 END) AS consented FROM quiz_sessions WHERE ${sessionPredicate}`).first<{ consented: number; leads: number; sessions: number }>(),
-    db.prepare(`SELECT COUNT(DISTINCT session_id) AS users FROM quiz_events WHERE created_at >= datetime('now', '-5 minutes')`).first<{ users: number }>(),
-    db.prepare(`SELECT COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads FROM quiz_sessions WHERE date(started_at) = date('now')`).first<{ leads: number; sessions: number }>(),
+    db.prepare(`SELECT COUNT(DISTINCT session_id) AS users FROM quiz_events WHERE created_at >= datetime('now', '-5 minutes') AND ${REAL_EVENT_SESSION}`).first<{ users: number }>(),
+    db.prepare(`SELECT COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads FROM quiz_sessions WHERE ${adminStatsTimePredicate("started_at", "today")} AND ${REAL_SESSION}`).first<{ leads: number; sessions: number }>(),
     db.prepare(seriesSql).all<{ day: string; leads: number; sessions: number }>(),
     db.prepare(`SELECT e.question_id, COALESCE(q.prompt, e.question_id) AS prompt, COUNT(*) AS answers, COUNT(DISTINCT e.session_id) AS users FROM quiz_events e LEFT JOIN quiz_questions q ON q.id = e.question_id WHERE e.event_name = 'answer_selected' AND e.question_id IS NOT NULL AND ${eventPredicate} GROUP BY e.question_id, q.prompt ORDER BY answers DESC LIMIT 10`).all<{ answers: number; prompt: string; question_id: string; users: number }>(),
     db.prepare(`SELECT e.test_id, COALESCE(t.title, e.test_id) AS title, COUNT(DISTINCT e.session_id) AS users FROM quiz_events e LEFT JOIN quiz_tests t ON t.id = e.test_id WHERE e.event_name = 'quiz_started' AND e.test_id IS NOT NULL AND ${eventPredicate} GROUP BY e.test_id, t.title ORDER BY users DESC LIMIT 8`).all<{ test_id: string; title: string; users: number }>(),
+    db.prepare(`SELECT COUNT(*) AS n FROM traffic_anonymous_pages WHERE ${pagePredicate}`).first<{ n: number }>(),
+    db.prepare(`SELECT
+        SUM(CASE WHEN event_name = 'quiz_started' THEN 1 ELSE 0 END) AS started,
+        SUM(CASE WHEN event_name = 'answer_selected' THEN 1 ELSE 0 END) AS finished_answers,
+        COUNT(DISTINCT CASE WHEN event_name = 'quiz_started' THEN session_id END) AS started_users,
+        COUNT(DISTINCT CASE WHEN event_name = 'result_viewed' THEN session_id END) AS finished,
+        COUNT(DISTINCT CASE WHEN event_name = 'email_submitted' THEN session_id END) AS submitted
+      FROM quiz_events WHERE ${eventPredicate}`).first<{ finished: number; finished_answers: number; started: number; started_users: number; submitted: number }>(),
+    db.prepare(`SELECT ${hourly ? shanghaiHourExpr("started_at") : shanghaiDayExpr("started_at")} AS day,
+        COUNT(*) AS started,
+        SUM(CASE WHEN completed_at IS NOT NULL THEN 1 ELSE 0 END) AS finished
+      FROM quiz_sessions WHERE ${sessionPredicate} GROUP BY day ORDER BY day`).all<{ day: string; finished: number; started: number }>(),
+    db.prepare(`SELECT COALESCE(a.source, s.source, 'unknown') AS source, COALESCE(a.campaign, s.campaign, '') AS campaign,
+        COALESCE(a.medium, '') AS medium, COALESCE(a.content, '') AS content,
+        COUNT(DISTINCT s.id) AS started,
+        COUNT(DISTINCT CASE WHEN s.completed_at IS NOT NULL THEN s.id END) AS finished,
+        COUNT(DISTINCT CASE WHEN s.email IS NOT NULL THEN s.id END) AS submitted
+      FROM quiz_sessions s
+      LEFT JOIN quiz_attribution a ON a.session_id = s.id
+      WHERE ${sessionPredicate}
+      GROUP BY 1, 2, 3, 4
+      ORDER BY started DESC
+      LIMIT 20`).all<{ campaign: string; content: string; finished: number; medium: string; source: string; started: number; submitted: number }>(),
+    db.prepare(`SELECT COALESCE(t.title, e.test_id, '') AS test_title, e.test_id, e.question_id, COALESCE(q.prompt, e.question_id) AS prompt,
+        COUNT(DISTINCT CASE WHEN e.event_name = 'question_viewed' THEN e.session_id END) AS reached,
+        COUNT(DISTINCT CASE WHEN e.event_name = 'answer_selected' THEN e.session_id END) AS answered
+      FROM quiz_events e
+      LEFT JOIN quiz_questions q ON q.id = e.question_id
+      LEFT JOIN quiz_tests t ON t.id = e.test_id
+      WHERE e.question_id IS NOT NULL AND ${eventPredicate}
+      GROUP BY e.test_id, e.question_id, q.prompt, t.title
+      HAVING reached > 0
+      ORDER BY reached DESC
+      LIMIT 20`).all<{ answered: number; prompt: string; question_id: string; reached: number; test_id: string | null; test_title: string }>(),
+    db.prepare(`SELECT COUNT(*) AS n FROM payment_orders WHERE status = 'paid' AND ${LIVE_ORDER} AND ${adminStatsTimePredicate("COALESCE(paid_at, created_at)", "today")}`).first<{ n: number }>(),
+    db.prepare(`SELECT COUNT(*) AS n FROM payment_orders WHERE status = 'paid' AND ${LIVE_ORDER} AND ${adminStatsTimePredicate("COALESCE(paid_at, created_at)", "yesterday")}`).first<{ n: number }>(),
+    db.prepare(`SELECT COUNT(*) AS n FROM payment_orders WHERE status = 'paid' AND ${LIVE_ORDER} AND ${adminStatsTimePredicate("COALESCE(paid_at, created_at)", "7d")}`).first<{ n: number }>(),
+    db.prepare(`SELECT COUNT(*) AS n FROM payment_orders WHERE status = 'paid' AND ${LIVE_ORDER} AND COALESCE(paid_at, created_at) >= datetime('now', '+8 hours', '-13 days', 'start of day', '-8 hours') AND COALESCE(paid_at, created_at) < datetime('now', '+8 hours', '-6 days', 'start of day', '-8 hours')`).first<{ n: number }>(),
+    db.prepare(`SELECT ${shanghaiDayExpr("COALESCE(paid_at, created_at)")} AS day, COUNT(*) AS orders FROM payment_orders WHERE status = 'paid' AND ${LIVE_ORDER} AND COALESCE(paid_at, created_at) >= datetime('now', '+8 hours', '-13 days', 'start of day', '-8 hours') GROUP BY day ORDER BY day`).all<{ day: string; orders: number }>(),
   ]);
 
   const series = completeAdminStatsSeries(range, seriesRows.results);
-  const countRow = (row?: { consented?: number | null; leads?: number | null; sessions?: number | null } | null) => ({
-    consented: Number(row?.consented ?? 0),
-    leads: Number(row?.leads ?? 0),
-    sessions: Number(row?.sessions ?? 0),
-  });
+  const checkoutPaid = await db.prepare(`SELECT
+      COUNT(*) AS checkout,
+      SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) AS paid
+    FROM payment_orders WHERE ${LIVE_ORDER} AND ${orderTime}`).first<{ checkout: number; paid: number }>();
+  const finishedByDay = new Map(trafficDays.results.map((item) => [item.day, item.finished]));
+  const paidByDay = new Map(paidDays.results.map((item) => [item.day, item.orders]));
+  const trafficDayRows = series.map((item) => ({
+    day: item.day,
+    finished: Number(finishedByDay.get(item.day) ?? 0),
+    started: item.sessions,
+  }));
 
   return {
     range,
@@ -605,5 +756,35 @@ export async function getAdminStats(rangeInput?: string | null) {
     popularQuestions: popularQuestions.results,
     popularTests: popularTests.results,
     totals: countRow(totals),
+    orders: {
+      today: Number(paidToday?.n ?? 0),
+      yesterday: Number(paidYesterday?.n ?? 0),
+      lastSeven: Number(paidLastSeven?.n ?? 0),
+      previousSeven: Number(paidPrevSeven?.n ?? 0),
+      days: Array.from({ length: 14 }, (_, index) => {
+        const day = shanghaiYmdForOffset(13 - index);
+        return { day, orders: paidByDay.get(day) ?? 0 };
+      }),
+    },
+    traffic: {
+      updatedAt: new Date().toISOString(),
+      anonymous: { pageviews: Number(pageviews?.n ?? 0) },
+      operations: {
+        started: Number(operations?.started_users ?? 0),
+        finished: Number(operations?.finished ?? 0),
+        submitted: Number(operations?.submitted ?? 0),
+        checkout: Number(checkoutPaid?.checkout ?? 0),
+        paid: Number(checkoutPaid?.paid ?? 0),
+      },
+      days: trafficDayRows,
+      sources: attribution.results.map((row) => ({ ...row, checkout: 0, paid: 0 })),
+      questions: dropoff.results,
+    },
   };
+}
+
+function shanghaiYmdForOffset(daysAgo: number) {
+  const shanghaiNow = new Date(Date.now() + 8 * 60 * 60 * 1000);
+  shanghaiNow.setUTCDate(shanghaiNow.getUTCDate() - daysAgo);
+  return shanghaiNow.toISOString().slice(0, 10);
 }

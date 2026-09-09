@@ -12,6 +12,23 @@ import { TRAIT_KEYS, type AffiliateProduct, type QuizQuestion, type QuizTest, ty
 
 type AdminSection = "overview" | "tests" | "questions" | "traffic" | "emails" | "payments" | "affiliates";
 
+type TrafficStats = {
+  anonymous: { pageviews: number };
+  days: { day: string; finished: number; started: number }[];
+  operations: { checkout: number; finished: number; paid: number; started: number; submitted: number };
+  questions: { answered: number; prompt: string; question_id: string; reached: number; test_id: string | null; test_title: string }[];
+  sources: { campaign: string; checkout: number; content: string; finished: number; medium: string; paid: number; source: string; started: number; submitted: number }[];
+  updatedAt: string;
+};
+
+type OrderOverview = {
+  days: { day: string; orders: number }[];
+  lastSeven: number;
+  previousSeven: number;
+  today: number;
+  yesterday: number;
+};
+
 type Stats = {
   answerEvents: { option_label: string | null; question_id: string; session_id: string }[];
   funnel: { event_name: string; users: number }[];
@@ -38,15 +55,17 @@ type Stats = {
   sevenDays: { day: string; leads: number; sessions: number }[];
   today: { leads: number; sessions: number };
   totals: { consented: number; leads: number; sessions: number };
+  traffic?: TrafficStats;
+  orders?: OrderOverview;
 };
 
 const navigation: { id: AdminSection; icon: string; label: string }[] = [
   { id: "overview", icon: "概", label: "数据概览" },
+  { id: "payments", icon: "单", label: "订单" },
   { id: "tests", icon: "测", label: "测试管理" },
   { id: "questions", icon: "题", label: "题目管理" },
   { id: "traffic", icon: "流", label: "流量分析" },
   { id: "emails", icon: "邮", label: "邮箱用户" },
-  { id: "payments", icon: "付", label: "支付设置" },
   { id: "affiliates", icon: "链", label: "联盟产品" },
 ];
 
@@ -459,7 +478,7 @@ export function AdminDashboard({
         </Link>
         <nav className="admin-side-nav" aria-label="后台导航">
           <span className="admin-nav-label">工作台</span>
-          {navigation.slice(0, 5).map((item) => (
+          {navigation.slice(0, 6).map((item) => (
             <button
               className={activeSection === item.id ? "active" : ""}
               key={item.id}
@@ -470,7 +489,7 @@ export function AdminDashboard({
             </button>
           ))}
           <span className="admin-nav-label second">系统</span>
-          {navigation.slice(5).map((item) => (
+          {navigation.slice(6).map((item) => (
             <button
               className={activeSection === item.id ? "active" : ""}
               key={item.id}
@@ -624,9 +643,10 @@ function Overview({
         <div><span className="admin-kicker">实时经营数据</span><h1>欢迎回来，所选时段的测试表现如下</h1></div>
         <div className="admin-heading-tools">
           <StatsRangeSwitcher value={range} onChange={setRange} />
-          <span className="admin-date">{new Intl.DateTimeFormat("zh-CN", { dateStyle: "long" }).format(new Date())}</span>
+          <span className="admin-date">{new Intl.DateTimeFormat("zh-CN", { dateStyle: "long", timeZone: "Asia/Shanghai" }).format(new Date())}</span>
         </div>
       </div>
+      <OrderOverviewCard orders={stats?.orders} />
       <section className="metric-grid five">
         <MetricCard accent="green" label="当前在线" value={loading ? "—" : stats?.onlineNow ?? 0} note="最近 5 分钟活跃用户" live />
         <MetricCard label="区间访问" value={loading ? "—" : period.sessions} note={`${rangeLabel}独立测试会话`} />
@@ -956,6 +976,10 @@ function QuestionManager({
   );
 }
 
+function rate(current: number, previous: number) {
+  return previous ? `${((current / previous) * 100).toFixed(1)}%` : "—";
+}
+
 function TrafficPanel({
   chartMax,
   conversion,
@@ -982,24 +1006,98 @@ function TrafficPanel({
   stats: Stats | null;
 }) {
   const chart = chartCopy(range);
+  const traffic = stats?.traffic;
+  const ops = traffic?.operations;
+  const funnelRows = [
+    ["开始测试", ops?.started ?? funnel[0]?.users ?? 0],
+    ["完成答题", ops?.finished ?? funnel[1]?.users ?? 0],
+    ["提交邮箱", ops?.submitted ?? period.leads],
+    ["收银台已创建", ops?.checkout ?? 0],
+    ["付款成功", ops?.paid ?? 0],
+  ] as const;
+  const dayMax = Math.max(1, ...(traffic?.days.map((item) => item.started) ?? series.map((item) => item.sessions)), 0);
   return (
     <>
       <div className="admin-page-heading">
-        <div><span className="admin-kicker">获客与转化</span><h1>流量分析</h1><p>按今天、昨天、近7天或近30天查看 TikTok 矩阵、UTM 活动和站内关键路径表现。</p></div>
+        <div>
+          <span className="admin-kicker">获客与转化</span>
+          <h1>流量分析</h1>
+          <p>{rangeLabel} · 北京时间 · 排除已标记测试、沙盒及内部预览。{traffic?.updatedAt ? `更新于 ${new Date(traffic.updatedAt).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}` : ""}</p>
+        </div>
         <div className="admin-heading-tools">
           <StatsRangeSwitcher value={range} onChange={setRange} />
         </div>
       </div>
+      <p className="email-guidance">访问次数为页面浏览次数，刷新也计数，不是独立人数；历史访问无法补回。测试与订单排除已标记测试、沙盒及内部预览。</p>
       <section className="metric-grid four">
-        <MetricCard accent="green" label="当前在线" value={loading ? "—" : stats?.onlineNow ?? 0} note="近 5 分钟活跃" live />
-        <MetricCard label="区间访问" value={loading ? "—" : period.sessions} note={`${rangeLabel}全部来源`} />
-        <MetricCard label="区间邮箱" value={loading ? "—" : period.leads} note={`${rangeLabel}完成邮箱解锁`} />
-        <MetricCard accent="wine" label="邮箱转化率" value={`${conversion}%`} note={`${rangeLabel}访问 → 邮箱提交`} />
+        <MetricCard label="访问次数" value={loading ? "—" : traffic?.anonymous.pageviews ?? period.sessions} note={`${rangeLabel}页面浏览`} />
+        <MetricCard label="开始测试" value={loading ? "—" : ops?.started ?? period.sessions} note={`${rangeLabel}测试会话`} />
+        <MetricCard label="完成测试" value={loading ? "—" : ops?.finished ?? 0} note={`${rangeLabel}查看结果`} />
+        <MetricCard accent="wine" label="付款成功" value={loading ? "—" : ops?.paid ?? 0} note={`${rangeLabel}正式成交`} />
       </section>
-      <p className="stats-alltime-hint">全站累计 {stats?.totals.sessions ?? 0} 次访问 · {stats?.totals.leads ?? 0} 个邮箱 · 今日 {stats?.today.sessions ?? 0} 次访问</p>
-      <section className="admin-card chart-card traffic-full"><CardHeader title={`${chart.title}趋势`} subtitle={chart.subtitle} /><SevenDayChart data={series} max={chartMax} range={range} /></section>
-      <section className="dashboard-two-column equal"><div className="admin-card"><CardHeader title="流量来源" subtitle={`${rangeLabel}来源参数与直接访问`} /><SourceList sources={stats?.sources ?? []} /></div><div className="admin-card"><CardHeader title="完整转化漏斗" subtitle={`${rangeLabel}发现具体流失节点`} /><Funnel funnel={funnel} max={funnelMax} /></div></section>
-      <section className="dashboard-two-column equal"><div className="admin-card"><CardHeader title="热门测试排行" subtitle={`${rangeLabel}开始测试的独立用户`} /><PopularTests items={stats?.popularTests ?? []} /></div><div className="admin-card"><CardHeader title="热门题目排行" subtitle={`${rangeLabel}用户选择最多的题目`} /><PopularQuestions items={stats?.popularQuestions ?? []} /></div></section>
+      <section className="admin-card">
+        <CardHeader title="测试到付款" subtitle="按测试开始日期统计，重做算一次新测试；含免费测试，退款不抹除成交记录。" />
+        <div className="table-scroll">
+          <table className="lead-table-cn">
+            <thead><tr><th>阶段</th><th>测试会话数</th><th>较上一步</th></tr></thead>
+            <tbody>
+              {funnelRows.map(([label, value], index) => (
+                <tr key={label}><td>{label}</td><td>{value}</td><td>{index ? rate(value, funnelRows[index - 1][1]) : "—"}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section className="admin-card chart-card traffic-full">
+        <CardHeader title={`${chart.title}趋势`} subtitle={chart.subtitle} />
+        <SevenDayChart data={series} max={chartMax} range={range} />
+        {traffic?.days.length ? (
+          <div className="order-trend" aria-label="每日测试会话">
+            {traffic.days.map((item) => (
+              <div className="order-trend-day" key={item.day} title={`开始 ${item.started}，完成 ${item.finished}`}>
+                <strong>{item.started}</strong>
+                <div className="order-trend-track"><span style={{ height: `${(item.started / dayMax) * 100}%` }} /></div>
+                <small>{item.day.slice(5)}</small>
+                <p>完成 {item.finished}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </section>
+      <section className="admin-card">
+        <CardHeader title="来源、账号与视频活动" subtitle="推广链接使用 utm_source、utm_campaign、utm_medium、utm_content。" />
+        <div className="table-scroll">
+          <table className="lead-table-cn">
+            <thead><tr>{["来源", "活动 / 账号", "媒介", "内容 / 视频", "开始", "完成", "邮箱提交", "收银台", "成交"].map((label) => <th key={label}>{label}</th>)}</tr></thead>
+            <tbody>
+              {(traffic?.sources.length ? traffic.sources : stats?.sources.map((item) => ({ source: item.source, campaign: "", medium: "", content: "", started: item.users, finished: 0, submitted: 0, checkout: 0, paid: 0 })) ?? []).map((row, index) => (
+                <tr key={`${row.source}-${index}`}>
+                  <td>{row.source}</td><td>{row.campaign || "—"}</td><td>{row.medium || "—"}</td><td>{row.content || "—"}</td>
+                  <td>{row.started}</td><td>{row.finished}</td><td>{row.submitted}</td><td>{row.checkout}</td><td>{row.paid}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section className="admin-card">
+        <CardHeader title="逐题流失" subtitle={`${rangeLabel}按测试会话去重。`} />
+        <div className="table-scroll">
+          <table className="lead-table-cn">
+            <thead><tr>{["测试", "题目", "到达", "作答", "未作答", "作答率"].map((label) => <th key={label}>{label}</th>)}</tr></thead>
+            <tbody>
+              {(traffic?.questions ?? []).map((row) => (
+                <tr key={`${row.test_id}:${row.question_id}`}>
+                  <td>{row.test_title}</td><td>{row.prompt}</td><td>{row.reached}</td><td>{row.answered}</td>
+                  <td>{row.reached - row.answered}</td><td>{rate(row.answered, row.reached)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {!traffic?.questions.length ? <EmptyState title="暂无逐题流失数据" text="题目浏览和作答上报后会显示在这里。" /> : null}
+      </section>
+      <p className="stats-alltime-hint">当前在线 {stats?.onlineNow ?? 0} · 邮箱转化率 {conversion}% · 全站累计 {stats?.totals.sessions ?? 0} 次会话</p>
     </>
   );
 }
@@ -1102,12 +1200,92 @@ function AnswerThumbnail({ answer }: { answer: LeadAnswerDetail }) {
   );
 }
 
+function OrderOverviewCard({ orders }: { orders?: OrderOverview }) {
+  const max = Math.max(1, ...(orders?.days.map((item) => item.orders) ?? [0]));
+  const delta = orders ? orders.lastSeven - orders.previousSeven : 0;
+  return (
+    <section className="admin-card order-overview">
+      <CardHeader title="每日成交订单" subtitle="北京时间（UTC+8）· 按付款成功时间统计；不含沙盒、内部预览及未付款订单。" />
+      <section className="metric-grid four">
+        <MetricCard accent="green" label="今日成交" value={orders?.today ?? "—"} note="今日截至当前" />
+        <MetricCard label="昨日成交" value={orders?.yesterday ?? "—"} note="昨日全天" />
+        <MetricCard label="近 7 日成交" value={orders?.lastSeven ?? "—"} note="含今日" />
+        <MetricCard label="较前 7 日变化" value={orders ? `${delta > 0 ? "+" : ""}${delta} 单` : "—"} note={`前 7 日 ${orders?.previousSeven ?? "—"} 单`} />
+      </section>
+      <div className="order-trend" aria-label="最近14天成交订单">
+        {(orders?.days ?? []).map((item) => (
+          <div className="order-trend-day" key={item.day} title={`${item.day}：${item.orders} 单`}>
+            <strong>{item.orders}</strong>
+            <div className="order-trend-track"><span style={{ height: `${(item.orders / max) * 100}%` }} /></div>
+            <small>{item.day.slice(5)}</small>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function PaymentPanel() {
+  const [data, setData] = useState<{
+    orders: { amount_cents: number; created_at: string; currency: string; email: string; email_error: string | null; email_link_access_at: number | null; email_status: string | null; id: string; livemode: number; status: string; test_title: string }[];
+    ready: boolean;
+    sandbox: boolean;
+  } | null>(null);
+  const [error, setError] = useState("");
+  const load = useCallback(async () => {
+    try {
+      setData(await fetchAdminJson("/api/admin/payments"));
+      setError("");
+    } catch {
+      setError("无法读取支付配置或订单，请稍后重试。");
+    }
+  }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
+  const statusNames: Record<string, string> = { pending: "待付款", paid: "已付款", failed: "付款失败", expired: "已过期", refunded: "已退款" };
+  const emailNames: Record<string, string> = { pending: "待发送", retry: "重试中", accepted: "发送服务已接受", failed: "发送失败", sandbox_skipped: "沙盒不外发" };
   return (
     <>
-      <div className="admin-page-heading"><div><span className="admin-kicker">商业化配置</span><h1>支付设置</h1><p>支付入口已经预留，连接服务商后即可启用付费报告。</p></div></div>
-      <section className="payment-provider-grid"><article><span className="provider-mark creem">C</span><div><strong>Creem</strong><small>适合数字产品和全球税务处理</small></div><span className="status-tag">待连接</span><button disabled>连接 Creem</button></article><article><span className="provider-mark stripe">S</span><div><strong>Stripe</strong><small>成熟的支付与订阅基础设施</small></div><span className="status-tag">待连接</span><button disabled>连接 Stripe</button></article></section>
-      <section className="admin-card payment-checklist"><CardHeader title="上线付费报告前" subtitle="当前用户端已经保留升级入口" /><div><span>1</span><p><strong>选择支付服务商</strong><small>在 Creem 与 Stripe 中确定一个主要结账渠道。</small></p><b>待完成</b></div><div><span>2</span><p><strong>配置商品与价格</strong><small>创建完整报告商品，并获得 Price ID 或 Product ID。</small></p><b>待完成</b></div><div><span>3</span><p><strong>接入 Webhook</strong><small>付款成功后解锁报告，并记录订单状态。</small></p><b>待完成</b></div></section>
+      <div className="admin-page-heading">
+        <div><span className="admin-kicker">订单管理</span><h1>订单</h1><p>每份报告一次性付费，金额来自测试管理中的单价；设为 0 的测试免费。</p></div>
+        <button className="admin-primary-button" onClick={() => void load()}>刷新订单</button>
+      </div>
+      {error ? <p role="alert">{error}</p> : null}
+      <section className="admin-card">
+        <h2>最近 100 笔订单</h2>
+        <div className="table-scroll">
+          <table className="lead-table-cn">
+            <thead><tr><th>邮箱</th><th>测试</th><th>金额</th><th>环境</th><th>状态</th><th>报告邮件</th><th>创建时间</th></tr></thead>
+            <tbody>
+              {data?.orders.map((order) => (
+                <tr key={order.id}>
+                  <td>{order.email}</td>
+                  <td>{order.test_title}</td>
+                  <td>${(order.amount_cents / 100).toFixed(2)} {order.currency.toUpperCase()}</td>
+                  <td>{order.livemode ? "正式" : "沙盒"}</td>
+                  <td>{order.id.startsWith("preview_") ? "内部预览（未收款）" : statusNames[order.status] ?? order.status}</td>
+                  <td>
+                    {emailNames[order.email_status || ""] || "—"}
+                    {order.email_error ? <small>{order.email_error}</small> : null}
+                    {order.email_link_access_at ? <small>邮件链接有访问记录（可能包含邮件安全扫描）</small> : null}
+                    <small>补发请到「邮件记录」操作</small>
+                  </td>
+                  <td>{formatDate(order.created_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {data && !data.orders.length ? <EmptyState title="暂无订单" text="用户打开 Stripe 收银台后会在这里生成订单。" /> : null}
+      </section>
+      <section className="admin-card">
+        <h2>Stripe Checkout</h2>
+        <p>{data ? `${data.sandbox ? "沙盒测试（不扣真钱）" : "正式收款"} · ${data.ready ? "密钥与 Webhook 已配置" : "尚未完成密钥或 Webhook 配置"}` : "正在读取配置…"}</p>
+        <p>密钥通过 Cloudflare Worker Secrets 配置。回调地址：<code>https://deeppersonaai.com/api/stripe/webhook</code></p>
+        <p>修改测试单价影响新订单，已创建订单保留原价格。退款请在 Stripe 后台操作。</p>
+      </section>
     </>
   );
 }
