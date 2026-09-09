@@ -2,6 +2,11 @@ import { adminCookie, createAdminSession, isCorrectAdminCredential } from "@/app
 
 function safeReturnTo(value: string | null): string { return value && value.startsWith("/") && !value.startsWith("//") ? value : "/admin"; }
 
+function sessionCookie(value: string, request: Request, maxAge = adminCookie.maxAge) {
+  const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
+  return `${adminCookie.name}=${value}; Path=/; Max-Age=${maxAge}; HttpOnly${secure}; SameSite=Strict`;
+}
+
 export async function POST(request: Request) {
   const form = await request.formData();
   const username = typeof form.get("username") === "string" ? String(form.get("username")) : "";
@@ -9,18 +14,18 @@ export async function POST(request: Request) {
   const returnTo = safeReturnTo(new URL(request.url).searchParams.get("return_to"));
   if (!isCorrectAdminCredential(username, password)) return new Response(null, { status: 303, headers: { Location: new URL(`/admin/login?error=1&return_to=${encodeURIComponent(returnTo)}`, request.url).toString() } });
   const response = new Response(null, { status: 303, headers: { Location: new URL(returnTo, request.url).toString() } });
-  response.headers.append("Set-Cookie", `${adminCookie.name}=${await createAdminSession()}; Path=/; Max-Age=${adminCookie.maxAge}; HttpOnly; Secure; SameSite=Strict`);
+  response.headers.append("Set-Cookie", sessionCookie(await createAdminSession(), request));
   return response;
 }
 
 export function DELETE(request: Request) {
   const response = Response.json({ ok: true });
-  response.headers.append("Set-Cookie", `${adminCookie.name}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`);
+  response.headers.append("Set-Cookie", sessionCookie("", request, 0));
   return response;
 }
 
 export function GET(request: Request) {
   const response = new Response(null, { status: 303, headers: { Location: new URL("/admin/login", request.url).toString() } });
-  response.headers.append("Set-Cookie", `${adminCookie.name}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`);
+  response.headers.append("Set-Cookie", sessionCookie("", request, 0));
   return response;
 }

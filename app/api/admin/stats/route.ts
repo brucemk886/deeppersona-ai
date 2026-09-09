@@ -9,7 +9,8 @@ export async function GET(request: Request) {
   if (!await isAdminRequest(request)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const range = new URL(request.url).searchParams.get("range");
   const traffic = await getTrafficStats();
-  const [stats, orders] = await Promise.all([getAdminStats(), getOrderStats()]);
+  const [stats, orders] = await Promise.all([getAdminStats(range), getOrderStats()]);
   return Response.json({ ...stats, orders, traffic }, { headers: { "Cache-Control": "no-store" } });
 }

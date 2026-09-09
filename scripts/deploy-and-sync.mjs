@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
 
 function run(command, args, capture = false) {
   const result = spawnSync(command, args, { stdio: capture ? 'pipe' : 'inherit', encoding: 'utf8' });
@@ -22,6 +23,8 @@ try {
   run(process.execPath, ['node_modules/vinext/dist/cli.js', 'build']);
   if (run('git', ['status', '--porcelain'], true)) throw new Error('Build changed tracked source; review before deploying.');
   run(process.execPath, ['node_modules/wrangler/bin/wrangler.js', 'deploy', ...(target === 'mailer' ? ['--config', 'wrangler.mailer.jsonc'] : [])]);
+  mkdirSync('work', { recursive: true });
+  writeFileSync(`work/deployed-${target}.json`, JSON.stringify({ commit, branch, target, deployedAt: new Date().toISOString() }, null, 2));
   console.log(`Deployment completed from ${commit}. Synchronizing GitHub...`);
   run('git', ['push', 'origin', `${commit}:refs/heads/${branch}`]);
   const remote = run('git', ['ls-remote', 'origin', `refs/heads/${branch}`], true).split(/\s/)[0];
