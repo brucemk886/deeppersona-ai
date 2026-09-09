@@ -10,7 +10,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   await access(new URL("../public/quiz/doors.webp", import.meta.url));
   await access(new URL("../public/quiz/doors-768.webp", import.meta.url));
 
-  const [home, quiz, catalog, choiceInsights, deepResults, admin, adminStyles, store, layout, analytics, analyticsUi, hosting, privacy, terms, refunds, contact, disclaimer, legalPage, testDetail, sitemap, adminStatsRoute] = await Promise.all([
+  const [home, quiz, catalog, choiceInsights, deepResults, admin, adminStyles, store, layout, analytics, analyticsUi, hosting, privacy, terms, refunds, contact, disclaimer, legalPage, testDetail, sitemap, adminStatsRoute, adminStatsRange] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/quiz-app.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/quiz.ts", import.meta.url), "utf8"),
@@ -32,6 +32,7 @@ test("builds the complete DeepPersona AI experience", async () => {
     readFile(new URL("../app/tests/[id]/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/sitemap.xml/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/admin/stats/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/admin-stats-range.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(quiz, /DeepPersona AI/);
@@ -90,7 +91,8 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(store, /answerEvents: answerEvents\.results/);
   assert.match(store, /adminStatsTimePredicate/);
   assert.match(store, /strftime\('%Y-%m-%d %H:00', started_at\)/);
-  assert.match(store, /datetime\('now', '-29 days', 'start of day'\)/);
+  assert.match(adminStatsRange, /datetime\('now', '-29 days', 'start of day'\)/);
+  assert.match(adminStatsRange, /today[\s\S]*yesterday[\s\S]*7d[\s\S]*30d/);
   assert.doesNotMatch(store, /COUNT\(DISTINCT session_id\) AS users FROM quiz_sessions/);
   assert.match(layout, /DeepPersona AI — Visual Psychology Tests/);
   assert.match(layout, /og-deep-persona\.png/);
