@@ -1216,6 +1216,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .detail-cta { min-height: 60px; padding-inline: 27px; background: var(--test-accent); }
 .detail-assurance { display: flex; flex-wrap: wrap; gap: 9px; margin: 15px 2px 0; color: var(--muted); font-size: 11px; }
 .detail-assurance i { width: 3px; height: 3px; align-self: center; border-radius: 50%; background: var(--test-accent); }
+.detail-purchase-note { margin: 10px 2px 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.legal-shell:has(#recovery-email) { width: min(100% - 32px, 560px); margin: 48px auto; padding: 0; }
+.legal-shell:has(#recovery-email) .legal-document { padding: clamp(24px, 5vw, 40px); border: 1px solid var(--line); border-radius: 24px; background: white; }
+.legal-shell:has(#recovery-email) h1 { margin: 0 0 20px; font: 500 clamp(30px, 7vw, 42px)/1.15 Georgia, serif; }
+.legal-shell:has(#recovery-email) p { margin: 16px 0; line-height: 1.65; }
+.legal-shell:has(#recovery-email) form { display: grid; gap: 12px; margin: 24px 0; }
+.legal-shell:has(#recovery-email) label { font-weight: 650; }
+#recovery-email { width: 100%; min-height: 48px; padding: 12px 14px; border: 1px solid #8b9d94; border-radius: 10px; background: #fff; color: #182d24; font-size: 16px; }
+#recovery-email:focus { outline: 2px solid var(--forest); outline-offset: 2px; }
+.legal-shell:has(#recovery-email) a { text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
 @media (max-width: 760px) { .detail-stage { width: min(100% - 32px, 560px); margin: 26px auto 52px; grid-template-columns: 1fr; gap: 45px; } .detail-gallery { border-radius: 25px; gap: 6px; padding: 7px; transform: none; } .detail-gallery .atlas-image { border-radius: 17px; } .detail-gallery .atlas-image:first-child { border-top-left-radius: 76px; } .detail-gallery .atlas-image:nth-child(2) { border-top-right-radius: 76px; } .detail-gallery .atlas-image:nth-child(3) { border-bottom-left-radius: 76px; } .detail-gallery .atlas-image:nth-child(4) { border-bottom-right-radius: 76px; } .detail-story h1 { font-size: 43px; } .detail-intro { font-size: 16px; } .detail-cta { width: 100%; padding-inline: 18px; font-size: 14px; } }
 /* Progressive reflection and Inner Map */
 .instant-insight { width: min(780px,100%); margin: 26px auto 0; padding: clamp(22px,4vw,34px); border: 1px solid color-mix(in srgb,var(--forest) 24%,var(--line)); border-radius: 25px; background: rgba(255,255,255,.92); box-shadow: 0 18px 50px rgba(26,45,35,.09); scroll-margin: 110px; text-align: left; }
@@ -1454,3 +1464,48 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .analytics-consent-actions { width: 100%; }
   .analytics-consent-actions button { flex: 1; }
 }
+
+.report-paywall { margin-top: 2rem; border-top: 1px solid #d9dfda; padding-top: 2rem; }
+.report-paywall p { margin: 1rem 0; line-height: 1.7; }
+.report-price { font-size: 1.4rem; font-weight: 700; }
+.sandbox-notice { padding: .8rem 1rem; background: #fff0c2; color: #4b3700; border-radius: 8px; }
+.report-paywall .checkout-legal { font-size: .875rem; }
+.purchase-refund-notice { padding: 14px 16px; border: 1px solid #d7d2bd; border-radius: 10px; background: #f7f4e9; font-size: 14px; text-align: left; }
+.service-context { font-size: 13px; line-height: 1.65; color: #58675e; }
+.detail-cta:disabled { opacity: .55; cursor: not-allowed; }
+
+.mail-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
+.mail-summary .admin-card { margin: 0; padding: 22px; }
+.mail-summary span { display: block; color: #59675f; font-size: 13px; }
+.mail-summary strong { display: block; margin-top: 12px; font-size: 30px; }
+.mail-summary .mail-attention { border-color: #daaca5; background: #fff4f1; color: #923327; }
+.mail-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.mail-filters label { display: grid; gap: 8px; font-size: 13px; font-weight: 600; }
+.mail-filters input,.mail-filters select { min-height: 42px; border: 1px solid #b9c5bc; border-radius: 8px; padding: 8px 12px; background: white; color: #233d30; font: inherit; }
+.mail-filters input { width: min(320px,100%); }
+.mail-help { color: #59675f; font-size: 13px; margin: 18px 0; line-height: 1.7; }
+.mail-records td { vertical-align: top; min-width: 115px; }
+.mail-records td:first-child { min-width: 220px; }
+.mail-records td:nth-child(2) { min-width: 220px; max-width: 310px; }
+.mail-records td small { display: block; margin-top: 7px; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.mail-records details { margin-top: 10px; font-size: 12px; }
+.mail-records summary { cursor: pointer; }
+.mail-status { display: inline-block; padding: 5px 9px; border-radius: 7px; background: #f1eee5; color: #615425; font-size: 12px; font-weight: 600; }
+.mail-status-error { background: #ffebe6; color: #922c1f; }
+.mail-status-ok { background: #e8f4ec; color: #245438; }
+.mail-alert,.mail-notice { border-radius: 8px; padding: 14px 18px; background: #fff0e9; color: #872d22; }
+.mail-notice { background: #e8f4ec; color: #245438; }
+.mail-code { font-family: monospace; }
+.mail-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 20px; font-size: 13px; }
+.mail-pagination button { padding: 9px 12px; border: 1px solid #bcc8c0; border-radius: 7px; background: white; }
+.mail-records button:disabled { opacity: .5; cursor: default; }
+.mail-records .mail-resend-button { min-height: 38px; padding: 9px 15px; border: 1px solid #214f3f; border-radius: 8px; background: #214f3f; color: #fff; font: inherit; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.mail-records .mail-resend-button:hover:not(:disabled) { background: #163b2d; }
+.mail-records .mail-resend-button:focus-visible { outline: 3px solid #a3c3b3; outline-offset: 3px; }
+.mail-records .mail-resend-button:disabled { background: #eef1ef; border-color: #d5ddd8; color: #78847d; opacity: 1; cursor: not-allowed; }
+@media (max-width: 800px) { .mail-summary { grid-template-columns: repeat(2,minmax(0,1fr)); } .mail-filters label { width: 100%; } .mail-filters input { width: 100%; } }
+.order-overview { margin-bottom: 24px; }
+.order-trend { display: flex; gap: 12px; overflow-x: auto; padding: 24px 4px 8px; }
+.order-trend-day { flex: 1; min-width: 38px; text-align: center; font-size: 13px; }
+.order-trend-track { height: 120px; display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px solid #dce4df; margin: 8px 0; }
+.order-trend-track span { width: 65%; max-width: 40px; background: #204e3e; border-radius: 5px 5px 0 0; }

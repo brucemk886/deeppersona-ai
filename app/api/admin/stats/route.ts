@@ -1,3 +1,5 @@
+import { getTrafficStats } from '@/db/traffic-stats';
+import { getOrderStats } from '@/db/order-stats';
 import { isAdminRequest } from "@/app/admin-auth";
 import { getAdminStats } from "@/db/quiz-store";
 
@@ -7,5 +9,7 @@ export async function GET(request: Request) {
   if (!await isAdminRequest(request)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  return Response.json(await getAdminStats());
+  const traffic = await getTrafficStats();
+  const [stats, orders] = await Promise.all([getAdminStats(), getOrderStats()]);
+  return Response.json({ ...stats, orders, traffic }, { headers: { "Cache-Control": "no-store" } });
 }

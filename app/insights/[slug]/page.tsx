@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { InsightCard, InsightsFooter, InsightsHeader } from "@/app/insights/_components/insights-chrome";
 import { getInsightArticle, insightArticles } from "@/lib/insights";
-import { defaultTests } from "@/lib/quiz";
+import { defaultTests } from "@/lib/quiz-content";
 import { getInsightCardsForCluster, getInsightCluster } from "@/lib/insights-index";
 
 const SITE_URL = "https://deeppersonaai.com";

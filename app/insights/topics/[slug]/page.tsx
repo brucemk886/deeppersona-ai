@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { InsightCard, InsightsFooter, InsightsHeader } from "@/app/insights/_components/insights-chrome";
-import { defaultTests } from "@/lib/quiz";
+import { defaultTests } from "@/lib/quiz-content";
 import { getInsightCardsForCluster, getInsightCluster, insightClusters } from "@/lib/insights-index";
 
 export function generateStaticParams() {

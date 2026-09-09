@@ -1,22 +1,28 @@
 "use client";
+import type { AnswerRecord } from "@/lib/admin-answer-records";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { TRAIT_KEYS, type AffiliateProduct, type QuizQuestion, type QuizTest, type TraitKey } from "@/lib/quiz";
+import TrafficReport, { type TrafficData } from "./traffic-panel";
+import ReportEmailPanel from './report-email-panel';
+import { type AffiliateProduct, type QuizQuestion, type QuizTest } from "@/lib/quiz";
 
-type AdminSection = "overview" | "tests" | "questions" | "traffic" | "emails" | "payments" | "affiliates";
+type AdminSection = "overview" | "tests" | "questions" | "traffic" | "emails" | "email-records" | "payments" | "affiliates";
 
 type Stats = {
+  traffic: TrafficData;
+  orders: { days: { day: string; orders: number }[]; today: number; yesterday: number; lastSeven: number; previousSeven: number };
   answerEvents: { option_label: string | null; question_id: string; session_id: string }[];
   funnel: { event_name: string; users: number }[];
   sources: { source: string; users: number }[];
   emails: {
-    answers_json: string | null;
+    is_test: number;
+    deleted_at: string | null;
+    answers: AnswerRecord[];
     campaign: string | null;
     completed_at: string;
     email: string;
     marketing_consent: number;
-    result_type: string;
     session_id: string;
     source: string | null;
     test_id: string | null;
@@ -32,100 +38,29 @@ type Stats = {
 
 const navigation: { id: AdminSection; icon: string; label: string }[] = [
   { id: "overview", icon: "概", label: "数据概览" },
+  { id: "payments", icon: "单", label: "订单" },
   { id: "tests", icon: "测", label: "测试管理" },
   { id: "questions", icon: "题", label: "题目管理" },
   { id: "traffic", icon: "流", label: "流量分析" },
   { id: "emails", icon: "邮", label: "邮箱用户" },
-  { id: "payments", icon: "付", label: "支付设置" },
+  { id: "email-records", icon: "信", label: "邮件记录" },
   { id: "affiliates", icon: "链", label: "联盟产品" },
 ];
 
 const funnelOrder = [
   ["quiz_started", "开始测试"],
-  ["answer_selected", "完成答题"],
-  ["email_gate_viewed", "到达邮箱页"],
+  ["email_gate_viewed", "完成答题（到达邮箱页）"],
+  ["email_submitted", "提交邮箱"],
   ["result_viewed", "查看结果"],
 ] as const;
 
-const resultNames: Record<string, string> = {
-  explorer: "探索者",
-  connector: "连接者",
-  architect: "架构者",
-  creator: "创造者",
-};
-
-const segmentRecommendations: Record<string, string> = {
-  explorer: "自我探索、旅行体验、职业转型、成长课程",
-  connector: "亲密关系、沟通训练、情绪陪伴、社群型产品",
-  architect: "效率规划、边界管理、压力调节、结构化课程",
-  creator: "表达写作、创意练习、个人品牌、艺术体验",
-};
-
 type EmailLead = Stats["emails"][number];
 
-type LeadAnswerDetail = {
-  option: QuizQuestion["options"][number] | undefined;
-  optionIndex: number;
-  optionLabel: string;
-  question: QuizQuestion | undefined;
-  questionId: string;
-  scoreKey: TraitKey;
-};
-
-function parseAnswers(value: string | null): Record<string, TraitKey> {
-  if (!value) return {};
-  try {
-    return JSON.parse(value) as Record<string, TraitKey>;
-  } catch {
-    return {};
-  }
-}
-
-function getLeadAnswerDetails(
-  lead: EmailLead,
-  questions: QuizQuestion[],
-  answerEvents: Stats["answerEvents"],
-): LeadAnswerDetail[] {
-  const latestLabels = new Map<string, string>();
-  answerEvents.forEach((event) => {
-    if (event.session_id === lead.session_id && event.option_label && !latestLabels.has(event.question_id)) {
-      latestLabels.set(event.question_id, event.option_label);
-    }
-  });
-
-  return Object.entries(parseAnswers(lead.answers_json))
-    .map(([questionId, scoreKey]) => {
-      const question = questions.find((item) => item.id === questionId);
-      const eventLabel = latestLabels.get(questionId);
-      let optionIndex = question?.options.findIndex((option) => option.label === eventLabel) ?? -1;
-      if (optionIndex < 0) optionIndex = question?.options.findIndex((option) => option.scoreKey === scoreKey) ?? -1;
-      const option = optionIndex >= 0 ? question?.options[optionIndex] : undefined;
-      return {
-        option,
-        optionIndex,
-        optionLabel: eventLabel ?? option?.label ?? "历史选项",
-        question,
-        questionId,
-        scoreKey,
-      };
-    })
-    .sort((a, b) => (a.question?.position ?? 999) - (b.question?.position ?? 999));
-}
-
-function getMarketingTags(lead: EmailLead) {
-  const counts = new Map<string, number>();
-  Object.values(parseAnswers(lead.answers_json)).forEach((key) => counts.set(key, (counts.get(key) ?? 0) + 1));
-  const choiceTags = [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([key, count]) => `${resultNames[key] ?? key}倾向 ×${count}`);
-  return [`主类型 · ${resultNames[lead.result_type] ?? lead.result_type}`, ...choiceTags];
-}
-
 const blankOptions = [
-  { label: "选项 A", microcopy: "补充说明", meaning: "填写这个选项代表什么", projection: "填写用户选择后的心理投射解读", scoreKey: "explorer" as TraitKey },
-  { label: "选项 B", microcopy: "补充说明", meaning: "填写这个选项代表什么", projection: "填写用户选择后的心理投射解读", scoreKey: "connector" as TraitKey },
-  { label: "选项 C", microcopy: "补充说明", meaning: "填写这个选项代表什么", projection: "填写用户选择后的心理投射解读", scoreKey: "architect" as TraitKey },
-  { label: "选项 D", microcopy: "补充说明", meaning: "填写这个选项代表什么", projection: "填写用户选择后的心理投射解读", scoreKey: "creator" as TraitKey },
+  { label: "选项 A", microcopy: "补充说明", meaning: "填写这个选项代表什么", projection: "填写用户选择后的心理投射解读" },
+  { label: "选项 B", microcopy: "补充说明", meaning: "填写这个选项代表什么", projection: "填写用户选择后的心理投射解读" },
+  { label: "选项 C", microcopy: "补充说明", meaning: "填写这个选项代表什么", projection: "填写用户选择后的心理投射解读" },
+  { label: "选项 D", microcopy: "补充说明", meaning: "填写这个选项代表什么", projection: "填写用户选择后的心理投射解读" },
 ];
 
 function formatDate(value: string) {
@@ -144,8 +79,8 @@ function formatDay(value: string) {
   );
 }
 
-async function fetchAdminJson<T>(url: string): Promise<T> {
-  const response = await fetch(url, { cache: "no-store" });
+async function fetchAdminJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(url, { ...options, cache: "no-store" });
   if (!response.ok) throw new Error(`${url} 读取失败`);
   return response.json() as Promise<T>;
 }
@@ -170,9 +105,25 @@ export function AdminDashboard({
   const [notice, setNotice] = useState("");
   const [emailSearch, setEmailSearch] = useState("");
   const [consentOnly, setConsentOnly] = useState(false);
-  const [segmentFilter, setSegmentFilter] = useState("all");
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [leadBusy, setLeadBusy] = useState("");
+  async function changeLead(lead: EmailLead) {
+    setLeadBusy(lead.session_id);
+    try {
+      await fetchAdminJson("/api/admin/email-users", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: lead.session_id, deleted: !lead.deleted_at }) });
+      setStats(current => current ? { ...current, emails: current.emails.map(item => item.session_id === lead.session_id ? { ...item, deleted_at: lead.deleted_at ? null : new Date().toISOString() } : item) } : current);
+      await loadData(true);
+      showNotice(lead.deleted_at ? "记录已恢复" : "已移至已删除，可随时恢复");
+    } catch { showNotice("操作失败，请重试"); } finally { setLeadBusy(""); }
+  }
 
   const loadData = useCallback(async (quiet = false) => {
+    // Background refreshes and saves must never replace unsaved editor drafts.
+    if (quiet) {
+      try { setStats(await fetchAdminJson<Stats>("/api/admin/stats")); }
+      catch { /* Keep the last successful statistics during temporary outages. */ }
+      return;
+    }
     if (!quiet) setLoading(true);
     try {
       const [statsResult, questionsResult, testsResult, productsResult] = await Promise.allSettled([
@@ -214,7 +165,7 @@ export function AdminDashboard({
 
   useEffect(() => {
     const initial = window.setTimeout(() => void loadData(), 0);
-    const timer = window.setInterval(() => void loadData(true), 30_000);
+    const timer = window.setInterval(() => { if (!document.hidden) void loadData(true); }, 60 * 60 * 1000);
     return () => {
       window.clearTimeout(initial);
       window.clearInterval(timer);
@@ -222,9 +173,10 @@ export function AdminDashboard({
   }, [loadData]);
 
   const funnel = useMemo(() => {
-    const values = new Map(stats?.funnel.map((item) => [item.event_name, item.users]) ?? []);
-    return funnelOrder.map(([key, label]) => ({ key, label, users: values.get(key) ?? 0 }));
+    const values = stats?.traffic.operations;
+    return ([['started','开始测试'],['finished','完成答题'],['submitted','提交邮箱'],['checkout','收银台已创建'],['paid','付款成功']] as const).map(([key,label]) => ({key,label,users:values?.[key] ?? 0}));
   }, [stats]);
+
   const funnelMax = Math.max(1, funnel[0]?.users ?? 0);
   const sevenDayTotal = stats?.sevenDays.reduce((sum, item) => sum + item.sessions, 0) ?? 0;
   const chartMax = Math.max(1, ...(stats?.sevenDays.map((item) => item.sessions) ?? [0]));
@@ -235,11 +187,11 @@ export function AdminDashboard({
     const needle = emailSearch.trim().toLowerCase();
     return (stats?.emails ?? []).filter(
       (lead) =>
-        (!needle || [lead.email, lead.test_title, resultNames[lead.result_type]].some((value) => value?.toLowerCase().includes(needle))) &&
-        (!consentOnly || Boolean(lead.marketing_consent)) &&
-        (segmentFilter === "all" || lead.result_type === segmentFilter),
+        (!needle || [lead.email, lead.test_title, lead.test_id, lead.session_id].some((value) => value?.toLowerCase().includes(needle))) &&
+        Boolean(lead.deleted_at) === showDeleted &&
+        (!consentOnly || Boolean(lead.marketing_consent)),
     );
-  }, [consentOnly, emailSearch, segmentFilter, stats]);
+  }, [consentOnly, emailSearch, stats, showDeleted]);
 
   function showNotice(message: string) {
     setNotice(message);
@@ -260,7 +212,7 @@ export function AdminDashboard({
   function updateOption(
     questionId: string,
     index: number,
-    next: { label?: string; meaning?: string; microcopy?: string; projection?: string; scoreKey?: TraitKey },
+    next: { label?: string; meaning?: string; microcopy?: string; projection?: string },
   ) {
     setQuestions((current) =>
       current.map((question) =>
@@ -358,17 +310,15 @@ export function AdminDashboard({
       return `"${safe}"`;
     };
     const rows = [
-      ["邮箱", "测试名称", "结果类型", "营销分群", "推荐产品方向", "逐题选择", "流量来源", "活动参数", "营销授权", "提交时间"],
-      ...filteredEmails.map((lead) => {
-        const choices = getLeadAnswerDetails(lead, questions, stats?.answerEvents ?? [])
-          .map((answer, index) => `Q${index + 1} ${answer.optionLabel}（${resultNames[answer.scoreKey] ?? answer.scoreKey}）`)
+      ["记录编号", "邮箱", "测试名称", "逐题选择", "流量来源", "活动参数", "营销授权", "提交时间"],
+      ...filteredEmails.filter((lead) => !lead.deleted_at && !lead.is_test).map((lead) => {
+        const choices = lead.answers
+          .map((answer, index) => `Q${index + 1} ${answer.prompt}：${answer.optionLabel}`)
           .join("；");
         return [
+          lead.session_id,
           lead.email,
           lead.test_title ?? lead.test_id ?? "未知测试",
-          resultNames[lead.result_type] ?? lead.result_type,
-          getMarketingTags(lead).join("；"),
-          segmentRecommendations[lead.result_type] ?? "根据测试内容人工判断",
           choices,
           lead.source ?? "direct",
           lead.campaign ?? "—",
@@ -458,8 +408,8 @@ export function AdminDashboard({
             <strong>{navigation.find((item) => item.id === activeSection)?.label}</strong>
           </div>
           <div className="topbar-actions">
-            <span className="live-indicator"><i /> 数据每 30 秒更新</span>
-            <button className="admin-ghost-button" onClick={() => void loadData()}>刷新数据</button>
+            <span className="live-indicator"><i /> 每 1 小时更新{stats?.traffic.updatedAt ? ` · ${new Date(stats.traffic.updatedAt).toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai" })}` : ""}</span>
+            <button className="admin-ghost-button" disabled={loading} onClick={() => void loadData()}>{loading ? "刷新中…" : "刷新数据"}</button>
             <Link className="admin-primary-button" href="/" target="_blank">查看网站 ↗</Link>
           </div>
         </header>
@@ -512,30 +462,23 @@ export function AdminDashboard({
           ) : null}
 
           {activeSection === "traffic" ? (
-            <TrafficPanel
-              chartMax={chartMax}
-              funnel={funnel}
-              funnelMax={funnelMax}
-              stats={stats}
-            />
+            <TrafficReport data={stats?.traffic} />
           ) : null}
 
           {activeSection === "emails" ? (
             <EmailPanel
+              showDeleted={showDeleted} setShowDeleted={setShowDeleted} changeLead={changeLead} leadBusy={leadBusy}
               consentOnly={consentOnly}
               emailSearch={emailSearch}
               emails={filteredEmails}
               exportEmails={exportEmails}
-              answerEvents={stats?.answerEvents ?? []}
-              questions={questions}
-              segmentFilter={segmentFilter}
               setConsentOnly={setConsentOnly}
               setEmailSearch={setEmailSearch}
-              setSegmentFilter={setSegmentFilter}
             />
           ) : null}
 
           {activeSection === "payments" ? <PaymentPanel /> : null}
+          {activeSection === "email-records" ? <ReportEmailPanel /> : null}
           {activeSection === "affiliates" ? (
             <AffiliateProductsPanel addProduct={addAffiliateProduct} products={affiliateProducts} removeProduct={removeAffiliateProduct} saveProduct={saveAffiliateProduct} savingId={savingId} updateProduct={updateAffiliateProduct} />
           ) : null}
@@ -568,28 +511,29 @@ function Overview({
         <div><span className="admin-kicker">实时经营数据</span><h1>欢迎回来，今天的测试表现如下</h1></div>
         <span className="admin-date">{new Intl.DateTimeFormat("zh-CN", { dateStyle: "long" }).format(new Date())}</span>
       </div>
+      <OrderOverview orders={stats?.orders} />
       <section className="metric-grid five">
-        <MetricCard accent="green" label="当前在线" value={loading ? "—" : stats?.onlineNow ?? 0} note="最近 5 分钟活跃用户" live />
-        <MetricCard label="今日访问" value={loading ? "—" : stats?.today.sessions ?? 0} note={`今日新增邮箱 ${stats?.today.leads ?? 0}`} />
-        <MetricCard label="近 7 日流量" value={loading ? "—" : sevenDayTotal} note="独立测试会话" />
+        <MetricCard accent="green" label="上次更新时活跃" value={loading ? "—" : stats?.onlineNow ?? 0} note="更新前 5 分钟的测试会话" live />
+        <MetricCard label="今日测试会话" value={loading ? "—" : stats?.today.sessions ?? 0} note={`今日新增邮箱 ${stats?.today.leads ?? 0}`} />
+        <MetricCard label="近 7 日测试会话" value={loading ? "—" : sevenDayTotal} note="独立测试会话" />
         <MetricCard label="累计邮箱" value={loading ? "—" : stats?.totals.leads ?? 0} note={`营销授权 ${stats?.totals.consented ?? 0}`} />
-        <MetricCard accent="wine" label="邮箱转化率" value={`${conversion}%`} note="访问 → 邮箱提交" />
+        <MetricCard accent="wine" label="邮箱转化率" value={`${conversion}%`} note="测试会话 → 可见邮箱记录" />
       </section>
 
       <section className="dashboard-two-column wide-left">
         <div className="admin-card chart-card">
-          <CardHeader title="最近 7 日流量" subtitle="访问会话与邮箱转化趋势" />
+          <CardHeader title="最近 7 日测试会话" subtitle="访问会话与邮箱转化趋势" />
           <SevenDayChart data={stats?.sevenDays ?? []} max={chartMax} />
         </div>
         <div className="admin-card">
-          <CardHeader title="转化漏斗" subtitle="各关键节点的独立用户" />
+          <CardHeader title="转化漏斗" subtitle="近 14 天测试会话；含免费测试，详见流量分析" />
           <Funnel funnel={funnel} max={funnelMax} />
         </div>
       </section>
 
       <section className="dashboard-two-column equal">
         <div className="admin-card">
-          <CardHeader title="最热门题目" subtitle="按照用户选择次数排序" />
+          <CardHeader title="题目作答次数" subtitle="累计次数，不代表题目吸引力" />
           <PopularQuestions items={stats?.popularQuestions ?? []} />
         </div>
         <div className="admin-card">
@@ -598,11 +542,30 @@ function Overview({
         </div>
       </section>
       <section className="admin-card traffic-full">
-        <CardHeader title="热门测试排行" subtitle="按照开始测试的独立用户数排序" />
+        <CardHeader title="热门测试排行" subtitle="按照开始测试的会话数排序" />
         <PopularTests items={stats?.popularTests ?? []} />
       </section>
     </>
   );
+}
+
+function OrderOverview({ orders }: { orders: Stats['orders'] | undefined }) {
+  const max = Math.max(1, ...(orders?.days.map(day => day.orders) ?? []));
+  const change = orders ? orders.lastSeven - orders.previousSeven : 0;
+  return <section className="admin-card order-overview">
+    <CardHeader title="每日成交订单" subtitle="北京时间（UTC+8）· 按付款成功时间统计；不含沙盒、内部预览及未付款订单，后续退款不抹除成交记录。" />
+    <div className="metric-grid four">
+      <MetricCard accent="green" label="今日成交" value={orders?.today ?? '—'} note="今日截至当前" />
+      <MetricCard label="昨日成交" value={orders?.yesterday ?? '—'} note="昨日全天" />
+      <MetricCard label="近 7 日成交" value={orders?.lastSeven ?? '—'} note="含今日" />
+      <MetricCard label="较前 7 日变化" value={orders ? `${change > 0 ? '+' : ''}${change} 单` : '—'} note={`前 7 日 ${orders?.previousSeven ?? '—'} 单；当前周期含未结束的今日`} />
+    </div>
+    <div className="order-trend" role="img" aria-label={orders ? `最近14天成交订单：${orders.days.map(day => `${day.day} ${day.orders}单`).join('，')}` : '订单趋势加载中'}>
+      {orders?.days.map(day => <div className="order-trend-day" key={day.day} title={`${day.day}：${day.orders} 单`}>
+        <strong>{day.orders}</strong><div className="order-trend-track"><span style={{ height: `${day.orders / max * 100}%` }} /></div><small>{day.day.slice(5).replace('-', '/')}</small>
+      </div>)}
+    </div>
+  </section>;
 }
 
 function MetricCard({
@@ -754,7 +717,6 @@ function TestManager({
               <label>英文简介<textarea rows={3} value={test.description} onChange={(event) => updateTest(test.id, { description: event.target.value })} /></label>
               <div className="field-row two"><label>封面拼图地址<input list="atlas-paths" value={test.coverAtlasPath} onChange={(event) => updateTest(test.id, { coverAtlasPath: event.target.value })} /></label><label>排序<input min="1" type="number" value={test.position} onChange={(event) => updateTest(test.id, { position: Number(event.target.value) })} /></label></div>
               <label>完整解析价格（USD，填 0 为免费且前台不展示价格）<input min="0" step="0.01" type="number" value={(test.reportPriceCents / 100).toFixed(2)} onChange={(event) => updateTest(test.id, { reportPriceCents: Math.max(0, Math.round(Number(event.target.value || 0) * 100)) })} /></label>
-              <details className="affiliate-config"><summary>按结果选择联盟产品（可选）</summary><p>先在「联盟产品」建立产品库，再为每种结果选择一个产品。产品内容改动后，所有已关联结果会自动同步；不选择则前台不展示。</p><div className="affiliate-result-grid">{TRAIT_KEYS.map((key) => { const selectedId = test.results[key].affiliateProductId ?? ""; const exists = !selectedId || products.some((product) => product.id === selectedId); return <fieldset key={key}><legend>{test.results[key].title}（{resultNames[key]}）</legend><label>关联产品<select value={selectedId} onChange={(event) => updateTest(test.id, { results: { ...test.results, [key]: { ...test.results[key], affiliateProductId: event.target.value || undefined } } })}><option value="">不展示联盟推荐</option>{!exists ? <option value={selectedId}>已删除产品（请重新选择）</option> : null}{products.map((product) => <option key={product.id} value={product.id}>{product.active ? "" : "已下架 · "}{product.name || "未命名产品"}</option>)}</select></label></fieldset>; })}</div></details>
               <label className="featured-checkbox"><input checked={test.featured} onChange={(event) => updateTest(test.id, { featured: event.target.checked })} type="checkbox" />设为首页主推测试</label>
               <button className="admin-primary-button" disabled={savingId === test.id} onClick={() => void saveTest(test)}>{savingId === test.id ? "保存中…" : "保存测试"}</button>
             </div>
@@ -794,7 +756,7 @@ function QuestionManager({
   setSelectedTestId: (value: string) => void;
   savingId: string;
   tests: QuizTest[];
-  updateOption: (id: string, index: number, next: { label?: string; meaning?: string; microcopy?: string; projection?: string; scoreKey?: TraitKey }) => void;
+  updateOption: (id: string, index: number, next: { label?: string; meaning?: string; microcopy?: string; projection?: string }) => void;
   updateQuestion: (id: string, next: Partial<QuizQuestion>) => void;
 }) {
   return (
@@ -843,7 +805,6 @@ function QuestionManager({
                       <label>补充说明<input value={option.microcopy} onChange={(event) => updateOption(question.id, optionIndex, { microcopy: event.target.value })} /></label>
                       <label>选择含义<textarea rows={3} value={option.meaning} onChange={(event) => updateOption(question.id, optionIndex, { meaning: event.target.value })} /></label>
                       <label>投射解读<textarea rows={4} value={option.projection} onChange={(event) => updateOption(question.id, optionIndex, { projection: event.target.value })} /></label>
-                      <label>计分类型<select value={option.scoreKey} onChange={(event) => updateOption(question.id, optionIndex, { scoreKey: event.target.value as TraitKey })}><option value="explorer">探索者</option><option value="connector">连接者</option><option value="architect">架构者</option><option value="creator">创造者</option></select></label>
                     </section>
                   ))}
                 </div>
@@ -857,89 +818,67 @@ function QuestionManager({
   );
 }
 
-function TrafficPanel({ chartMax, funnel, funnelMax, stats }: { chartMax: number; funnel: { key: string; label: string; users: number }[]; funnelMax: number; stats: Stats | null }) {
-  return (
-    <>
-      <div className="admin-page-heading"><div><span className="admin-kicker">获客与转化</span><h1>流量分析</h1><p>查看 TikTok 矩阵、UTM 活动和站内关键路径表现。</p></div></div>
-      <section className="metric-grid four"><MetricCard accent="green" label="当前在线" value={stats?.onlineNow ?? 0} note="近 5 分钟活跃" live /><MetricCard label="今日流量" value={stats?.today.sessions ?? 0} note={`邮箱 ${stats?.today.leads ?? 0}`} /><MetricCard label="累计会话" value={stats?.totals.sessions ?? 0} note="全部来源" /><MetricCard accent="wine" label="累计邮箱" value={stats?.totals.leads ?? 0} note="完成邮箱解锁" /></section>
-      <section className="admin-card chart-card traffic-full"><CardHeader title="最近 7 日流量趋势" subtitle="每天的访问与邮箱提交" /><SevenDayChart data={stats?.sevenDays ?? []} max={chartMax} /></section>
-      <section className="dashboard-two-column equal"><div className="admin-card"><CardHeader title="流量来源" subtitle="来源参数与直接访问" /><SourceList sources={stats?.sources ?? []} /></div><div className="admin-card"><CardHeader title="完整转化漏斗" subtitle="发现具体流失节点" /><Funnel funnel={funnel} max={funnelMax} /></div></section>
-      <section className="dashboard-two-column equal"><div className="admin-card"><CardHeader title="热门测试排行" subtitle="开始测试的独立用户" /><PopularTests items={stats?.popularTests ?? []} /></div><div className="admin-card"><CardHeader title="热门题目排行" subtitle="用户选择最多的题目" /><PopularQuestions items={stats?.popularQuestions ?? []} /></div></section>
-    </>
-  );
-}
-
 function EmailPanel({
-  answerEvents,
+  showDeleted, setShowDeleted, changeLead, leadBusy,
   consentOnly,
   emailSearch,
   emails,
   exportEmails,
-  questions,
-  segmentFilter,
   setConsentOnly,
   setEmailSearch,
-  setSegmentFilter,
 }: {
-  answerEvents: Stats["answerEvents"];
+  showDeleted: boolean;
+  setShowDeleted: (value: boolean) => void;
+  changeLead: (lead: EmailLead) => Promise<void>;
+  leadBusy: string;
   consentOnly: boolean;
   emailSearch: string;
   emails: Stats["emails"];
   exportEmails: () => void;
-  questions: QuizQuestion[];
-  segmentFilter: string;
   setConsentOnly: (value: boolean) => void;
   setEmailSearch: (value: string) => void;
-  setSegmentFilter: (value: string) => void;
 }) {
   const [selectedSessionId, setSelectedSessionId] = useState("");
   const selectedLead = emails.find((lead) => lead.session_id === selectedSessionId);
-  const selectedAnswers = selectedLead ? getLeadAnswerDetails(selectedLead, questions, answerEvents) : [];
+  const selectedAnswers = selectedLead ? selectedLead.answers : [];
 
   return (
     <>
-      <div className="admin-page-heading"><div><span className="admin-kicker">用户资产</span><h1>邮箱用户</h1><p>查看每位用户的逐题选择、心理投射和营销分群，便于定向推荐后续产品。</p></div><button className="admin-primary-button" onClick={exportEmails}>导出分群 CSV</button></div>
-      <div className="email-guidance"><strong>定向营销提示</strong><span>结果类型和答题倾向可以用来划分内容兴趣；实际发送邮件时，请仅使用“已授权营销”的用户。</span></div>
+      <div className="admin-page-heading"><div><span className="admin-kicker">用户资产</span><h1>邮箱用户</h1><p>按每次测试记录邮箱和原始答案；同一邮箱可有多次测试记录。</p></div><button className="admin-primary-button" disabled={showDeleted} onClick={exportEmails}>导出测试记录 CSV</button></div>
+      <div className="email-guidance"><strong>邮箱授权</strong><span>营销授权独立记录，不根据测试答案自动分类。发送营销邮件时仅使用已授权的邮箱。</span></div>
+      <p>删除仅隐藏这条邮箱记录，可在“已删除”中恢复；答案、订单和已购报告保留。已删除记录不计入邮箱统计或导出。</p>
       <div className="email-toolbar">
-        <label className="email-search">⌕<input placeholder="搜索邮箱、测试或类型" value={emailSearch} onChange={(event) => setEmailSearch(event.target.value)} /></label>
-        <label className="segment-filter">营销分群<select value={segmentFilter} onChange={(event) => setSegmentFilter(event.target.value)}><option value="all">全部类型</option>{Object.entries(resultNames).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+        <label className="segment-filter">记录状态<select value={showDeleted ? "deleted" : "active"} onChange={event => setShowDeleted(event.target.value === "deleted")}><option value="active">正常记录</option><option value="deleted">已删除</option></select></label>
+        <label className="email-search">⌕<input placeholder="搜索邮箱、测试或记录编号" value={emailSearch} onChange={(event) => setEmailSearch(event.target.value)} /></label>
         <label className="consent-filter"><input checked={consentOnly} onChange={(event) => setConsentOnly(event.target.checked)} type="checkbox" />仅显示已授权营销</label>
         <span>共 {emails.length} 条记录</span>
       </div>
       <section className="admin-card email-table-card">
-        <div className="table-scroll"><table className="lead-table-cn"><thead><tr><th>邮箱地址</th><th>测试名称</th><th>结果类型</th><th>营销分群</th><th>流量来源</th><th>营销授权</th><th>提交时间</th><th>答题详情</th></tr></thead><tbody>{emails.map((lead) => <tr key={lead.session_id}><td><strong>{lead.email}</strong></td><td>{lead.test_title ?? lead.test_id ?? "未知测试"}</td><td><span className={`result-tag ${lead.result_type}`}>{resultNames[lead.result_type] ?? lead.result_type}</span></td><td><span className="segment-summary">{getMarketingTags(lead).slice(1).join(" · ") || "待分析"}</span></td><td>{lead.source ?? "direct"}</td><td>{lead.marketing_consent ? <span className="consent-yes">● 已授权</span> : <span className="consent-no">仅查看结果</span>}</td><td>{formatDate(lead.completed_at)}</td><td><button className="lead-detail-button" onClick={() => setSelectedSessionId(lead.session_id)}>查看详情 →</button></td></tr>)}</tbody></table></div>
+        <div className="table-scroll"><table className="lead-table-cn"><thead><tr><th>邮箱地址</th><th>测试名称</th><th>答案记录</th><th>流量来源</th><th>营销授权</th><th>提交时间</th><th>操作</th></tr></thead><tbody>{emails.map((lead) => <tr key={lead.session_id}><td><strong>{lead.email}</strong></td><td>{lead.test_title ?? lead.test_id ?? "未知测试"}</td><td>{lead.answers.length} 道题</td><td>{lead.source ?? "direct"}</td><td>{lead.marketing_consent ? <span className="consent-yes">● 已授权</span> : <span className="consent-no">仅查看结果</span>}</td><td>{formatDate(lead.completed_at)}</td><td><button className="lead-detail-button" onClick={() => setSelectedSessionId(lead.session_id)}>查看详情 →</button> <button className="lead-detail-button" disabled={Boolean(leadBusy)} onClick={() => void changeLead(lead)}>{leadBusy === lead.session_id ? "处理中…" : lead.deleted_at ? "恢复" : "删除"}</button></td></tr>)}</tbody></table></div>
         {!emails.length ? <EmptyState title="暂无邮箱记录" text="用户完成测试并提交邮箱后会显示在这里。" /> : null}
       </section>
       {selectedLead ? (
         <div className="lead-detail-backdrop" onClick={() => setSelectedSessionId("")} role="presentation">
           <aside aria-labelledby="lead-detail-title" aria-modal="true" className="lead-detail-drawer" onClick={(event) => event.stopPropagation()} role="dialog">
             <header className="lead-detail-header">
-              <div><span>用户答题档案</span><h2 id="lead-detail-title">{selectedLead.email}</h2><p>{selectedLead.test_title ?? selectedLead.test_id ?? "未知测试"} · {formatDate(selectedLead.completed_at)}</p></div>
+              <div><span>用户测试记录</span><h2 id="lead-detail-title">{selectedLead.email}</h2><p>{selectedLead.test_title ?? selectedLead.test_id ?? "未知测试"} · {formatDate(selectedLead.completed_at)}</p></div>
               <button aria-label="关闭答题详情" onClick={() => setSelectedSessionId("")}>×</button>
             </header>
             <section className="lead-profile-grid">
-              <div><span>最终类型</span><strong>{resultNames[selectedLead.result_type] ?? selectedLead.result_type}</strong></div>
               <div><span>营销授权</span><strong className={selectedLead.marketing_consent ? "consent-yes" : "consent-no"}>{selectedLead.marketing_consent ? "已授权" : "未授权"}</strong></div>
               <div><span>流量来源</span><strong>{selectedLead.source ?? "direct"}</strong></div>
               <div><span>活动参数</span><strong>{selectedLead.campaign ?? "—"}</strong></div>
             </section>
-            <section className="lead-marketing-card">
-              <span>营销分群标签</span>
-              <div>{getMarketingTags(selectedLead).map((tag) => <b key={tag}>{tag}</b>)}</div>
-              <p><strong>适合推荐：</strong>{segmentRecommendations[selectedLead.result_type] ?? "根据测试内容人工判断"}</p>
-            </section>
             <section className="lead-answer-section">
-              <header><span>逐题选择</span><strong>{selectedAnswers.length} 条已保存答案</strong></header>
+              <p>记录编号：{selectedLead.session_id}</p><header><span>逐题选择</span><strong>{selectedAnswers.length} 条已保存答案</strong></header>
               <div className="lead-answer-list">
                 {selectedAnswers.map((answer, index) => (
                   <article className="lead-answer-card" key={answer.questionId}>
                     <AnswerThumbnail answer={answer} />
                     <div>
-                      <span>第 {index + 1} 题 · 用户选择 {answer.optionIndex >= 0 ? String.fromCharCode(65 + answer.optionIndex) : "—"}</span>
-                      <h3>{answer.question?.prompt ?? `历史题目 ${answer.questionId}`}</h3>
+                      <span>第 {index + 1} 题 · 用户选择 {answer.optionIndex !== null ? String.fromCharCode(65 + answer.optionIndex) : "—"}</span>
+                      <h3>{answer.prompt}</h3>
                       <strong>{answer.optionLabel}</strong>
-                      <p><b>代表含义：</b>{answer.option?.meaning ?? "历史选项内容已变更，保留了原始选择标签。"}</p>
-                      <p><b>心理投射：</b>{answer.option?.projection ?? `已保存倾向：${resultNames[answer.scoreKey] ?? answer.scoreKey}`}</p>
                     </div>
                   </article>
                 ))}
@@ -953,8 +892,8 @@ function EmailPanel({
   );
 }
 
-function AnswerThumbnail({ answer }: { answer: LeadAnswerDetail }) {
-  if (!answer.question || answer.optionIndex < 0) return <div className="lead-answer-thumb empty">?</div>;
+function AnswerThumbnail({ answer }: { answer: AnswerRecord }) {
+  if (!answer.atlasPath || answer.optionIndex === null) return <div className="lead-answer-thumb empty">?</div>;
   const horizontal = answer.optionIndex % 2 === 0 ? "0%" : "100%";
   const vertical = answer.optionIndex < 2 ? "0%" : "100%";
   return (
@@ -962,19 +901,27 @@ function AnswerThumbnail({ answer }: { answer: LeadAnswerDetail }) {
       aria-label={`选择 ${String.fromCharCode(65 + answer.optionIndex)} 的图片`}
       className="lead-answer-thumb"
       role="img"
-      style={{ backgroundImage: `url(${answer.question.atlasPath})`, backgroundPosition: `${horizontal} ${vertical}` }}
+      style={{ backgroundImage: `url(${answer.atlasPath})`, backgroundPosition: `${horizontal} ${vertical}` }}
     />
   );
 }
 
 function PaymentPanel() {
-  return (
-    <>
-      <div className="admin-page-heading"><div><span className="admin-kicker">商业化配置</span><h1>支付设置</h1><p>支付入口已经预留，连接服务商后即可启用付费报告。</p></div></div>
-      <section className="payment-provider-grid"><article><span className="provider-mark creem">C</span><div><strong>Creem</strong><small>适合数字产品和全球税务处理</small></div><span className="status-tag">待连接</span><button disabled>连接 Creem</button></article><article><span className="provider-mark stripe">S</span><div><strong>Stripe</strong><small>成熟的支付与订阅基础设施</small></div><span className="status-tag">待连接</span><button disabled>连接 Stripe</button></article></section>
-      <section className="admin-card payment-checklist"><CardHeader title="上线付费报告前" subtitle="当前用户端已经保留升级入口" /><div><span>1</span><p><strong>选择支付服务商</strong><small>在 Creem 与 Stripe 中确定一个主要结账渠道。</small></p><b>待完成</b></div><div><span>2</span><p><strong>配置商品与价格</strong><small>创建完整报告商品，并获得 Price ID 或 Product ID。</small></p><b>待完成</b></div><div><span>3</span><p><strong>接入 Webhook</strong><small>付款成功后解锁报告，并记录订单状态。</small></p><b>待完成</b></div></section>
-    </>
-  );
+  const [data, setData] = useState<{ sandbox: boolean; ready: boolean; orders: { id: string; email: string; test_title: string; amount_cents: number; currency: string; status: string; livemode: number; created_at: string; email_status?: string; email_error?: string; email_link_access_at?: number }[] } | null>(null);
+  const [error, setError] = useState("");
+  const load = useCallback(async () => {
+    try { const result = await fetchAdminJson<NonNullable<typeof data>>("/api/admin/payments"); setData(result); setError(""); }
+    catch { setError("无法读取支付配置或订单，请稍后重试。"); }
+  }, []);
+  useEffect(() => { const timer = setTimeout(() => void load(), 0); return () => clearTimeout(timer); }, [load]);
+  const labels: Record<string, string> = { pending: "待付款", paid: "已付款", failed: "付款失败", expired: "已过期", refunded: "已退款" };
+  return <>
+    <div className="admin-page-heading"><div><span className="admin-kicker">订单管理</span><h1>订单</h1><p>每份报告一次性付费，金额来自测试管理中的单价；设为 0 的测试免费。</p></div><button className="admin-primary-button" onClick={() => void load()}>刷新订单</button></div>
+    {error ? <p role="alert">{error}</p> : null}
+
+    <section className="admin-card"><h2>最近 100 笔订单</h2><div className="table-scroll"><table className="lead-table-cn"><thead><tr><th>邮箱</th><th>测试</th><th>金额</th><th>环境</th><th>状态</th><th>报告邮件</th><th>创建时间</th></tr></thead><tbody>{data?.orders.map((order) => <tr key={order.id}><td>{order.email}</td><td>{order.test_title}</td><td>${(order.amount_cents / 100).toFixed(2)} {order.currency.toUpperCase()}</td><td>{order.livemode ? "正式" : "沙盒"}</td><td>{order.id.startsWith("preview_") ? "内部预览（未收款）" : labels[order.status] ?? order.status}</td><td>{({pending:"待发送",retry:"重试中",accepted:"发送服务已接受",failed:"发送失败",sandbox_skipped:"沙盒不外发"} as Record<string,string>)[order.email_status || ""] || "—"}{order.email_error ? <small>{order.email_error}</small> : null}{order.email_link_access_at ? <small>邮件链接有访问记录（可能包含邮件安全扫描）</small> : null}<small>补发请到「邮件记录」操作</small></td><td>{formatDate(order.created_at)}</td></tr>)}</tbody></table></div>{data && !data.orders.length ? <EmptyState title="暂无订单" text="用户打开 Stripe 收银台后会在这里生成订单。" /> : null}</section>
+    <section className="admin-card"><h2>Stripe Checkout</h2><p>{data ? `${data.sandbox ? "沙盒测试（不扣真钱）" : "正式收款"} · ${data.ready ? "密钥与 Webhook 已配置" : "尚未完成密钥或 Webhook 配置"}` : "正在读取配置…"}</p><p>密钥通过 Cloudflare Worker Secrets 配置。回调地址：<code>https://deeppersonaai.com/api/stripe/webhook</code></p><p>修改测试单价影响新订单，已创建订单保留原价格。退款请在 Stripe 后台操作，全额退款通知会撤销报告访问权限。</p></section>
+  </>;
 }
 
 function EmptyState({ text, title }: { text: string; title: string }) {

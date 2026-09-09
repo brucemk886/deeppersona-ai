@@ -1,17 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { currentAttribution } from "@/lib/traffic";
+import { requestJson } from '@/lib/browser-request';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  calculateResult,
-  defaultQuestions,
   type QuizQuestion,
   type AffiliateProduct,
   type QuizTest,
   type ResultProfile,
-  type TraitKey,
 } from "@/lib/quiz";
-import { getDeepResultContent } from "@/lib/deep-results";
+import type { ReportResponse } from "@/lib/payment-types";
 import { validateEmailAddress } from "@/lib/email-validation";
 import { trackGoogleAnalyticsEvent, trackQuizGoogleAnalyticsEvent } from "@/lib/google-analytics";
 import { getInsightCardsForTest } from "@/lib/insights-index";
@@ -102,23 +101,7 @@ function preloadAtlas(path: string) {
   void image.decode().catch(() => undefined);
 }
 
-function getAttribution() {
-  if (typeof window === "undefined") return { source: "direct", campaign: "" };
-  const params = new URLSearchParams(window.location.search);
-  const referrer = document.referrer;
-  let referrerHost = "";
-  try {
-    referrerHost = referrer ? new URL(referrer).hostname : "";
-  } catch {
-    referrerHost = "";
-  }
-  const source =
-    params.get("utm_source") ||
-    (params.get("ttclid") || referrerHost.includes("tiktok.com")
-      ? "tiktok"
-      : referrerHost || "direct");
-  return { source, campaign: params.get("utm_campaign") ?? "" };
-}
+function getAttribution() { return currentAttribution(); }
 
 function InnerMap({ completedTestIds, compact = false }: { completedTestIds: string[]; compact?: boolean }) {
   const dimensions = getDimensionProgress(completedTestIds);
@@ -193,14 +176,13 @@ function RelationshipNetwork({
     </section>
   );
 }
-export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTest[]; initialTestId?: string }) {
+export function QuizApp({ initialTests, initialTestId, initialQuestions: defaultQuestions, initialReportId }: { initialTests: QuizTest[]; initialTestId?: string; initialQuestions: QuizQuestion[]; initialReportId?: string }) {
   const [tests, setTests] = useState(initialTests);
   const [affiliateProducts, setAffiliateProducts] = useState<AffiliateProduct[]>([]);
   const [selectedTest, setSelectedTest] = useState<QuizTest | null>(() => initialTestId ? initialTests.find((test) => test.id === initialTestId) ?? null : null);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
-  const [stage, setStage] = useState<Stage>(initialTestId ? "detail" : "home");
+  const [stage, setStage] = useState<Stage>(initialReportId ? "result" : initialTestId ? "detail" : "home");
   const [questionIndex, setQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, TraitKey>>({});
   const [answerChoices, setAnswerChoices] = useState<Record<string, number>>({});
   const [profile, setProfile] = useState<InnerProfileSummary>({ completedTestIds: [] });  const [relationships, setRelationships] = useState<RelationshipNode[]>([]);
   const [relationshipContext, setRelationshipContext] = useState<RelationshipNode | null>(null);
@@ -212,6 +194,8 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
   const [loadingTest, setLoadingTest] = useState("");
   const [error, setError] = useState("");
   const [result, setResult] = useState<ResultProfile | null>(null);
+  const [reportData, setReportData] = useState<ReportResponse | null>(null);
+  const [reportLoading, setReportLoading] = useState(Boolean(initialReportId));
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [sessionId, setSessionId] = useState("");
   const questionsCache = useRef(new Map<string, QuizQuestion[]>());
@@ -257,7 +241,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
     } finally {
       questionRequests.current.delete(testId);
     }
-  }, []);
+  }, [defaultQuestions]);
 
   const loadRelationships = useCallback(async () => {
     try {
@@ -310,19 +294,22 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
       .catch(() => undefined);
   }, []);
   useEffect(() => {
+    if (stage !== 'result') return;
     void fetch("/api/affiliate-products", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
       .then((data: { products?: AffiliateProduct[] } | null) => setAffiliateProducts(data?.products ?? []))
       .catch(() => undefined);
-  }, []);
+  }, [stage]);
   useEffect(() => {
+    // The server already supplied the current catalogue and prices on public landing pages.
+    if (initialTests.length && !initialReportId) return;
     void fetch("/api/tests", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
         if (data?.tests?.length) { setTests(data.tests); if (initialTestId) setSelectedTest(data.tests.find((test: QuizTest) => test.id === initialTestId) ?? null); }
       })
       .catch(() => undefined);
-  }, [initialTestId]);
+  }, [initialTestId, initialReportId, initialTests.length]);
 
   const track = useCallback(
     (eventName: string, step = 0, questionId?: string, optionLabel?: string, overrideTestId?: string) => {
@@ -357,9 +344,61 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
   }, []);
   useEffect(() => {
     if (!sessionId || stage === "home") return;
-    const timer = window.setInterval(() => track("heartbeat"), 60_000);
+    const timer = window.setInterval(() => { if (!document.hidden) track("heartbeat"); }, 60_000);
     return () => window.clearInterval(timer);
   }, [sessionId, stage, track]);
+
+  const refreshReport = useCallback(async (sync = false) => {
+    if (!initialReportId) return false;
+    const data = await requestJson<ReportResponse>(`/api/reports/${encodeURIComponent(initialReportId)}${sync ? "?sync=1" : ""}`, { cache: "no-store" });
+    setReportData(data);
+    setSelectedTest(data.test);
+    setResult(data.result);
+    setQuestions(data.questions ?? []);
+    setAnswerChoices(data.answerChoices ?? {});
+    setReportLoading(false);
+    return data.unlocked;
+  }, [initialReportId]);
+
+  useEffect(() => {
+    if (!initialReportId) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    let attempts = 0;
+    const returning = new URLSearchParams(window.location.search).get("payment") === "success";
+    const load = async () => {
+      try {
+        const unlocked = await refreshReport(returning);
+        if (!stopped) setError('');
+        if (!stopped && returning && !unlocked && ++attempts < 8) timer = setTimeout(() => void load(), 2500);
+      } catch (loadError) {
+        if (!stopped) {
+          setError(loadError instanceof Error ? loadError.message : "Unable to load report.");
+          setReportLoading(false);
+        }
+      }
+    };
+    void load();
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [initialReportId, refreshReport]);
+
+  async function beginCheckout() {
+    if (!reportData) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      const data = await requestJson<{ url?: string }>("/api/checkout", { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ reportId: reportData.id, expectedAmountCents: reportData.amountCents, expectedRefundPolicy: reportData.refundPolicy }) }, 25000);
+      if (!data.url) throw new Error("Unable to open checkout.");
+      window.location.assign(data.url);
+    } catch (checkoutError) {
+      setError(checkoutError instanceof Error && (checkoutError.name === "TimeoutError" || checkoutError.name === "AbortError")
+        ? "Checkout took too long to respond. Please try again. Your report is saved."
+        : checkoutError instanceof Error ? checkoutError.message : "Unable to open checkout.");
+      setSubmitting(false);
+      void refreshReport().catch(() => undefined);
+    }
+  }
 
   const featuredTest = tests.find((test) => test.featured) ?? tests[0];
   const activeQuestion = questions[questionIndex];
@@ -392,7 +431,10 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
   }, [featuredTest]);
 
   function detailHref(test: QuizTest) {
-    const query = typeof window === "undefined" ? "" : window.location.search;
+    const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
+    const source = currentAttribution();
+    if (!params.has('utm_source') && source.source !== 'direct') params.set('utm_source', source.source);
+    const query = params.size ? '?' + params.toString() : '';
     return `/tests/${encodeURIComponent(test.id)}${query}`;
   }
 
@@ -409,30 +451,22 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
     setLoadingTest(test.id);
     setError("");
     try {
-      const builtInQuestions = defaultQuestions
-        .filter((question) => question.testId === test.id && question.active)
-        .sort((a, b) => a.position - b.position);
-      const loadedQuestions = questionsCache.current.get(test.id) ?? builtInQuestions;
-      const readyQuestions = loadedQuestions.length ? loadedQuestions : await loadQuestions(test.id);
-      if (!questionsCache.current.has(test.id)) {
-        void loadQuestions(test.id).catch(() => undefined);
-      }
+      const readyQuestions = await loadQuestions(test.id);
       preloadAtlas(readyQuestions[0].atlasPath);
       const nextSession = crypto.randomUUID();
       setSessionId(nextSession);
       setSelectedTest(test);
       setQuestions(readyQuestions);
-      setAnswers({});
       setAnswerChoices({});
       setQuestionIndex(0);
       setResult(null);
       setRelationshipContext(relationship ?? null);
       setStage("quiz");
+      const freshAttribution = currentAttribution();
       window.history.replaceState({}, "", `/?test=${encodeURIComponent(test.id)}`);
       const payload = {
         sessionId: nextSession,
-        source: attribution.source,
-        campaign: attribution.campaign,
+        ...freshAttribution,
         testId: test.id,
       };
       void fetch("/api/events", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...payload, eventName: "session_started" }) });
@@ -448,9 +482,8 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
     }
   }
 
-  function chooseAnswer(scoreKey: TraitKey, optionLabel: string, optionIndex: number) {
+  function chooseAnswer(optionLabel: string, optionIndex: number) {
     if (!activeQuestion || isAdvancing) return;
-    setAnswers((current) => ({ ...current, [activeQuestion.id]: scoreKey }));
     setAnswerChoices((current) => ({ ...current, [activeQuestion.id]: optionIndex }));
     setIsAdvancing(true);
     track("answer_selected", questionIndex + 1, activeQuestion.id, optionLabel);
@@ -479,9 +512,9 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
     }
     const emailToSave = emailValidation.normalized;
     setError("");
-    const nextResult = calculateResult(answers, selectedTest.results);    setSubmitting(true);
+    setSubmitting(true);
     try {
-      const response = await fetch("/api/submit", {
+      const data = await requestJson<{ profile?: InnerProfileSummary; reportId?: string }>("/api/submit", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -489,28 +522,19 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
           testId: selectedTest.id,
           email: emailToSave,
           marketingConsent: false,
-          answers,
-          resultType: nextResult.key,
+          answerChoices,
           source: attribution.source,
           campaign: attribution.campaign,
           relationshipId: relationshipContext?.id,
         }),
       });
-      const raw = await response.text();
-      let data: { error?: string; profile?: InnerProfileSummary } = {};
-      try {
-        data = raw ? JSON.parse(raw) as { error?: string; profile?: InnerProfileSummary } : {};
-      } catch {
-        throw new Error("We could not save your reflection. Please try again.");
-      }
-      if (!response.ok) throw new Error(data.error ?? "Something went wrong.");
       if (data.profile) {
         setProfile(data.profile);
         if (data.profile.email) setEmail(data.profile.email);
       }
       if (relationshipContext) void loadRelationships();
-      setResult(nextResult);
-      setStage("result");
+      if (!data.reportId) throw new Error("Unable to save your report. Please try again.");
+      window.location.assign(`/reports/${data.reportId}`);
       trackGoogleAnalyticsEvent("generate_lead", {
         method: "email_unlock",
         test_id: selectedTest.id,
@@ -527,10 +551,10 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
   }
 
   function returnHome() {
+    if (initialReportId) { window.location.assign("/"); return; }
     setStage("home");
     setSelectedTest(null);
     setQuestions([]);
-    setAnswers({});
     setAnswerChoices({});
     setSessionId("");
     setEmail("");
@@ -540,6 +564,36 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
     window.history.replaceState({}, "", "/");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
+
+  if (initialReportId && !reportData) return <main className="detail-loading"><span className="brand-mark">DP</span><p role={error ? "alert" : "status"}>{error || (reportLoading ? "Loading your saved report…" : "Report unavailable.")}</p>{error && <button className="primary-button" disabled={reportLoading} onClick={async () => { setReportLoading(true); setError(''); try { await refreshReport(new URLSearchParams(window.location.search).get('payment') === 'success'); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load your report. Please try again.'); } finally { setReportLoading(false); } }}>Try again</button>}<Link href="/">Back to tests</Link></main>;
+
+  if (initialReportId && reportData && !reportData.unlocked) return (
+    <main className="result-shell">
+      <nav className="nav-bar"><Link className="brand" href="/">DeepPersona AI</Link><Link href="/#tests">All tests</Link></nav>
+      <article className="result-card result-card-expanded">
+        <span className="result-test-name">{reportData.test.title}</span><span className="result-eyebrow">Your free summary</span>
+        <h1>{reportData.result.title}</h1><p className="result-summary">{reportData.result.summary}</p>
+        <section className="report-paywall">
+          <h2>Explore the meaning behind every choice</h2>
+          <p>Your full reading includes each image you chose, its written interpretation, and a reflection prompt.</p><p className="service-context">For entertainment and self-reflection. Uses written interpretations for each selected image, not a validated psychological assessment or professional advice. <Link href="/disclaimer">How to use these results</Link></p>
+          {reportData.sandbox ? <p className="sandbox-notice">Test checkout — no real money will be charged.</p> : null}
+          {reportData.status === "refunded" ? <p>This purchase has been refunded. Full report access has ended.</p> : <>
+            <p className="report-price">{reportData.amountCents === 0 ? "Free report" : `USD ${(reportData.amountCents / 100).toFixed(2)} · One-time payment`}</p>
+            <p>For this test result only. No subscription or recurring charges. View your full report here after payment confirmation.</p>
+            {reportData.amountCents > 0 && <p className="purchase-refund-notice">{reportData.refundPolicy === '14-day-2026-09-08' ? <>This order retains our original 14-day refund request policy. <Link href="/refunds/legacy-2026-09">Read your policy</Link></> : <>After successful delivery, no refunds for a change of mind or subjective dissatisfaction. Delivery failures, duplicate charges, material misdescription and legal rights are excepted. <Link href="/refunds">Read the refund policy</Link></>}</p>}
+            <button className="primary-button full-button" disabled={submitting || (!reportData.checkoutReady && reportData.amountCents > 0)} onClick={() => void beginCheckout()}>{submitting ? "Opening checkout…" : reportData.amountCents === 0 ? "Open my full reading" : "Unlock my full reading →"}</button>
+            {!reportData.checkoutReady && reportData.amountCents > 0 ? <p>Checkout is being set up. Your result is saved; please come back later.</p> : null}
+          </>}
+          {typeof window !== "undefined" && new URLSearchParams(window.location.search).get("payment") === "cancelled" ? <p>Checkout was cancelled. Your result is still saved.</p> : null}
+          {typeof window !== "undefined" && new URLSearchParams(window.location.search).get("payment") === "success" ? <p role="status">Checking your payment. If your report has not opened yet, use the button below to check again.</p> : null}
+          {error ? <p className="form-error" role="alert">{error}</p> : null}
+          <button className="text-button" onClick={() => { setError(""); void refreshReport(true).catch((err: Error) => setError(err.message)); }}>Check payment status</button>
+          <p><Link href="/recover">Find my paid reports / Resend report email</Link></p><p className="checkout-legal">By purchasing, you agree to our <Link href="/terms">Terms</Link> and <Link href="/refunds">Refund & Delivery Policy</Link>. See our <Link href="/privacy">Privacy Policy</Link>.</p>
+          <p>After payment confirmation, we email a private report link to the address you provided with your test. You can use it on another browser. PDF downloads are not included. For help, contact <a href="mailto:bruce@deeppersonaai.com">bruce@deeppersonaai.com</a>.</p>
+        </section>
+      </article>
+    </main>
+  );
 
   if (stage === "detail") {
     if (!selectedTest) return <main className="detail-loading"><span className="brand-mark">DP</span><p>Finding this visual test…</p></main>;
@@ -557,14 +611,15 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
             <span className="detail-category">{selectedTest.kicker}</span>
             <p className="detail-count">4 visual choices · about 2 minutes</p>
             <h1>{detailPrompt}</h1>
-            <p className="detail-intro">There is no right answer. The image you reach for first can reveal the pattern you use before words catch up.</p>
-            <div className="detail-reveal"><span>YOUR REFLECTION WILL EXPLORE</span><div><p>What your first instinct is trying to protect.</p><p>How this pattern shapes closeness, stress, or boundaries.</p><p>The strength hidden inside the response you repeat.</p></div></div>
+            <p className="detail-intro">There is no right answer. Use your image choices as a starting point to reflect on familiar patterns in your life.</p>
+            <p className="service-context">For entertainment and self-reflection, not diagnosis or treatment. Uses written interpretations for each selected image. <Link href="/disclaimer">Read the limitations</Link></p><div className="detail-reveal"><span>YOUR REFLECTION WILL EXPLORE</span><div><p>What your first instinct is trying to protect.</p><p>How this pattern shapes closeness, stress, or boundaries.</p><p>The strength hidden inside the response you repeat.</p></div></div>
             <button className="primary-button detail-cta" disabled={loadingTest === selectedTest.id} onClick={() => void startTest(selectedTest)}>{loadingTest === selectedTest.id ? "Opening…" : "See what your first choice reveals"} <span aria-hidden="true">→</span></button>
-            <div className="detail-assurance"><span>Free visual test</span><i /> <span>Private by design</span>{selectedTest.reportPriceCents > 0 ? <><i /> <span>Full report available for ${(selectedTest.reportPriceCents / 100).toFixed(2)}</span></> : null}</div>
+            <div className="detail-assurance"><span>Free visual test</span><i /> <span>Private by design</span>{selectedTest.reportPriceCents > 0 ? <><i /> <span>Full report: USD {(selectedTest.reportPriceCents / 100).toFixed(2)}</span></> : null}</div>
+            {selectedTest.reportPriceCents > 0 ? <p className="detail-purchase-note">One-time payment for this test result only. No subscription or recurring charges.</p> : null}
             {error ? <p className="form-error" role="alert">{error}</p> : null}
           </div>
         </section>
-        <footer className="site-footer"><div><strong>DeepPersona AI © 2026</strong></div><nav aria-label="Legal links"><Link href="/insights">Insights</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds & delivery</Link><Link href="/contact">Contact</Link></nav></footer>
+        <footer className="site-footer"><div><strong>DeepPersona AI © 2026</strong></div><nav aria-label="Legal links"><Link href="/recover">My reports</Link><Link href="/insights">Insights</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds & delivery</Link><Link href="/contact">Contact</Link></nav></footer>
       </main>
     );
   }
@@ -578,7 +633,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
 
         <section className="hero" id="top">
           <div className="hero-copy">
-            <span className="pill">Visual psychology tests · 2 minutes</span>
+            <span className="pill">Visual self-reflection tests · 2 minutes</span>
             <h1>One image can say what words miss.</h1>
             <p className="hero-lede">Choose what pulls you in. Get a concise reflection on how you connect, reset, set boundaries, and move through relationships.</p>
             {featuredTest ? <button className="primary-button hero-cta" disabled={loadingTest === featuredTest.id} onClick={() => openDetail(featuredTest)}>{loadingTest === featuredTest.id ? "Opening…" : "Explore the most popular test"} <span aria-hidden="true">↗</span></button> : null}            <div className="trust-row" aria-label="Test details"><span>No right answers</span><i /><span>Private by design</span><i /><span>4 visual choices</span></div>
@@ -624,13 +679,13 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
                   <span className="test-number">{String(index + 1).padStart(2, "0")}</span>
                   {test.featured ? <span className="popular-badge">Most popular</span> : null}
                 </div>
-                <div className="test-card-copy"><span>{test.kicker}</span><h3>{test.title}</h3><p>{test.description}</p><div><small>{test.questionCount || 4} questions{test.reportPriceCents > 0 ? <><br /><em className="test-report-price">Full report ${(test.reportPriceCents / 100).toFixed(2)}</em></> : null}</small><strong className="test-card-start">{loadingTest === test.id ? "Opening…" : "Explore →"}</strong></div></div>
+                <div className="test-card-copy"><span>{test.kicker}</span><h3>{test.title}</h3><p>{test.description}</p><div><small>{test.questionCount || 4} questions{test.reportPriceCents > 0 ? <><br /><em className="test-report-price">Full report USD {(test.reportPriceCents / 100).toFixed(2)}</em></> : null}</small><strong className="test-card-start">{loadingTest === test.id ? "Opening…" : "Explore →"}</strong></div></div>
               </button>
             ))}
           </div>
         </section>
 
-        <section className="how-it-works"><span>01 · Notice</span><p>Let your eyes land before your reasoning catches up.</p><span>02 · Choose</span><p>Pick the image that creates the strongest first response.</p><span>03 · Reveal</span><p>Get your type, strength, watchout, and a practical next step.</p></section>
+        <section className="how-it-works"><span>01 · Notice</span><p>Let your eyes land before your reasoning catches up.</p><span>02 · Choose</span><p>Pick the image that creates the strongest first response.</p><span>03 · Reveal</span><p>Read the interpretation behind each image you chose.</p></section>
         <footer className="site-footer site-footer-expanded"><div><strong>DeepPersona AI © 2026</strong><span>For self-reflection, not clinical diagnosis.</span></div><nav aria-label="Legal and support links"><Link href="/insights">Insights</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds & delivery</Link><Link href="/disclaimer">Disclaimer</Link><Link href="/contact">Contact</Link></nav></footer>
       </main>
     );
@@ -652,10 +707,10 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
               const letter = String.fromCharCode(65 + index);
               return (
                 <article className={`option-card ${selected ? "selected" : ""} ${isAdvancing && selected ? "is-confirming" : ""}`} key={`${activeQuestion.id}-${index}`}>
-                  <button aria-label={`Choose ${letter}: ${option.label}`} className="option-image-trigger" disabled={isAdvancing} onClick={() => chooseAnswer(option.scoreKey, option.label, index)} type="button">
+                  <button aria-label={`Choose ${letter}: ${option.label}`} className="option-image-trigger" disabled={isAdvancing} onClick={() => chooseAnswer(option.label, index)} type="button">
                     <AtlasImage className="option-image" index={index} loading="eager" path={activeQuestion.atlasPath} priority={index === 0} />
                   </button>
-                  <button aria-checked={selected} className="option-select" disabled={isAdvancing} onClick={() => chooseAnswer(option.scoreKey, option.label, index)} role="radio" type="button">
+                  <button aria-checked={selected} className="option-select" disabled={isAdvancing} onClick={() => chooseAnswer(option.label, index)} role="radio" type="button">
                     <span className="option-meta"><span className="option-letter">{letter}</span><span><strong>{option.label}</strong><small>{option.microcopy}</small></span><span className="selection-mark" aria-hidden="true">✓</span></span>
                   </button>
                 </article>
@@ -670,17 +725,17 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
   }
 
   if (stage === "email" && selectedTest) {
-    const preview = calculateResult(answers, selectedTest.results);
+    const preview = {title: selectedTest.title, summary: "Your choices are saved together in a personal reading."};
     return (
       <main className="gate-shell">
         <section className="email-gate">
-          <div className="result-teaser"><span className="result-seal">Profile found</span><div className="blurred-result"><span>{selectedTest.title}</span><h2>{preview.title}</h2><p>{preview.summary}</p></div></div>
+          <div className="result-teaser"><span className="result-seal">Choices complete</span><div className="blurred-result"><span>{selectedTest.title}</span><h2>{preview.title}</h2><p>{preview.summary}</p></div></div>
           <form className="email-form" onSubmit={unlockResult}>
-            <span className="pill">Your complete visual reading is ready</span>
+            <span className="pill">Your visual choices are complete</span>
             <h1>See what every choice reveals.</h1>
-            <p>You have completed all of the visual choices. Enter your email to unlock the meaning behind every image, your personal projection, and the full pattern they form together.</p>
+            <p>You have completed all of the visual choices. Enter your email to save your result and see your free summary. You can then choose to purchase the full reading at the displayed price.</p>
             {profile.email ? <div className="saved-profile-email"><span>Saving this reflection to</span><strong>{profile.email}</strong></div> : <><label htmlFor="email">Email address</label><input aria-invalid={Boolean(error)} autoComplete="email" id="email" onBlur={(event) => { const validation = validateEmailAddress(event.target.value); if (!validation.valid) setError(validation.message); }} onChange={(event) => { setEmail(event.target.value); setError(""); }} placeholder="name@gmail.com" required type="email" value={email} /><small className="email-hint">Use an email you can access. Test, placeholder, and malformed addresses are not accepted.</small></>}            {error ? <p className="form-error" role="alert">{error}</p> : null}
-            <button className="primary-button full-button" disabled={submitting} type="submit">{submitting ? "Unlocking your reading…" : "Unlock my full reading →"}</button>
+            <button className="primary-button full-button" disabled={submitting} type="submit">{submitting ? "Saving your result…" : "See my result →"}</button>
             <small className="privacy-note">No password is needed on this device. By continuing, you acknowledge our <Link href="/privacy">Privacy Policy</Link> and <Link href="/terms">Terms</Link>.</small>
           </form>
         </section>
@@ -688,7 +743,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
     );
   }
 
-  const deepResult = result && selectedTest ? getDeepResultContent(selectedTest.id, result) : null;
+  const deepResult = reportData?.deepResult ?? null;
   const relatedInsights = selectedTest ? getInsightCardsForTest(selectedTest.id).slice(0, 2) : [];
   const answeredChoices = questions.flatMap((question, index) => {
     const selectedIndex = answerChoices[question.id];
@@ -698,7 +753,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
 
   return (
     <main className="result-shell">
-      <nav className="nav-bar"><button className="brand brand-button" onClick={returnHome}><span className="brand-mark">DP</span><span>DeepPersona AI</span></button><button className="text-button" onClick={() => window.print()}>Save profile</button></nav>
+      <nav className="nav-bar"><button className="brand brand-button" onClick={returnHome}><span className="brand-mark">DP</span><span>DeepPersona AI</span></button><button className="text-button" onClick={() => window.print()}>Save report</button></nav>
       {result && selectedTest && deepResult ? (
         <article className="result-card result-card-expanded">
           <span className="result-test-name">{selectedTest.title}</span>
@@ -711,7 +766,7 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
             <header>
               <span>Your choices, decoded</span>
               <h2 id="choice-review-title">What each image may be reflecting back to you</h2>
-              <p>This is the part that shaped your result: not a generic type label, but the specific pattern behind each image you selected.</p>
+              <p>This is the part that shaped your result: the interpretation associated with each image you selected.</p>
             </header>
             <div className="choice-review-list">
               {answeredChoices.map(({ option, question, questionNumber, selectedIndex }) => (
@@ -735,14 +790,14 @@ export function QuizApp({ initialTests, initialTestId }: { initialTests: QuizTes
             <p>{deepResult.lens.explanation}</p>
           </section>
 
-          <div className="deep-insight-grid">
+          {deepResult.depth ? <div className="deep-insight-grid">
             <section><span>Core motivation</span><h3>What sits underneath the pattern</h3><p>{deepResult.depth.coreDrive}</p></section>
             <section><span>In relationships</span><h3>What other people may experience</h3><p>{deepResult.depth.inRelationships}</p></section>
             <section><span>Under pressure</span><h3>When the strength becomes protection</h3><p>{deepResult.depth.underPressure}</p></section>
-          </div>
+          </div> : null}
 
           <section className="reflection-card"><span>A question worth keeping</span><p>“{deepResult.lens.reflectionPrompt}”</p></section>
-          <p className="result-disclaimer">This is a self-reflection tool based on four visual choices, not a clinical assessment or diagnosis.</p>          {relationshipContext ? <section className="relationship-saved"><span>Relationship map updated</span><h2>This reflection now belongs to your connection with {relationshipContext.nickname}.</h2><p>It records your experience in this relationship, not a conclusion about the other person. Return to your map to keep adding context over time.</p></section> : null}
+          {initialReportId ? <p><Link href="/recover">Find my paid reports / Resend report email</Link></p> : null}<p className="result-disclaimer">This is a self-reflection tool based on four visual choices, not a clinical assessment or diagnosis.</p>          {relationshipContext ? <section className="relationship-saved"><span>Relationship map updated</span><h2>This reflection now belongs to your connection with {relationshipContext.nickname}.</h2><p>It records your experience in this relationship, not a conclusion about the other person. Return to your map to keep adding context over time.</p></section> : null}
 
           {RESULT_MAP_ENABLED ? <>
             <section className="map-unlock-copy"><span>New dimension added</span><h2>{TEST_DIMENSIONS[selectedTest.id] ? `${mapDimensions.find((dimension) => dimension.id === TEST_DIMENSIONS[selectedTest.id])?.label} is now part of your map.` : "Your Inner Map has started."}</h2><p>This is not a fixed label. Every future reflection adds context and can make the pattern more precise.</p></section>

@@ -43,6 +43,13 @@
       "when": 1784894191336,
       "tag": "0005_unusual_silverclaw",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1788838379626,
+      "tag": "0006_absurd_agent_zero",
+      "breakpoints": true
     }
   ]
 }

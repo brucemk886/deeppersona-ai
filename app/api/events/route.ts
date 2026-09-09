@@ -1,3 +1,4 @@
+import { recordAttribution } from '@/db/traffic-store';
 import { recordEvent } from "@/db/quiz-store";
 
 const allowedEvents = new Set([
@@ -16,7 +17,14 @@ const allowedEvents = new Set([
 ]);
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as {
+  if (request.headers.get('origin') !== new URL(request.url).origin) return Response.json({ error: 'Invalid origin' }, {status:403});
+  const raw = await request.text();
+  if (raw.length > 4096) return Response.json({error:'Too large'},{status:413});
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch { return Response.json({error:'Invalid event'},{status:400}); }
+  if (!parsed || typeof parsed !== 'object') return Response.json({error:'Invalid event'},{status:400});
+  const body = parsed as {
+    visitId?: string; medium?: string; content?: string;
     campaign?: string;
     eventName?: string;
     optionLabel?: string;
@@ -27,8 +35,9 @@ export async function POST(request: Request) {
     testId?: string;
   };
   if (
-    !body.sessionId ||
-    body.sessionId.length > 100 ||
+    typeof body.sessionId !== 'string' || !/^[a-f0-9-]{36}$/i.test(body.sessionId) ||
+    [body.source,body.campaign,body.medium,body.content,body.questionId,body.optionLabel,body.testId].some(value => value !== undefined && typeof value !== 'string') ||
+    (body.step !== undefined && (!Number.isInteger(body.step) || body.step < 0 || body.step > 100)) ||
     !body.eventName ||
     !allowedEvents.has(body.eventName)
   ) {
@@ -44,6 +53,10 @@ export async function POST(request: Request) {
     source: body.source?.slice(0, 120),
     campaign: body.campaign?.slice(0, 160),
     testId: body.testId?.slice(0, 100),
+  });
+  if (body.eventName === 'session_started') await recordAttribution(body.sessionId, {
+    visitId: typeof body.visitId === 'string' && /^[a-f0-9-]{36}$/i.test(body.visitId) ? body.visitId : undefined,
+    source: body.source?.slice(0,120), campaign: body.campaign?.slice(0,120), medium: body.medium?.slice(0,120), content: body.content?.slice(0,120),
   });
   return Response.json({ ok: true });
 }

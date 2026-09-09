@@ -17,9 +17,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     metadataBase,
-    title: "DeepPersona AI — Visual Psychology Tests",
+    title: "DeepPersona AI — Visual Self-Reflection Tests",
     description:
-      "Eight short visual tests reveal how you connect, reset, set boundaries, and move through relationships.",
+      "Eight short visual tests for entertainment and self-reflection on connection, boundaries, and relationships. Not clinical assessments.",
     applicationName: "DeepPersona AI",
     icons: {
       icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
@@ -27,14 +27,14 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     openGraph: {
       title: "One image can say what words miss.",
-      description: "Explore eight 2-minute visual psychology tests from DeepPersona AI.",
+      description: "Explore eight 2-minute visual self-reflection tests from DeepPersona AI.",
       type: "website",
       images: metadataBase ? [{ url: new URL("/og-deep-persona.png", metadataBase) }] : undefined,
     },
     twitter: {
       card: "summary_large_image",
       title: "One image can say what words miss.",
-      description: "Explore eight 2-minute visual psychology tests from DeepPersona AI.",
+      description: "Explore eight 2-minute visual self-reflection tests from DeepPersona AI.",
       images: metadataBase ? [new URL("/og-deep-persona.png", metadataBase)] : undefined,
     },
     robots: { index: true, follow: true },

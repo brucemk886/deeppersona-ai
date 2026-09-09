@@ -1,5 +1,6 @@
+const THIRD_PARTY_ANALYTICS_ENABLED = true;
 export const GA_MEASUREMENT_ID = "G-WS2Z8SKMY1";
-export const ANALYTICS_CONSENT_KEY = "deeppersona_analytics_consent";
+export const ANALYTICS_CONSENT_KEY = "deeppersona_analytics_consent_v2";
 
 export type AnalyticsConsent = "granted" | "denied";
 
@@ -8,7 +9,7 @@ type GoogleAnalyticsParameters = Record<string, GoogleAnalyticsValue | undefined
 
 declare global {
   interface Window {
-    dataLayer?: unknown[][];
+    dataLayer?: unknown[];
     gtag?: (...args: unknown[]) => void;
     __deepPersonaGaInitialized?: boolean;
   }
@@ -27,25 +28,43 @@ const quizEventNames: Record<string, string> = {
 
 export function getAnalyticsConsent(): AnalyticsConsent | null {
   if (typeof window === "undefined") return null;
-  const choice = window.localStorage.getItem(ANALYTICS_CONSENT_KEY);
-  return choice === "granted" || choice === "denied" ? choice : null;
+  if ((window.navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl) return 'denied';
+  try {
+    const choice = window.localStorage.getItem(ANALYTICS_CONSENT_KEY);
+    if (choice === 'granted' || choice === 'denied') return choice;
+    // Earlier versions automatically wrote "granted". That is not an affirmative choice.
+    return window.localStorage.getItem('deeppersona_analytics_consent') === 'denied' ? 'denied' : null;
+  } catch { return null; }
 }
 
 function cleanParameters(parameters: GoogleAnalyticsParameters) {
   return Object.fromEntries(
-    Object.entries(parameters).filter((entry): entry is [string, GoogleAnalyticsValue] => entry[1] !== undefined),
+    Object.entries(parameters).filter((entry): entry is [string, GoogleAnalyticsValue] => ['step', 'method'].includes(entry[0]) && entry[1] !== undefined),
   );
+}
+
+export function analyticsPagePath(pathname: string) {
+  if (/^\/(reports|admin|recover|api)(\/|$)/.test(pathname)) return null;
+  if (pathname.startsWith('/tests/')) return '/tests';
+  if (pathname.startsWith('/insights/')) return '/insights';
+  return ['/', '/privacy', '/terms', '/refunds', '/contact', '/disclaimer'].includes(pathname) ? pathname : '/other';
+}
+
+function pageParameters() {
+  const path = analyticsPagePath(window.location.pathname);
+  return { page_location: window.location.origin + (path || '/'), page_path: path || '/',
+    page_title: 'DeepPersona AI', page_referrer: '' };
 }
 
 function ensureGtag() {
   window.dataLayer ??= [];
-  window.gtag ??= (...args: unknown[]) => {
-    window.dataLayer?.push(args);
+  window.gtag ??= function (..._args: unknown[]) {
+    window.dataLayer?.push(arguments);
   };
 }
 
 export function initializeGoogleAnalytics() {
-  if (typeof window === "undefined" || getAnalyticsConsent() !== "granted") return;
+  if (!THIRD_PARTY_ANALYTICS_ENABLED || typeof window === "undefined" || getAnalyticsConsent() === "denied" || analyticsPagePath(window.location.pathname) === null) return;
   ensureGtag();
   if (window.__deepPersonaGaInitialized) return;
 
@@ -62,8 +81,10 @@ export function initializeGoogleAnalytics() {
     ad_user_data: "denied",
     ad_personalization: "denied",
   });
+  window.gtag?.("set", { ...pageParameters(), ads_data_redaction: true });
   window.gtag?.("js", new Date());
   window.gtag?.("config", GA_MEASUREMENT_ID, {
+    ...pageParameters(),
     send_page_view: false,
     allow_google_signals: false,
     allow_ad_personalization_signals: false,
@@ -80,7 +101,7 @@ export function initializeGoogleAnalytics() {
 
 export function updateGoogleAnalyticsConsent(consent: AnalyticsConsent) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(ANALYTICS_CONSENT_KEY, consent);
+  try { window.localStorage.setItem(ANALYTICS_CONSENT_KEY, consent); } catch { return; }
 
   if (consent === "granted") {
     initializeGoogleAnalytics();
@@ -115,9 +136,9 @@ export function clearGoogleAnalyticsCookies() {
 }
 
 export function trackGoogleAnalyticsEvent(eventName: string, parameters: GoogleAnalyticsParameters = {}) {
-  if (typeof window === "undefined" || getAnalyticsConsent() !== "granted") return;
+  if (!THIRD_PARTY_ANALYTICS_ENABLED || typeof window === "undefined" || getAnalyticsConsent() === "denied" || analyticsPagePath(window.location.pathname) === null) return;
   initializeGoogleAnalytics();
-  window.gtag?.("event", eventName, cleanParameters(parameters));
+  window.gtag?.("event", eventName, { ...cleanParameters(parameters), ...pageParameters() });
 }
 
 export function trackQuizGoogleAnalyticsEvent(eventName: string, parameters: GoogleAnalyticsParameters = {}) {

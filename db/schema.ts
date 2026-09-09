@@ -1,6 +1,32 @@
 import { sql } from "drizzle-orm";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
+export const quizReports = sqliteTable("quiz_reports", {
+  id: text("id").primaryKey(),
+  sessionId: text("session_id").notNull().unique(),
+  profileId: text("profile_id").notNull(),
+  testId: text("test_id").notNull(),
+  email: text("email").notNull(),
+  snapshotJson: text("snapshot_json").notNull(),
+  free: integer("free", { mode: "boolean" }).notNull().default(false),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const paymentOrders = sqliteTable("payment_orders", {
+  id: text("id").primaryKey(),
+  reportId: text("report_id").notNull().unique(),
+  amountCents: integer("amount_cents").notNull(),
+  currency: text("currency").notNull().default("usd"),
+  status: text("status").notNull().default("pending"),
+  stripeSessionId: text("stripe_session_id").unique(),
+  paymentIntentId: text("payment_intent_id"),
+  attempt: integer("attempt").notNull().default(0),
+  livemode: integer("livemode", { mode: "boolean" }).notNull().default(false),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  paidAt: text("paid_at"),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const quizQuestions = sqliteTable("quiz_questions", {
   id: text("id").primaryKey(),
   testId: text("test_id").notNull().default("legacy-instinctive-style"),

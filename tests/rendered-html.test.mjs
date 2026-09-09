@@ -13,7 +13,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   const [home, quiz, catalog, choiceInsights, deepResults, admin, adminStyles, store, layout, analytics, analyticsUi, hosting, privacy, terms, refunds, contact, disclaimer, legalPage, testDetail, sitemap] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/quiz-app.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../lib/quiz.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/quiz-content.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/choice-insights.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/deep-results.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/admin-dashboard.tsx", import.meta.url), "utf8"),
@@ -56,45 +56,48 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.doesNotMatch(quiz, /That feels accurate/);
   assert.match(quiz, /See what every choice reveals/);
   assert.match(quiz, /Unlock my full reading/);
-  assert.match(deepResults, /How you try to restore safety in closeness/);
+  assert.match(deepResults, /buildChoiceReport/);
+  assert.doesNotMatch(admin, /计分类型|连接者|创造者/);
+  assert.doesNotMatch(quiz, /calculateResult|scoreKey/);
   assert.match(choiceInsights, /getOptionInsight/);
   assert.match(choiceInsights, /attachment-style/);
   assert.match(catalog, /attachment-style/);
   assert.match(catalog, /hidden-strength/);
-  assert.equal((catalog.match(/id: "[a-z-]+",\n    title:/g) ?? []).length, 8);
+  assert.equal((catalog.match(/id: "[a-z-]+",\r?\n    title:/g) ?? []).length, 8);
   assert.match(admin, /测试管理/);
   assert.match(admin, /题目管理/);
   assert.match(admin, /邮箱用户/);
   assert.match(admin, /DeepPersona AI/);
-  assert.match(admin, /用户答题档案/);
-  assert.match(admin, /营销分群标签/);
+  assert.match(admin, /用户测试记录/);
+  assert.doesNotMatch(admin, /营销分群标签|segmentRecommendations|getMarketingTags/);
   assert.match(admin, /逐题选择/);
-  assert.match(admin, /导出分群 CSV/);
+  assert.match(admin, /导出测试记录 CSV/);
   assert.match(admin, /一个“测试”对应前台的一张测试卡/);
   assert.match(adminStyles, /\/\* Admin readability scale \*\//);
   assert.match(adminStyles, /\.test-card-image \.atlas-image img/);
   assert.match(adminStyles, /aspect-ratio: 4 \/ 5/);
   assert.match(adminStyles, /\.lead-table-cn \{ font-size: 13px; \}/);
-  assert.match(store, /COUNT\(DISTINCT id\) AS users FROM quiz_sessions/);
-  assert.match(store, /s\.answers_json/);
+  assert.match(store, /COUNT\(DISTINCT s\.id\) AS users FROM quiz_sessions/);
+  assert.match(store, /answers: answerRecords/);
   assert.match(store, /answerEvents: answerEvents\.results/);
   assert.doesNotMatch(store, /COUNT\(DISTINCT session_id\) AS users FROM quiz_sessions/);
-  assert.match(layout, /DeepPersona AI — Visual Psychology Tests/);
+  assert.match(layout, /DeepPersona AI — Visual Self-Reflection Tests/);
   assert.match(layout, /og-deep-persona\.png/);
   assert.match(layout, /favicon\.svg/);
   assert.match(layout, /width: "device-width"/);
   assert.match(layout, /GoogleAnalytics/);
   assert.match(analytics, /G-WS2Z8SKMY1/);
   assert.match(analytics, /generate_lead|quiz_start/);
-  assert.match(analyticsUi, /Keep analytics on/);
-  assert.match(analyticsUi, /Turn off analytics/);
-  assert.match(analyticsUi, /setChoosing\(false\)/);
+  assert.doesNotMatch(analyticsUi, /Allow analytics/);
+  assert.match(analyticsUi, /anonymous:true/);
+  assert.match(analyticsUi, /return null/);
   assert.doesNotMatch(quiz + analytics, /emailToSave.*trackGoogleAnalyticsEvent|optionLabel.*trackGoogleAnalyticsEvent/);
   assert.match(privacy, /Test information/);
-  assert.match(privacy, /Google Analytics 4/);
+  assert.match(privacy, /Google Analytics to measure visits/);
   assert.match(privacy, /marketing emails/);
   assert.match(terms, /Not healthcare or professional advice/);
-  assert.match(refunds, /14 calendar days/);
+  assert.match(refunds, /Final sales after delivery/);
+  assert.match(refunds, /legacy-2026-09/);
   assert.match(refunds, /Digital delivery/);
   assert.match(contact, /SUPPORT_EMAIL/);
   assert.match(legalPage, /bruce@deeppersonaai\.com/);

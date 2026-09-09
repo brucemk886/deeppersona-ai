@@ -1,8 +1,9 @@
+import { answerRecords } from '@/lib/admin-answer-records';
+import { ensureTrafficSchema } from './traffic-store';
+import { productionSession } from './traffic-stats';
+import { defaultQuestions, defaultTests } from "@/lib/quiz-content";
 import { env } from "cloudflare:workers";
 import {
-  defaultQuestions,
-  defaultTests,
-  TRAIT_KEYS,
   type QuizOption,
   type AffiliateProduct,
   type QuizQuestion,
@@ -10,7 +11,6 @@ import {
   type ResultProfile,
   type TraitKey,
 } from "@/lib/quiz";
-import { getOptionInsight } from "@/lib/choice-insights";
 import { INNER_DIMENSIONS, TEST_DIMENSIONS, type InnerDimensionId, type InnerProfileSummary } from "@/lib/inner-map";
 import {
   isRelationshipType,
@@ -19,11 +19,18 @@ import {
 } from "@/lib/relationship-network";
 
 type RuntimeEnv = {
+  CHECKOUT_RATE_LIMIT?: { limit: (input: { key: string }) => Promise<{ success: boolean }> };
   ADMIN_EMAILS?: string;
   ADMIN_PASSWORD?: string;
   ADMIN_SESSION_SECRET?: string;
   ADMIN_USERNAME?: string;
   CONTENT_SYNC_API_KEY?: string;
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
+  APP_URL?: string;
+  RESEND_API_KEY?: string;
+  RESEND_WEBHOOK_SECRET?: string;
+  REPORT_EMAIL_FROM?: string;
   DB?: D1Database;
 };
 
@@ -77,7 +84,7 @@ export function getRuntimeEnv(): RuntimeEnv {
   return env as unknown as RuntimeEnv;
 }
 
-function getD1(): D1Database {
+export function getD1(): D1Database {
   const db = getRuntimeEnv().DB;
   if (!db) throw new Error("D1 binding `DB` is unavailable.");
   return db;
@@ -86,6 +93,7 @@ function getD1(): D1Database {
 async function createSchema(): Promise<void> {
   const db = getD1();
   await db.batch([
+    db.prepare("CREATE TABLE IF NOT EXISTS admin_deleted_leads (session_id TEXT PRIMARY KEY, deleted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"),
     db.prepare(`CREATE TABLE IF NOT EXISTS affiliate_products (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -219,14 +227,11 @@ function rowToQuestion(row: QuestionRow): QuizQuestion {
     prompt: row.prompt,
     atlasPath,
     options: parsedOptions.map((option, index) => {
-      const scoreKey = option.scoreKey ?? TRAIT_KEYS[index] ?? "explorer";
-      const insight = getOptionInsight(row.test_id, atlasPath, scoreKey);
       return {
         label: option.label ?? `Choice ${String.fromCharCode(65 + index)}`,
         microcopy: option.microcopy ?? "Trust your first response",
-        scoreKey,
-        meaning: option.meaning?.trim() || insight.meaning,
-        projection: option.projection?.trim() || insight.projection,
+        meaning: option.meaning?.trim() || "",
+        projection: option.projection?.trim() || "",
       };
     }),
     position: row.position,
@@ -302,7 +307,7 @@ async function seedCatalogIfNeeded(): Promise<void> {
       db.prepare(`INSERT OR IGNORE INTO quiz_tests
         (id, title, kicker, description, cover_atlas_path, accent, results_json, position, active, featured, report_price_cents)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .bind(test.id, test.title, test.kicker, test.description, test.coverAtlasPath, test.accent, JSON.stringify(test.results), test.position, test.active ? 1 : 0, test.featured ? 1 : 0, test.reportPriceCents),
+        .bind(test.id, test.title, test.kicker, test.description, test.coverAtlasPath, test.accent, JSON.stringify(test.results ?? {}), test.position, test.active ? 1 : 0, test.featured ? 1 : 0, test.reportPriceCents),
     ),
     ...defaultQuestions.map((question) =>
       db.prepare(`INSERT OR IGNORE INTO quiz_questions
@@ -344,7 +349,7 @@ export async function saveTest(test: QuizTest): Promise<void> {
       featured = excluded.featured,
       report_price_cents = excluded.report_price_cents,
       updated_at = CURRENT_TIMESTAMP`)
-    .bind(test.id, test.title, test.kicker, test.description, test.coverAtlasPath, test.accent, JSON.stringify(test.results), test.position, test.active ? 1 : 0, test.featured ? 1 : 0, test.reportPriceCents)
+    .bind(test.id, test.title, test.kicker, test.description, test.coverAtlasPath, test.accent, JSON.stringify(test.results ?? {}), test.position, test.active ? 1 : 0, test.featured ? 1 : 0, test.reportPriceCents)
     .run();
 }
 
@@ -487,13 +492,14 @@ export async function getProfileSummary(profileId: string): Promise<InnerProfile
 }
 
 export async function submitQuiz(input: {
-  answers: Record<string, TraitKey>;
+  report?: { id: string; snapshotJson: string; free: boolean };
+  answers: Record<string, number>;
   campaign?: string;
   email: string;
   marketingConsent: boolean;
   profileId: string;
   relationshipId?: string;
-  resultType: TraitKey;
+  resultType: "choices";
   sessionId: string;
   source?: string;
   testId: string;
@@ -542,36 +548,42 @@ export async function submitQuiz(input: {
         .bind(input.relationshipId),
     );
   }
+  if (input.report) {
+    writes.push(db.prepare(`INSERT INTO quiz_reports (id, session_id, profile_id, test_id, email, snapshot_json, free)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      .bind(input.report.id, input.sessionId, input.profileId, input.testId, input.email, input.report.snapshotJson, input.report.free ? 1 : 0));
+  }
   await db.batch(writes);
   return getProfileSummary(input.profileId);
 }
 export async function getAdminStats() {
   await ensureQuizSchema();
   await seedCatalogIfNeeded();
+  await ensureTrafficSchema();
   const db = getD1();
   const [funnel, sources, emails, answerEvents, totals, online, today, sevenDays, popularQuestions, popularTests] = await Promise.all([
-    db.prepare(`SELECT event_name, COUNT(DISTINCT session_id) AS users FROM quiz_events GROUP BY event_name`).all<{ event_name: string; users: number }>(),
-    db.prepare(`SELECT COALESCE(source, 'direct') AS source, COUNT(DISTINCT id) AS users FROM quiz_sessions GROUP BY COALESCE(source, 'direct') ORDER BY users DESC LIMIT 8`).all<{ source: string; users: number }>(),
-    db.prepare(`SELECT s.id AS session_id, s.email, s.marketing_consent, s.answers_json, s.result_type, s.source, s.campaign, s.completed_at, s.test_id, COALESCE(t.title, s.test_id) AS test_title
-      FROM quiz_sessions s LEFT JOIN quiz_tests t ON t.id = s.test_id
-      WHERE s.email IS NOT NULL ORDER BY s.completed_at DESC LIMIT 500`).all<{ answers_json: string | null; campaign: string | null; completed_at: string; email: string; marketing_consent: number; result_type: string; session_id: string; source: string | null; test_id: string | null; test_title: string | null }>(),
+    db.prepare(`SELECT e.event_name, COUNT(DISTINCT e.session_id) AS users FROM quiz_events e JOIN quiz_sessions s ON s.id=e.session_id WHERE ${productionSession} GROUP BY e.event_name`).all<{ event_name: string; users: number }>(),
+    db.prepare(`SELECT COALESCE(a.source, CASE WHEN s.source IN ('deeppersonaai.com','www.deeppersonaai.com') THEN 'unknown' ELSE s.source END, 'unknown') AS source, COUNT(DISTINCT s.id) AS users FROM quiz_sessions s LEFT JOIN quiz_attribution a ON a.session_id=s.id WHERE ${productionSession} GROUP BY 1 ORDER BY users DESC LIMIT 8`).all<{ source: string; users: number }>(),
+    db.prepare(`SELECT EXISTS(SELECT 1 FROM admin_test_sessions WHERE session_id=s.id) AS is_test, (SELECT deleted_at FROM admin_deleted_leads WHERE session_id = s.id) AS deleted_at, s.id AS session_id, s.email, s.marketing_consent, r.snapshot_json, s.source, s.campaign, s.completed_at, s.test_id, COALESCE(t.title, s.test_id) AS test_title
+      FROM quiz_sessions s LEFT JOIN quiz_tests t ON t.id = s.test_id LEFT JOIN quiz_reports r ON r.session_id=s.id
+      WHERE s.email IS NOT NULL ORDER BY (deleted_at IS NOT NULL), s.completed_at DESC LIMIT 500`).all<{ snapshot_json: string | null; campaign: string | null; completed_at: string; email: string; marketing_consent: number; session_id: string; source: string | null; test_id: string | null; test_title: string | null }>(),
     db.prepare(`SELECT e.session_id, e.question_id, e.option_label
       FROM quiz_events e
       WHERE e.event_name = 'answer_selected'
         AND e.question_id IS NOT NULL
         AND e.session_id IN (SELECT id FROM quiz_sessions WHERE email IS NOT NULL ORDER BY completed_at DESC LIMIT 500)
       ORDER BY e.id DESC`).all<{ option_label: string | null; question_id: string; session_id: string }>(),
-    db.prepare(`SELECT COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads, SUM(CASE WHEN marketing_consent = 1 THEN 1 ELSE 0 END) AS consented FROM quiz_sessions`).first<{ consented: number; leads: number; sessions: number }>(),
-    db.prepare(`SELECT COUNT(DISTINCT session_id) AS users FROM quiz_events WHERE created_at >= datetime('now', '-5 minutes')`).first<{ users: number }>(),
-    db.prepare(`SELECT COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads FROM quiz_sessions WHERE date(started_at) = date('now')`).first<{ leads: number; sessions: number }>(),
-    db.prepare(`SELECT date(started_at) AS day, COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads FROM quiz_sessions WHERE started_at >= datetime('now', '-6 days', 'start of day') GROUP BY date(started_at) ORDER BY day`).all<{ day: string; leads: number; sessions: number }>(),
-    db.prepare(`SELECT e.question_id, COALESCE(q.prompt, e.question_id) AS prompt, COUNT(*) AS answers, COUNT(DISTINCT e.session_id) AS users FROM quiz_events e LEFT JOIN quiz_questions q ON q.id = e.question_id WHERE e.event_name = 'answer_selected' AND e.question_id IS NOT NULL GROUP BY e.question_id, q.prompt ORDER BY answers DESC LIMIT 10`).all<{ answers: number; prompt: string; question_id: string; users: number }>(),
-    db.prepare(`SELECT e.test_id, COALESCE(t.title, e.test_id) AS title, COUNT(DISTINCT e.session_id) AS users FROM quiz_events e LEFT JOIN quiz_tests t ON t.id = e.test_id WHERE e.event_name = 'quiz_started' AND e.test_id IS NOT NULL GROUP BY e.test_id, t.title ORDER BY users DESC LIMIT 8`).all<{ test_id: string; title: string; users: number }>(),
+    db.prepare(`SELECT COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL AND id NOT IN (SELECT session_id FROM admin_deleted_leads) THEN 1 ELSE 0 END) AS leads, SUM(CASE WHEN marketing_consent = 1 AND id NOT IN (SELECT session_id FROM admin_deleted_leads) THEN 1 ELSE 0 END) AS consented FROM quiz_sessions s WHERE ${productionSession}`).first<{ consented: number; leads: number; sessions: number }>(),
+    db.prepare(`SELECT COUNT(DISTINCT e.session_id) AS users FROM quiz_events e JOIN quiz_sessions s ON s.id=e.session_id WHERE ${productionSession} AND e.created_at >= datetime('now', '-5 minutes')`).first<{ users: number }>(),
+    db.prepare(`SELECT COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL AND id NOT IN (SELECT session_id FROM admin_deleted_leads) THEN 1 ELSE 0 END) AS leads FROM quiz_sessions s WHERE ${productionSession} AND date(started_at,'+8 hours') = date('now','+8 hours')`).first<{ leads: number; sessions: number }>(),
+    db.prepare(`SELECT date(started_at,'+8 hours') AS day, COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL AND id NOT IN (SELECT session_id FROM admin_deleted_leads) THEN 1 ELSE 0 END) AS leads FROM quiz_sessions s WHERE ${productionSession} AND date(started_at,'+8 hours') >= date('now','+8 hours','-6 days') GROUP BY date(started_at,'+8 hours') ORDER BY day`).all<{ day: string; leads: number; sessions: number }>(),
+    db.prepare(`SELECT e.question_id, COALESCE(q.prompt, e.question_id) AS prompt, COUNT(*) AS answers, COUNT(DISTINCT e.session_id) AS users FROM quiz_events e JOIN quiz_sessions s ON s.id=e.session_id LEFT JOIN quiz_questions q ON q.id = e.question_id WHERE ${productionSession} AND e.event_name = 'answer_selected' AND e.question_id IS NOT NULL GROUP BY e.question_id, q.prompt ORDER BY answers DESC LIMIT 10`).all<{ answers: number; prompt: string; question_id: string; users: number }>(),
+    db.prepare(`SELECT e.test_id, COALESCE(t.title, e.test_id) AS title, COUNT(DISTINCT e.session_id) AS users FROM quiz_events e JOIN quiz_sessions s ON s.id=e.session_id LEFT JOIN quiz_tests t ON t.id = e.test_id WHERE ${productionSession} AND e.event_name = 'quiz_started' AND e.test_id IS NOT NULL GROUP BY e.test_id, t.title ORDER BY users DESC LIMIT 8`).all<{ test_id: string; title: string; users: number }>(),
   ]);
 
   const dailyByDate = new Map(sevenDays.results.map((item) => [item.day, item]));
   const completeSevenDays = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date();
+    const date = new Date(Date.now() + 8 * 3600000);
     date.setUTCDate(date.getUTCDate() - (6 - index));
     const day = date.toISOString().slice(0, 10);
     return dailyByDate.get(day) ?? { day, sessions: 0, leads: 0 };
@@ -580,7 +592,7 @@ export async function getAdminStats() {
   return {
     funnel: funnel.results,
     sources: sources.results,
-    emails: emails.results,
+    emails: emails.results.map(({snapshot_json, ...lead}) => ({ ...lead, answers: answerRecords(snapshot_json, answerEvents.results.filter(event => event.session_id === lead.session_id)) })),
     answerEvents: answerEvents.results,
     onlineNow: online?.users ?? 0,
     today: today ?? { sessions: 0, leads: 0 },

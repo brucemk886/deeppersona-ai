@@ -40,7 +40,6 @@ export async function GET(request: Request) {
       options: question.options.map((option) => ({
         label: option.label,
         microcopy: option.microcopy,
-        scoreKey: option.scoreKey,
         meaning: option.meaning,
         projection: option.projection,
       })),

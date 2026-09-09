@@ -1,5 +1,5 @@
 import { insightArticleCards, insightClusters } from "@/lib/insights-index";
-import { defaultTests } from "@/lib/quiz";
+import { defaultTests } from "@/lib/quiz-content";
 
 const SITE_URL = "https://deeppersonaai.com";
 

@@ -8,6 +8,9 @@
   "compatibility_date": "2026-08-16",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
+  "ratelimits": [
+    { "name": "CHECKOUT_RATE_LIMIT", "namespace_id": "2026090801", "simple": { "limit": 30, "period": 60 } }
+  ],
   "routes": [
     {
       "pattern": "deeppersonaai.com",

@@ -1,14 +1,12 @@
+import { listQuestions, listTests } from "@/db/quiz-store";
+import { publicTest, publicQuestion } from "@/lib/public-quiz";
 import type { Metadata } from "next";
 import { QuizApp } from "@/app/quiz-app";
-import { defaultTests } from "@/lib/quiz";
-
-export function generateStaticParams() {
-  return defaultTests.filter((test) => test.active).map((test) => ({ id: test.id }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const test = defaultTests.find((item) => item.id === id && item.active);
+  const test = (await listTests()).find((item) => item.id === id);
   if (!test) return {};
 
   const title = `${test.title} | DeepPersona AI`;
@@ -37,5 +35,6 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function TestDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <QuizApp initialTestId={id} initialTests={defaultTests} />;
+  const [tests, questions] = await Promise.all([listTests(), listQuestions(id)]);
+  return <QuizApp initialTestId={id} initialTests={tests.map(publicTest)} initialQuestions={questions.map(publicQuestion)} />;
 }

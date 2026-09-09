@@ -1,6 +1,7 @@
+import { publicQuestion } from "@/lib/public-quiz";
 import { isAdminRequest } from "@/app/admin-auth";
 import { deleteQuestion, listQuestions, saveQuestion } from "@/db/quiz-store";
-import { TRAIT_KEYS, type QuizQuestion } from "@/lib/quiz";
+import { type QuizQuestion } from "@/lib/quiz";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    return Response.json({ questions: await listQuestions(testId, includeInactive) });
+    const items = await listQuestions(testId, includeInactive);
+    return Response.json({ questions: includeInactive ? items : items.map(publicQuestion) });
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Unable to load questions" },
@@ -43,15 +45,14 @@ export async function PUT(request: Request) {
         typeof option.label === "string" &&
         typeof option.microcopy === "string" &&
         typeof option.meaning === "string" &&
-        typeof option.projection === "string" &&
-        TRAIT_KEYS.includes(option.scoreKey),
+        typeof option.projection === "string",
     );
 
   if (!valid) {
     return Response.json({ error: "Invalid question payload" }, { status: 400 });
   }
 
-  await saveQuestion(body);
+  await saveQuestion({ ...body, options: body.options.map(({label,microcopy,meaning,projection}) => ({label,microcopy,meaning,projection})) });
   return Response.json({ ok: true });
 }
 

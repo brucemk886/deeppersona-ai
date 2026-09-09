@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "deeppersona-report-mailer",
+  "main": "workers/report-mailer.ts",
+  "compatibility_date": "2026-08-16",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "triggers": { "crons": ["* * * * *"] },
+  "vars": { "REPORT_EMAIL_FROM": "DeepPersona AI <reports@mail.deeppersonaai.com>" },
+  "d1_databases": [{ "binding": "DB", "database_name": "deeppersona-ai", "database_id": "5bc9493a-92ab-4ca9-8bac-692c906c75bf" }],
+  "observability": { "enabled": true }
+}
