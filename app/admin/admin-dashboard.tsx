@@ -1,7 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
+import {
+  ADMIN_STATS_RANGE_LABELS,
+  ADMIN_STATS_RANGES,
+  isHourlyAdminStatsRange,
+  type AdminStatsRange,
+} from "@/lib/admin-stats-range";
 import { TRAIT_KEYS, type AffiliateProduct, type QuizQuestion, type QuizTest, type TraitKey } from "@/lib/quiz";
 
 type AdminSection = "overview" | "tests" | "questions" | "traffic" | "emails" | "payments" | "affiliates";
@@ -23,8 +29,12 @@ type Stats = {
     test_title: string | null;
   }[];
   onlineNow: number;
+  period?: { consented: number; leads: number; sessions: number };
   popularQuestions: { answers: number; prompt: string; question_id: string; users: number }[];
   popularTests: { test_id: string; title: string; users: number }[];
+  range?: AdminStatsRange;
+  series?: { day: string; leads: number; sessions: number }[];
+  seriesGranularity?: "day" | "hour";
   sevenDays: { day: string; leads: number; sessions: number }[];
   today: { leads: number; sessions: number };
   totals: { consented: number; leads: number; sessions: number };
@@ -144,6 +154,28 @@ function formatDay(value: string) {
   );
 }
 
+function formatSeriesLabel(value: string, range: AdminStatsRange, index: number) {
+  if (isHourlyAdminStatsRange(range)) {
+    const hour = Number(value.slice(11, 13));
+    return Number.isFinite(hour) && hour % 3 === 0 ? `${String(hour).padStart(2, "0")}` : "";
+  }
+  if (range === "30d" && index % 5 !== 0 && index !== 29) return "";
+  return formatDay(value.slice(0, 10));
+}
+
+function chartCopy(range: AdminStatsRange) {
+  if (isHourlyAdminStatsRange(range)) {
+    return {
+      subtitle: "按小时统计访问会话与邮箱提交",
+      title: range === "today" ? "今日时段访问" : "昨日时段访问",
+    };
+  }
+  return {
+    subtitle: "每天的访问会话与邮箱转化",
+    title: range === "30d" ? "近 30 日流量" : "近 7 日流量",
+  };
+}
+
 async function fetchAdminJson<T>(url: string): Promise<T> {
   const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) throw new Error(`${url} 读取失败`);
@@ -171,12 +203,14 @@ export function AdminDashboard({
   const [emailSearch, setEmailSearch] = useState("");
   const [consentOnly, setConsentOnly] = useState(false);
   const [segmentFilter, setSegmentFilter] = useState("all");
+  const [statsRange, setStatsRange] = useState<AdminStatsRange>("7d");
+  const isFirstLoad = useRef(true);
 
   const loadData = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
     try {
       const [statsResult, questionsResult, testsResult, productsResult] = await Promise.allSettled([
-        fetchAdminJson<Stats>("/api/admin/stats"),
+        fetchAdminJson<Stats>(`/api/admin/stats?range=${encodeURIComponent(statsRange)}`),
         fetchAdminJson<{ questions: QuizQuestion[] }>("/api/questions?all=1"),
         fetchAdminJson<{ tests: QuizTest[] }>("/api/tests?all=1"),
         fetchAdminJson<{ products: AffiliateProduct[] }>("/api/affiliate-products?all=1"),
@@ -210,10 +244,12 @@ export function AdminDashboard({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [statsRange]);
 
   useEffect(() => {
-    const initial = window.setTimeout(() => void loadData(), 0);
+    const quiet = !isFirstLoad.current;
+    isFirstLoad.current = false;
+    const initial = window.setTimeout(() => void loadData(quiet), 0);
     const timer = window.setInterval(() => void loadData(true), 30_000);
     return () => {
       window.clearTimeout(initial);
@@ -226,11 +262,11 @@ export function AdminDashboard({
     return funnelOrder.map(([key, label]) => ({ key, label, users: values.get(key) ?? 0 }));
   }, [stats]);
   const funnelMax = Math.max(1, funnel[0]?.users ?? 0);
-  const sevenDayTotal = stats?.sevenDays.reduce((sum, item) => sum + item.sessions, 0) ?? 0;
-  const chartMax = Math.max(1, ...(stats?.sevenDays.map((item) => item.sessions) ?? [0]));
-  const conversion = stats?.totals.sessions
-    ? ((stats.totals.leads / stats.totals.sessions) * 100).toFixed(1)
-    : "0.0";
+  const series = stats?.series ?? stats?.sevenDays ?? [];
+  const period = stats?.period ?? { consented: 0, leads: 0, sessions: 0 };
+  const chartMax = Math.max(1, ...series.map((item) => item.sessions), 0);
+  const conversion = period.sessions ? ((period.leads / period.sessions) * 100).toFixed(1) : "0.0";
+  const rangeLabel = ADMIN_STATS_RANGE_LABELS[statsRange];
   const filteredEmails = useMemo(() => {
     const needle = emailSearch.trim().toLowerCase();
     return (stats?.emails ?? []).filter(
@@ -481,7 +517,11 @@ export function AdminDashboard({
               funnel={funnel}
               funnelMax={funnelMax}
               loading={loading}
-              sevenDayTotal={sevenDayTotal}
+              period={period}
+              range={statsRange}
+              rangeLabel={rangeLabel}
+              series={series}
+              setRange={setStatsRange}
               stats={stats}
             />
           ) : null}
@@ -514,8 +554,15 @@ export function AdminDashboard({
           {activeSection === "traffic" ? (
             <TrafficPanel
               chartMax={chartMax}
+              conversion={conversion}
               funnel={funnel}
               funnelMax={funnelMax}
+              loading={loading}
+              period={period}
+              range={statsRange}
+              rangeLabel={rangeLabel}
+              series={series}
+              setRange={setStatsRange}
               stats={stats}
             />
           ) : null}
@@ -551,7 +598,11 @@ function Overview({
   funnel,
   funnelMax,
   loading,
-  sevenDayTotal,
+  period,
+  range,
+  rangeLabel,
+  series,
+  setRange,
   stats,
 }: {
   chartMax: number;
@@ -559,49 +610,83 @@ function Overview({
   funnel: { key: string; label: string; users: number }[];
   funnelMax: number;
   loading: boolean;
-  sevenDayTotal: number;
+  period: { consented: number; leads: number; sessions: number };
+  range: AdminStatsRange;
+  rangeLabel: string;
+  series: Stats["sevenDays"];
+  setRange: (value: AdminStatsRange) => void;
   stats: Stats | null;
 }) {
+  const chart = chartCopy(range);
   return (
     <>
       <div className="admin-page-heading">
-        <div><span className="admin-kicker">实时经营数据</span><h1>欢迎回来，今天的测试表现如下</h1></div>
-        <span className="admin-date">{new Intl.DateTimeFormat("zh-CN", { dateStyle: "long" }).format(new Date())}</span>
+        <div><span className="admin-kicker">实时经营数据</span><h1>欢迎回来，所选时段的测试表现如下</h1></div>
+        <div className="admin-heading-tools">
+          <StatsRangeSwitcher value={range} onChange={setRange} />
+          <span className="admin-date">{new Intl.DateTimeFormat("zh-CN", { dateStyle: "long" }).format(new Date())}</span>
+        </div>
       </div>
       <section className="metric-grid five">
         <MetricCard accent="green" label="当前在线" value={loading ? "—" : stats?.onlineNow ?? 0} note="最近 5 分钟活跃用户" live />
-        <MetricCard label="今日访问" value={loading ? "—" : stats?.today.sessions ?? 0} note={`今日新增邮箱 ${stats?.today.leads ?? 0}`} />
-        <MetricCard label="近 7 日流量" value={loading ? "—" : sevenDayTotal} note="独立测试会话" />
-        <MetricCard label="累计邮箱" value={loading ? "—" : stats?.totals.leads ?? 0} note={`营销授权 ${stats?.totals.consented ?? 0}`} />
-        <MetricCard accent="wine" label="邮箱转化率" value={`${conversion}%`} note="访问 → 邮箱提交" />
+        <MetricCard label="区间访问" value={loading ? "—" : period.sessions} note={`${rangeLabel}独立测试会话`} />
+        <MetricCard label="区间邮箱" value={loading ? "—" : period.leads} note={`${rangeLabel}完成邮箱解锁`} />
+        <MetricCard label="营销授权" value={loading ? "—" : period.consented} note={`${rangeLabel}同意接收营销`} />
+        <MetricCard accent="wine" label="邮箱转化率" value={`${conversion}%`} note={`${rangeLabel}访问 → 邮箱提交`} />
       </section>
+      <p className="stats-alltime-hint">全站累计 {stats?.totals.sessions ?? 0} 次访问 · {stats?.totals.leads ?? 0} 个邮箱 · 今日 {stats?.today.sessions ?? 0} 次访问</p>
 
       <section className="dashboard-two-column wide-left">
         <div className="admin-card chart-card">
-          <CardHeader title="最近 7 日流量" subtitle="访问会话与邮箱转化趋势" />
-          <SevenDayChart data={stats?.sevenDays ?? []} max={chartMax} />
+          <CardHeader title={chart.title} subtitle={chart.subtitle} />
+          <SevenDayChart data={series} max={chartMax} range={range} />
         </div>
         <div className="admin-card">
-          <CardHeader title="转化漏斗" subtitle="各关键节点的独立用户" />
+          <CardHeader title="转化漏斗" subtitle={`${rangeLabel}各关键节点的独立用户`} />
           <Funnel funnel={funnel} max={funnelMax} />
         </div>
       </section>
 
       <section className="dashboard-two-column equal">
         <div className="admin-card">
-          <CardHeader title="最热门题目" subtitle="按照用户选择次数排序" />
+          <CardHeader title="最热门题目" subtitle={`${rangeLabel}按照用户选择次数排序`} />
           <PopularQuestions items={stats?.popularQuestions ?? []} />
         </div>
         <div className="admin-card">
-          <CardHeader title="主要流量来源" subtitle="用于 TikTok 矩阵账号归因" />
+          <CardHeader title="主要流量来源" subtitle={`${rangeLabel}用于 TikTok 矩阵账号归因`} />
           <SourceList sources={stats?.sources ?? []} />
         </div>
       </section>
       <section className="admin-card traffic-full">
-        <CardHeader title="热门测试排行" subtitle="按照开始测试的独立用户数排序" />
+        <CardHeader title="热门测试排行" subtitle={`${rangeLabel}按照开始测试的独立用户数排序`} />
         <PopularTests items={stats?.popularTests ?? []} />
       </section>
     </>
+  );
+}
+
+function StatsRangeSwitcher({
+  onChange,
+  value,
+}: {
+  onChange: (value: AdminStatsRange) => void;
+  value: AdminStatsRange;
+}) {
+  return (
+    <div aria-label="统计时间范围" className="stats-range-switcher" role="tablist">
+      {ADMIN_STATS_RANGES.map((item) => (
+        <button
+          aria-selected={value === item}
+          className={value === item ? "active" : undefined}
+          key={item}
+          onClick={() => onChange(item)}
+          role="tab"
+          type="button"
+        >
+          {ADMIN_STATS_RANGE_LABELS[item]}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -631,21 +716,35 @@ function CardHeader({ subtitle, title }: { subtitle: string; title: string }) {
   return <header className="card-header"><div><h2>{title}</h2><p>{subtitle}</p></div><span>•••</span></header>;
 }
 
-function SevenDayChart({ data, max }: { data: Stats["sevenDays"]; max: number }) {
+function SevenDayChart({
+  data,
+  max,
+  range,
+}: {
+  data: Stats["sevenDays"];
+  max: number;
+  range: AdminStatsRange;
+}) {
+  const dense = data.length > 7;
   return (
-    <div className="seven-day-chart">
-      <div className="chart-lines"><i /><i /><i /><i /></div>
-      {data.map((item) => (
-        <div className="day-column" key={item.day}>
-          <div className="day-value">{item.sessions}</div>
-          <div className="bar-wrap">
-            <span className="session-bar" style={{ height: `${Math.max(4, (item.sessions / max) * 100)}%` }} />
-            <span className="lead-bar" style={{ height: `${Math.max(0, (item.leads / max) * 100)}%` }} />
+    <div className="chart-scroll">
+      <div
+        className={`seven-day-chart${dense ? " dense" : ""}`}
+        style={{ "--chart-cols": String(Math.max(data.length, 1)) } as CSSProperties}
+      >
+        <div className="chart-lines"><i /><i /><i /><i /></div>
+        {data.map((item, index) => (
+          <div className="day-column" key={item.day}>
+            <div className="day-value">{dense ? "" : item.sessions}</div>
+            <div className="bar-wrap">
+              <span className="session-bar" style={{ height: `${Math.max(4, (item.sessions / max) * 100)}%` }} />
+              <span className="lead-bar" style={{ height: `${Math.max(0, (item.leads / max) * 100)}%` }} />
+            </div>
+            <small>{formatSeriesLabel(item.day, range, index)}</small>
           </div>
-          <small>{formatDay(item.day)}</small>
-        </div>
-      ))}
-      <div className="chart-legend"><span><i className="legend-session" />访问</span><span><i className="legend-lead" />邮箱</span></div>
+        ))}
+        <div className="chart-legend"><span><i className="legend-session" />访问</span><span><i className="legend-lead" />邮箱</span></div>
+      </div>
     </div>
   );
 }
@@ -857,14 +956,50 @@ function QuestionManager({
   );
 }
 
-function TrafficPanel({ chartMax, funnel, funnelMax, stats }: { chartMax: number; funnel: { key: string; label: string; users: number }[]; funnelMax: number; stats: Stats | null }) {
+function TrafficPanel({
+  chartMax,
+  conversion,
+  funnel,
+  funnelMax,
+  loading,
+  period,
+  range,
+  rangeLabel,
+  series,
+  setRange,
+  stats,
+}: {
+  chartMax: number;
+  conversion: string;
+  funnel: { key: string; label: string; users: number }[];
+  funnelMax: number;
+  loading: boolean;
+  period: { consented: number; leads: number; sessions: number };
+  range: AdminStatsRange;
+  rangeLabel: string;
+  series: Stats["sevenDays"];
+  setRange: (value: AdminStatsRange) => void;
+  stats: Stats | null;
+}) {
+  const chart = chartCopy(range);
   return (
     <>
-      <div className="admin-page-heading"><div><span className="admin-kicker">获客与转化</span><h1>流量分析</h1><p>查看 TikTok 矩阵、UTM 活动和站内关键路径表现。</p></div></div>
-      <section className="metric-grid four"><MetricCard accent="green" label="当前在线" value={stats?.onlineNow ?? 0} note="近 5 分钟活跃" live /><MetricCard label="今日流量" value={stats?.today.sessions ?? 0} note={`邮箱 ${stats?.today.leads ?? 0}`} /><MetricCard label="累计会话" value={stats?.totals.sessions ?? 0} note="全部来源" /><MetricCard accent="wine" label="累计邮箱" value={stats?.totals.leads ?? 0} note="完成邮箱解锁" /></section>
-      <section className="admin-card chart-card traffic-full"><CardHeader title="最近 7 日流量趋势" subtitle="每天的访问与邮箱提交" /><SevenDayChart data={stats?.sevenDays ?? []} max={chartMax} /></section>
-      <section className="dashboard-two-column equal"><div className="admin-card"><CardHeader title="流量来源" subtitle="来源参数与直接访问" /><SourceList sources={stats?.sources ?? []} /></div><div className="admin-card"><CardHeader title="完整转化漏斗" subtitle="发现具体流失节点" /><Funnel funnel={funnel} max={funnelMax} /></div></section>
-      <section className="dashboard-two-column equal"><div className="admin-card"><CardHeader title="热门测试排行" subtitle="开始测试的独立用户" /><PopularTests items={stats?.popularTests ?? []} /></div><div className="admin-card"><CardHeader title="热门题目排行" subtitle="用户选择最多的题目" /><PopularQuestions items={stats?.popularQuestions ?? []} /></div></section>
+      <div className="admin-page-heading">
+        <div><span className="admin-kicker">获客与转化</span><h1>流量分析</h1><p>按今天、昨天、近7天或近30天查看 TikTok 矩阵、UTM 活动和站内关键路径表现。</p></div>
+        <div className="admin-heading-tools">
+          <StatsRangeSwitcher value={range} onChange={setRange} />
+        </div>
+      </div>
+      <section className="metric-grid four">
+        <MetricCard accent="green" label="当前在线" value={loading ? "—" : stats?.onlineNow ?? 0} note="近 5 分钟活跃" live />
+        <MetricCard label="区间访问" value={loading ? "—" : period.sessions} note={`${rangeLabel}全部来源`} />
+        <MetricCard label="区间邮箱" value={loading ? "—" : period.leads} note={`${rangeLabel}完成邮箱解锁`} />
+        <MetricCard accent="wine" label="邮箱转化率" value={`${conversion}%`} note={`${rangeLabel}访问 → 邮箱提交`} />
+      </section>
+      <p className="stats-alltime-hint">全站累计 {stats?.totals.sessions ?? 0} 次访问 · {stats?.totals.leads ?? 0} 个邮箱 · 今日 {stats?.today.sessions ?? 0} 次访问</p>
+      <section className="admin-card chart-card traffic-full"><CardHeader title={`${chart.title}趋势`} subtitle={chart.subtitle} /><SevenDayChart data={series} max={chartMax} range={range} /></section>
+      <section className="dashboard-two-column equal"><div className="admin-card"><CardHeader title="流量来源" subtitle={`${rangeLabel}来源参数与直接访问`} /><SourceList sources={stats?.sources ?? []} /></div><div className="admin-card"><CardHeader title="完整转化漏斗" subtitle={`${rangeLabel}发现具体流失节点`} /><Funnel funnel={funnel} max={funnelMax} /></div></section>
+      <section className="dashboard-two-column equal"><div className="admin-card"><CardHeader title="热门测试排行" subtitle={`${rangeLabel}开始测试的独立用户`} /><PopularTests items={stats?.popularTests ?? []} /></div><div className="admin-card"><CardHeader title="热门题目排行" subtitle={`${rangeLabel}用户选择最多的题目`} /><PopularQuestions items={stats?.popularQuestions ?? []} /></div></section>
     </>
   );
 }

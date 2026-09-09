@@ -11,6 +11,12 @@ import {
   type TraitKey,
 } from "@/lib/quiz";
 import { getOptionInsight } from "@/lib/choice-insights";
+import {
+  adminStatsTimePredicate,
+  completeAdminStatsSeries,
+  isHourlyAdminStatsRange,
+  resolveAdminStatsRange,
+} from "@/lib/admin-stats-range";
 import { INNER_DIMENSIONS, TEST_DIMENSIONS, type InnerDimensionId, type InnerProfileSummary } from "@/lib/inner-map";
 import {
   isRelationshipType,
@@ -545,13 +551,20 @@ export async function submitQuiz(input: {
   await db.batch(writes);
   return getProfileSummary(input.profileId);
 }
-export async function getAdminStats() {
+export async function getAdminStats(rangeInput?: string | null) {
   await ensureQuizSchema();
   await seedCatalogIfNeeded();
   const db = getD1();
-  const [funnel, sources, emails, answerEvents, totals, online, today, sevenDays, popularQuestions, popularTests] = await Promise.all([
-    db.prepare(`SELECT event_name, COUNT(DISTINCT session_id) AS users FROM quiz_events GROUP BY event_name`).all<{ event_name: string; users: number }>(),
-    db.prepare(`SELECT COALESCE(source, 'direct') AS source, COUNT(DISTINCT id) AS users FROM quiz_sessions GROUP BY COALESCE(source, 'direct') ORDER BY users DESC LIMIT 8`).all<{ source: string; users: number }>(),
+  const range = resolveAdminStatsRange(rangeInput);
+  const sessionPredicate = adminStatsTimePredicate("started_at", range);
+  const eventPredicate = adminStatsTimePredicate("created_at", range);
+  const hourly = isHourlyAdminStatsRange(range);
+  const seriesSql = hourly
+    ? `SELECT strftime('%Y-%m-%d %H:00', started_at) AS day, COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads FROM quiz_sessions WHERE ${sessionPredicate} GROUP BY day ORDER BY day`
+    : `SELECT date(started_at) AS day, COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads FROM quiz_sessions WHERE ${sessionPredicate} GROUP BY date(started_at) ORDER BY day`;
+  const [funnel, sources, emails, answerEvents, totals, period, online, today, seriesRows, popularQuestions, popularTests] = await Promise.all([
+    db.prepare(`SELECT event_name, COUNT(DISTINCT session_id) AS users FROM quiz_events WHERE ${eventPredicate} GROUP BY event_name`).all<{ event_name: string; users: number }>(),
+    db.prepare(`SELECT COALESCE(source, 'direct') AS source, COUNT(DISTINCT id) AS users FROM quiz_sessions WHERE ${sessionPredicate} GROUP BY COALESCE(source, 'direct') ORDER BY users DESC LIMIT 8`).all<{ source: string; users: number }>(),
     db.prepare(`SELECT s.id AS session_id, s.email, s.marketing_consent, s.answers_json, s.result_type, s.source, s.campaign, s.completed_at, s.test_id, COALESCE(t.title, s.test_id) AS test_title
       FROM quiz_sessions s LEFT JOIN quiz_tests t ON t.id = s.test_id
       WHERE s.email IS NOT NULL ORDER BY s.completed_at DESC LIMIT 500`).all<{ answers_json: string | null; campaign: string | null; completed_at: string; email: string; marketing_consent: number; result_type: string; session_id: string; source: string | null; test_id: string | null; test_title: string | null }>(),
@@ -562,29 +575,28 @@ export async function getAdminStats() {
         AND e.session_id IN (SELECT id FROM quiz_sessions WHERE email IS NOT NULL ORDER BY completed_at DESC LIMIT 500)
       ORDER BY e.id DESC`).all<{ option_label: string | null; question_id: string; session_id: string }>(),
     db.prepare(`SELECT COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads, SUM(CASE WHEN marketing_consent = 1 THEN 1 ELSE 0 END) AS consented FROM quiz_sessions`).first<{ consented: number; leads: number; sessions: number }>(),
+    db.prepare(`SELECT COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads, SUM(CASE WHEN marketing_consent = 1 THEN 1 ELSE 0 END) AS consented FROM quiz_sessions WHERE ${sessionPredicate}`).first<{ consented: number; leads: number; sessions: number }>(),
     db.prepare(`SELECT COUNT(DISTINCT session_id) AS users FROM quiz_events WHERE created_at >= datetime('now', '-5 minutes')`).first<{ users: number }>(),
     db.prepare(`SELECT COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads FROM quiz_sessions WHERE date(started_at) = date('now')`).first<{ leads: number; sessions: number }>(),
-    db.prepare(`SELECT date(started_at) AS day, COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL THEN 1 ELSE 0 END) AS leads FROM quiz_sessions WHERE started_at >= datetime('now', '-6 days', 'start of day') GROUP BY date(started_at) ORDER BY day`).all<{ day: string; leads: number; sessions: number }>(),
-    db.prepare(`SELECT e.question_id, COALESCE(q.prompt, e.question_id) AS prompt, COUNT(*) AS answers, COUNT(DISTINCT e.session_id) AS users FROM quiz_events e LEFT JOIN quiz_questions q ON q.id = e.question_id WHERE e.event_name = 'answer_selected' AND e.question_id IS NOT NULL GROUP BY e.question_id, q.prompt ORDER BY answers DESC LIMIT 10`).all<{ answers: number; prompt: string; question_id: string; users: number }>(),
-    db.prepare(`SELECT e.test_id, COALESCE(t.title, e.test_id) AS title, COUNT(DISTINCT e.session_id) AS users FROM quiz_events e LEFT JOIN quiz_tests t ON t.id = e.test_id WHERE e.event_name = 'quiz_started' AND e.test_id IS NOT NULL GROUP BY e.test_id, t.title ORDER BY users DESC LIMIT 8`).all<{ test_id: string; title: string; users: number }>(),
+    db.prepare(seriesSql).all<{ day: string; leads: number; sessions: number }>(),
+    db.prepare(`SELECT e.question_id, COALESCE(q.prompt, e.question_id) AS prompt, COUNT(*) AS answers, COUNT(DISTINCT e.session_id) AS users FROM quiz_events e LEFT JOIN quiz_questions q ON q.id = e.question_id WHERE e.event_name = 'answer_selected' AND e.question_id IS NOT NULL AND ${eventPredicate} GROUP BY e.question_id, q.prompt ORDER BY answers DESC LIMIT 10`).all<{ answers: number; prompt: string; question_id: string; users: number }>(),
+    db.prepare(`SELECT e.test_id, COALESCE(t.title, e.test_id) AS title, COUNT(DISTINCT e.session_id) AS users FROM quiz_events e LEFT JOIN quiz_tests t ON t.id = e.test_id WHERE e.event_name = 'quiz_started' AND e.test_id IS NOT NULL AND ${eventPredicate} GROUP BY e.test_id, t.title ORDER BY users DESC LIMIT 8`).all<{ test_id: string; title: string; users: number }>(),
   ]);
 
-  const dailyByDate = new Map(sevenDays.results.map((item) => [item.day, item]));
-  const completeSevenDays = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date();
-    date.setUTCDate(date.getUTCDate() - (6 - index));
-    const day = date.toISOString().slice(0, 10);
-    return dailyByDate.get(day) ?? { day, sessions: 0, leads: 0 };
-  });
+  const series = completeAdminStatsSeries(range, seriesRows.results);
 
   return {
+    range,
+    seriesGranularity: hourly ? "hour" : "day",
     funnel: funnel.results,
     sources: sources.results,
     emails: emails.results,
     answerEvents: answerEvents.results,
     onlineNow: online?.users ?? 0,
     today: today ?? { sessions: 0, leads: 0 },
-    sevenDays: completeSevenDays,
+    period: period ?? { sessions: 0, leads: 0, consented: 0 },
+    series,
+    sevenDays: series,
     popularQuestions: popularQuestions.results,
     popularTests: popularTests.results,
     totals: totals ?? { sessions: 0, leads: 0, consented: 0 },

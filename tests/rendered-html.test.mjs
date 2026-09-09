@@ -10,7 +10,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   await access(new URL("../public/quiz/doors.webp", import.meta.url));
   await access(new URL("../public/quiz/doors-768.webp", import.meta.url));
 
-  const [home, quiz, catalog, choiceInsights, deepResults, admin, adminStyles, store, layout, analytics, analyticsUi, hosting, privacy, terms, refunds, contact, disclaimer, legalPage, testDetail, sitemap] = await Promise.all([
+  const [home, quiz, catalog, choiceInsights, deepResults, admin, adminStyles, store, layout, analytics, analyticsUi, hosting, privacy, terms, refunds, contact, disclaimer, legalPage, testDetail, sitemap, adminStatsRoute] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/quiz-app.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/quiz.ts", import.meta.url), "utf8"),
@@ -31,6 +31,7 @@ test("builds the complete DeepPersona AI experience", async () => {
     readFile(new URL("../app/_components/legal-page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/tests/[id]/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/sitemap.xml/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/admin/stats/route.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(quiz, /DeepPersona AI/);
@@ -71,13 +72,25 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(admin, /逐题选择/);
   assert.match(admin, /导出分群 CSV/);
   assert.match(admin, /一个“测试”对应前台的一张测试卡/);
+  assert.match(admin, /stats-range-switcher/);
+  assert.match(admin, /今天/);
+  assert.match(admin, /昨天/);
+  assert.match(admin, /近7天/);
+  assert.match(admin, /近30天/);
+  assert.match(admin, /\/api\/admin\/stats\?range=/);
   assert.match(adminStyles, /\/\* Admin readability scale \*\//);
   assert.match(adminStyles, /\.test-card-image \.atlas-image img/);
   assert.match(adminStyles, /aspect-ratio: 4 \/ 5/);
   assert.match(adminStyles, /\.lead-table-cn \{ font-size: 13px; \}/);
+  assert.match(adminStyles, /\.stats-range-switcher/);
+  assert.match(adminStyles, /--chart-cols/);
+  assert.match(adminStatsRoute, /searchParams\.get\("range"\)/);
   assert.match(store, /COUNT\(DISTINCT id\) AS users FROM quiz_sessions/);
   assert.match(store, /s\.answers_json/);
   assert.match(store, /answerEvents: answerEvents\.results/);
+  assert.match(store, /adminStatsTimePredicate/);
+  assert.match(store, /strftime\('%Y-%m-%d %H:00', started_at\)/);
+  assert.match(store, /datetime\('now', '-29 days', 'start of day'\)/);
   assert.doesNotMatch(store, /COUNT\(DISTINCT session_id\) AS users FROM quiz_sessions/);
   assert.match(layout, /DeepPersona AI — Visual Psychology Tests/);
   assert.match(layout, /og-deep-persona\.png/);
