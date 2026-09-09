@@ -584,6 +584,11 @@ export async function getAdminStats(rangeInput?: string | null) {
   ]);
 
   const series = completeAdminStatsSeries(range, seriesRows.results);
+  const countRow = (row?: { consented?: number | null; leads?: number | null; sessions?: number | null } | null) => ({
+    consented: Number(row?.consented ?? 0),
+    leads: Number(row?.leads ?? 0),
+    sessions: Number(row?.sessions ?? 0),
+  });
 
   return {
     range,
@@ -593,12 +598,12 @@ export async function getAdminStats(rangeInput?: string | null) {
     emails: emails.results,
     answerEvents: answerEvents.results,
     onlineNow: online?.users ?? 0,
-    today: today ?? { sessions: 0, leads: 0 },
-    period: period ?? { sessions: 0, leads: 0, consented: 0 },
+    today: { sessions: Number(today?.sessions ?? 0), leads: Number(today?.leads ?? 0) },
+    period: countRow(period),
     series,
     sevenDays: series,
     popularQuestions: popularQuestions.results,
     popularTests: popularTests.results,
-    totals: totals ?? { sessions: 0, leads: 0, consented: 0 },
+    totals: countRow(totals),
   };
 }
