@@ -8,7 +8,7 @@ export function InsightsHeader() {
         <span className="brand-mark">DP</span>
         <span>DeepPersona AI</span>
       </Link>
-      <nav aria-label="Insights navigation">
+      <nav aria-label="Site navigation">
         <Link href="/#quiz">Quiz</Link>
         <Link href="/insights">Learn</Link>
         <Link href="/blog">Blog</Link>
@@ -36,13 +36,34 @@ export function InsightsFooter() {
   );
 }
 
-export function InsightCard({ article }: { article: InsightArticleCard }) {
+export function ContentCard({
+  excerpt,
+  href,
+  readMinutes,
+  title,
+}: {
+  excerpt: string;
+  href: string;
+  readMinutes: number;
+  title: string;
+}) {
   return (
     <article className="insight-card">
-      <span>{article.readMinutes} min read</span>
-      <h2><Link href={`/insights/${article.slug}`}>{article.title}</Link></h2>
-      <p>{article.excerpt}</p>
-      <Link className="insight-card-link" href={`/insights/${article.slug}`}>Read the guide <span aria-hidden="true">→</span></Link>
+      <span>{readMinutes} min read</span>
+      <h2><Link href={href}>{title}</Link></h2>
+      <p>{excerpt}</p>
+      <Link className="insight-card-link" href={href}>Read the guide <span aria-hidden="true">→</span></Link>
     </article>
+  );
+}
+
+export function InsightCard({ article }: { article: InsightArticleCard }) {
+  return (
+    <ContentCard
+      excerpt={article.excerpt}
+      href={`/insights/${article.slug}`}
+      readMinutes={article.readMinutes}
+      title={article.title}
+    />
   );
 }

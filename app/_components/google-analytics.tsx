@@ -13,7 +13,7 @@ export function GoogleAnalytics() {
     if (/^\/(reports|admin|recover|api)(\/|$)/.test(pathname) || trackedPage.current === pathname) return;
     trackedPage.current = pathname;
     trackGoogleAnalyticsEvent('page_view');
-    const page = pathname === '/' ? '/' : pathname.startsWith('/tests/') ? '/tests' : pathname.startsWith('/insights') ? '/insights' : '/other';
+    const page = pathname === '/' ? '/' : pathname.startsWith('/tests/') ? '/tests' : pathname.startsWith('/insights') ? '/insights' : pathname === '/blog' || pathname.startsWith('/blog/') ? '/blog' : '/other';
     void fetch('/api/traffic', {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({anonymous:true,id:crypto.randomUUID(),page}),keepalive:true}).catch(()=>undefined);
   }, [pathname]);
   return null;

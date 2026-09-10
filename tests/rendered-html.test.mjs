@@ -10,7 +10,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   await access(new URL("../public/quiz/doors.webp", import.meta.url));
   await access(new URL("../public/quiz/doors-768.webp", import.meta.url));
 
-  const [home, quiz, catalog, choiceInsights, deepResults, admin, adminStyles, store, layout, analytics, analyticsUi, hosting, privacy, terms, refunds, contact, disclaimer, legalPage, testDetail, sitemap, adminStatsRoute, adminStatsRange, trafficPanel, trafficStats] = await Promise.all([
+  const [home, quiz, catalog, choiceInsights, deepResults, admin, adminStyles, store, layout, analytics, analyticsUi, hosting, privacy, terms, refunds, contact, disclaimer, legalPage, testDetail, sitemap, blogIndex, blogPost, adminStatsRoute, adminStatsRange, trafficPanel, trafficStats] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/quiz-app.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/quiz-content.ts", import.meta.url), "utf8"),
@@ -31,6 +31,8 @@ test("builds the complete DeepPersona AI experience", async () => {
     readFile(new URL("../app/_components/legal-page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/tests/[id]/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/sitemap.xml/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/blog/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/blog/[slug]/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/admin/stats/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/admin-stats-range.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/traffic-panel.tsx", import.meta.url), "utf8"),
@@ -153,7 +155,15 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(sitemap, /defaultTests/);
   assert.match(sitemap, /insightClusters/);
   assert.match(sitemap, /insightArticleCards/);
+  assert.match(sitemap, /blogPosts/);
+  assert.match(sitemap, /path: "\/blog"/);
   assert.match(sitemap, /https:\/\/deeppersonaai\.com/);
+  assert.match(quiz + siteChrome + legalPage, /href="\/blog"/);
+  assert.match(blogIndex, /canonical: "\/blog"/);
+  assert.match(blogIndex, /ATTACHMENT_QUIZ_PATH/);
+  assert.match(blogPost, /canonical: `\/blog\/\$\{post\.slug\}`/);
+  assert.match(blogPost, /blogQuizHref/);
+  assert.match(legalPage, /href="\/blog"/);
   assert.match(hosting, /"d1": "DB"/);
   assert.doesNotMatch(quiz + layout, /codex-preview|react-loading-skeleton/);
 });
