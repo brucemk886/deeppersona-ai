@@ -14,6 +14,12 @@ test("each live test has 15 catalog questions", () => {
     assert.ok(bank.slice(5).every((question) => !question.atlas), `${id} should continue with situation items`);
     assert.ok(bank.every((question) => question.options.length === 4), id);
   }
+  assert.equal(
+    questionBank["attachment-style"][0].prompt,
+    "They suddenly go quiet. Which door feels most like your next move?",
+  );
+  assert.match(questionBank["attachment-style"][6].prompt, /viewed your story/);
+  assert.match(questionBank["social-energy"][5].prompt, /ten minutes of heat/);
 });
 
 test("typed results and locked modules are wired into the report", async () => {
@@ -29,6 +35,8 @@ test("typed results and locked modules are wired into the report", async () => {
   assert.match(deepResults, /buildTypedResult/);
   assert.match(deepResults, /lockedModules/);
   assert.match(store, /syncCatalogQuestions/);
+  assert.match(store, /attachment-style-6/);
   assert.match(profiles, /axisValue\(leftScore, answered\)/);
   assert.match(profiles, /Reach for closeness/);
+  assert.match(profiles, /You chase the spark/);
 });

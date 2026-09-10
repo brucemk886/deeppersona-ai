@@ -17,9 +17,9 @@ export const defaultTests: QuizTest[] = [
   },
   {
     id: "emotional-needs",
-    title: "Your Hidden Emotional Need",
-    kicker: "Fast insight · Inner world",
-    description: "Discover what your mind quietly asks for when life gets noisy.",
+    title: "When They Pull Away",
+    kicker: "Relationships · Emotional need",
+    description: "See what you are actually starving for when the bond goes a little cold.",
     coverAtlasPath: "/quiz/rooms.png",
     accent: "#2f6653",
     position: 2,
@@ -29,9 +29,9 @@ export const defaultTests: QuizTest[] = [
   },
   {
     id: "conflict-style",
-    title: "Your Conflict Instinct",
+    title: "After You Fight",
     kicker: "Relationships · Communication",
-    description: "Find the pattern you reach for first when tension enters the room.",
+    description: "Find the pattern you reach for first when a fight with them starts.",
     coverAtlasPath: "/quiz/landscapes.png",
     accent: "#b46e43",
     position: 3,
@@ -41,9 +41,9 @@ export const defaultTests: QuizTest[] = [
   },
   {
     id: "social-energy",
-    title: "Your Social Battery Type",
-    kicker: "Highly relatable · Social life",
-    description: "Learn what actually gives you energy around other people—and what drains it.",
+    title: "Love or a Spiral",
+    kicker: "Most shared · Obsession",
+    description: "See whether this pull is ordinary liking, or a loop you cannot put down.",
     coverAtlasPath: "/quiz/rooms.png",
     accent: "#6c5a91",
     position: 4,
@@ -54,8 +54,8 @@ export const defaultTests: QuizTest[] = [
   {
     id: "love-language",
     title: "How You Feel Most Loved",
-    kicker: "Shareable · Love & friendship",
-    description: "Reveal the kind of care that lands most deeply for you.",
+    kicker: "Shareable · Love",
+    description: "Reveal the kind of care from them that actually lands.",
     coverAtlasPath: "/quiz/symbols.png",
     accent: "#b35c72",
     position: 5,
@@ -65,9 +65,9 @@ export const defaultTests: QuizTest[] = [
   },
   {
     id: "stress-reset",
-    title: "How You Reset Under Stress",
-    kicker: "Wellbeing · 5 minutes",
-    description: "See which kind of reset your mind and body ask for first.",
+    title: "When Love Hits Your Body",
+    kicker: "Wellbeing · Relationships",
+    description: "See what your body asks for first after a weird text, a cool reply, or silence.",
     coverAtlasPath: "/quiz/landscapes.png",
     accent: "#39747b",
     position: 6,
@@ -77,9 +77,9 @@ export const defaultTests: QuizTest[] = [
   },
   {
     id: "boundary-style",
-    title: "Your Relationship Boundary Style",
+    title: "Your Boundary in Love",
     kicker: "Self-respect · Relationships",
-    description: "Discover how you protect your time, privacy, and emotional space.",
+    description: "Discover how you protect your time, privacy, and access when they want more.",
     coverAtlasPath: "/quiz/doors.png",
     accent: "#74533b",
     position: 7,
@@ -89,9 +89,9 @@ export const defaultTests: QuizTest[] = [
   },
   {
     id: "hidden-strength",
-    title: "The Strength People Miss in You",
-    kicker: "Positive insight · Personality",
-    description: "Find the ability you use so naturally that you may underestimate it.",
+    title: "The Strength You Hide in Love",
+    kicker: "Positive insight · Relationships",
+    description: "Find the ability you use in love so naturally that you may not count it.",
     coverAtlasPath: "/quiz/symbols.png",
     accent: "#4d628b",
     position: 8,
@@ -102,10 +102,10 @@ export const defaultTests: QuizTest[] = [
 ];
 
 const optionDetails: Record<(typeof TRAIT_KEYS)[number], string> = {
-  explorer: "Move toward it",
-  connector: "Reach for connection",
-  architect: "Create some clarity",
-  creator: "Follow the feeling",
+  explorer: "Move toward them",
+  connector: "Soften the bond",
+  architect: "Make it clear",
+  creator: "Wait for the feeling",
 };
 
 export const defaultQuestions: QuizQuestion[] = defaultTests.flatMap((test) =>

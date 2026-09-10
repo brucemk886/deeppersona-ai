@@ -69,6 +69,8 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(quiz, /questionCount \|\| 15\} choices · about 5 minutes/);
   assert.match(quiz, /is-text/);
   assert.match(catalog, /questionBank/);
+  assert.match(catalog, /Love or a Spiral/);
+  assert.match(catalog, /When They Pull Away/);
   assert.doesNotMatch(quiz, /4 visual choices · about 2 minutes/);
   assert.doesNotMatch(quiz, /four visual choices/);
   assert.match(deepResults, /buildChoiceReport/);

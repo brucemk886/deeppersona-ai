@@ -4,8 +4,8 @@ import { matchTestByQuery } from "../lib/test-search.ts";
 
 const tests = [
   { id: "attachment-style", position: 1, title: "How You Attach in Love" },
-  { id: "emotional-needs", position: 2, title: "Your Hidden Emotional Need" },
-  { id: "conflict-style", position: 3, title: "Your Conflict Instinct" },
+  { id: "emotional-needs", position: 2, title: "When They Pull Away" },
+  { id: "conflict-style", position: 3, title: "After You Fight" },
 ];
 
 test("matches homepage test codes and titles", () => {
