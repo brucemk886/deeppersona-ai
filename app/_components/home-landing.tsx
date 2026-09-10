@@ -35,7 +35,7 @@ export function HomeLanding({
           <span className="editorial-kicker">A visual quiz for real relationships</span>
           <h1>Do you know your attachment style?</h1>
           <p className="hero-lede">
-            Discover the patterns behind how you connect, seek reassurance, and make space in your relationships.
+            Explore how your early experiences with parents and caregivers may shape the way you connect in adult relationships.
           </p>
           <div className="attach-hero-actions">
             <button
