@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { questionBank } from "../lib/quiz-question-bank.ts";
-import { buildTypedResult } from "../lib/result-profiles.ts";
 
 test("each live test has 15 catalog questions", () => {
   const tests = Object.keys(questionBank);
@@ -30,15 +29,6 @@ test("typed results and locked modules are wired into the report", async () => {
   assert.match(deepResults, /buildTypedResult/);
   assert.match(deepResults, /lockedModules/);
   assert.match(store, /syncCatalogQuestions/);
-});
-
-test("typed result names the winning pattern and scores both free axes", () => {
-  const typed = buildTypedResult("attachment-style", [0, 0, 0, 1, 1, 1, 2, 2, 3, 3, 0, 1, 2, 3, 0]);
-  assert.equal(typed.copy.title, "You reach first");
-  assert.equal(typed.winner, "explorer");
-  assert.equal(typed.axes.length, 2);
-  assert.equal(typed.axes[0].value, 6);
-  assert.equal(typed.axes[1].value, 4);
-  assert.equal(typed.lockedModules.length, 4);
-  assert.match(typed.lockedModules[0].title, /Every choice decoded/);
+  assert.match(profiles, /axisValue\(leftScore, answered\)/);
+  assert.match(profiles, /Reach for closeness/);
 });

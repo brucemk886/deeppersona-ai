@@ -1,4 +1,4 @@
-import { TRAIT_KEYS, type LockedModule, type ResultAxis, type TraitKey } from "@/lib/quiz";
+import { TRAIT_KEYS, type LockedModule, type ResultAxis, type TraitKey } from "./quiz";
 
 type TypeCopy = {
   title: string;
