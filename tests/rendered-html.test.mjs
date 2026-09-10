@@ -52,6 +52,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.doesNotMatch(quiz, /className="hero-mosaic"/);
   assert.match(quiz, /className={`test-card/);
   assert.match(quiz, /Your choices, decoded/);
+  assert.match(quiz, /What each choice may be reflecting back to you/);
   assert.match(quiz, /What this choice represents/);
   assert.match(quiz, /Your projection/);
   assert.doesNotMatch(quiz, /7-day|30-day|Your four-choice pattern/);
@@ -62,6 +63,16 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.doesNotMatch(quiz, /That feels accurate/);
   assert.match(quiz, /See what every choice reveals/);
   assert.match(quiz, /Unlock my full reading/);
+  assert.match(quiz, /Unlock the full reading/);
+  assert.match(quiz, /locked-module-grid/);
+  assert.match(quiz, /result-axes/);
+  assert.match(quiz, /questionCount \|\| 15\} choices · about 5 minutes/);
+  assert.match(quiz, /is-text/);
+  assert.match(catalog, /questionBank/);
+  assert.match(catalog, /Love or a Spiral/);
+  assert.match(catalog, /When They Pull Away/);
+  assert.doesNotMatch(quiz, /4 visual choices · about 2 minutes/);
+  assert.doesNotMatch(quiz, /four visual choices/);
   assert.match(deepResults, /buildChoiceReport/);
   assert.doesNotMatch(admin, /计分类型|连接者|创造者/);
   assert.doesNotMatch(quiz, /calculateResult|scoreKey/);

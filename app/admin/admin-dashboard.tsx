@@ -854,7 +854,7 @@ function QuestionManager({
   return (
     <>
       <div className="admin-page-heading question-heading-admin">
-        <div><span className="admin-kicker">测评内容</span><h1>题目管理</h1><p>管理所选测试内部的每一道图片题、A/B/C/D 选项、选择含义和投射解读。保存后用户端立即生效。</p></div>
+        <div><span className="admin-kicker">测评内容</span><h1>题目管理</h1><p>管理所选测试内部的图片题和情境题、A/B/C/D 选项、选择含义和投射解读。图片拼图留空即为情境题。保存后用户端立即生效。</p></div>
         <button className="admin-primary-button" onClick={addQuestion}>＋ 新增题目</button>
       </div>
       <div className="test-filter-bar">
@@ -865,7 +865,7 @@ function QuestionManager({
         <span><strong>{questions.length}</strong>全部题目</span>
         <span><strong>{questions.filter((item) => item.active).length}</strong>已上线</span>
         <span><strong>{questions.filter((item) => !item.active).length}</strong>草稿</span>
-        <small>图片使用一张 2×2 拼图，A/B/C/D 对应四个象限。</small>
+        <small>图片题使用一张 2×2 拼图，A/B/C/D 对应四个象限。拼图地址留空则为情境题。</small>
       </div>
       <div className="question-editor-list">
         {questions.map((question, questionIndex) => (
@@ -880,8 +880,10 @@ function QuestionManager({
             </header>
             <div className="question-editor-body">
               <aside>
-                <div className="question-atlas-preview">
-                  {[0, 1, 2, 3].map((index) => <span className={`atlas-image atlas-${index}`} key={index} style={{ backgroundImage: `url(${question.atlasPath})` }} />)}
+                <div className={`question-atlas-preview ${question.atlasPath ? "" : "is-text"}`}>
+                  {question.atlasPath
+                    ? [0, 1, 2, 3].map((index) => <span className={`atlas-image atlas-${index}`} key={index} style={{ backgroundImage: `url(${question.atlasPath})` }} />)
+                    : <span className="question-text-preview">情境题</span>}
                 </div>
                 <label>排序<input min="1" type="number" value={question.position} onChange={(event) => updateQuestion(question.id, { position: Number(event.target.value) })} /></label>
               </aside>

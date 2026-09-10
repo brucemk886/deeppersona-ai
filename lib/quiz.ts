@@ -36,6 +36,17 @@ export type AffiliateProduct = {
   position: number;
 };
 
+export type ResultAxis = {
+  label: string;
+  value: number;
+  caption: string;
+};
+
+export type LockedModule = {
+  title: string;
+  teaser: string;
+};
+
 export type ResultProfile = {
   key: TraitKey | "choices";
   eyebrow: string;
@@ -44,9 +55,15 @@ export type ResultProfile = {
   strength: string;
   watchout: string;
   nextStep: string;
+  axes?: ResultAxis[];
+  lockedModules?: LockedModule[];
   affiliateProductId?: string;
   affiliateRecommendation?: AffiliateRecommendation;
 };
+
+export function isVisualQuestion(question: Pick<QuizQuestion, "atlasPath">) {
+  return Boolean(question.atlasPath);
+}
 
 export type QuizTest = {
   id: string;

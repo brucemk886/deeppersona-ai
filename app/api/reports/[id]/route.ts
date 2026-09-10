@@ -28,6 +28,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       result: unlocked ? snapshot.result : {
         key: snapshot.result.key, title: snapshot.result.title, summary: snapshot.result.summary,
         eyebrow: snapshot.result.eyebrow, strength: "", watchout: "", nextStep: "",
+        axes: snapshot.result.axes, lockedModules: snapshot.result.lockedModules,
       },
       ...(unlocked ? { questions: snapshot.questions, answerChoices: snapshot.answerChoices, deepResult: snapshot.deepResult } : {}),
     };

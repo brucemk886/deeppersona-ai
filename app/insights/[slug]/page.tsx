@@ -100,7 +100,7 @@ export default async function InsightArticlePage({ params }: { params: Promise<{
                 <h2>{section.heading}</h2>
                 {section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
                 {section.bullets ? <ul>{section.bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}</ul> : null}
-                {index === 1 ? <aside className="inline-reflection-cta"><span>Notice your first response</span><h3>{test.title}</h3><p>{test.description}</p><Link href={testHref}>Take the 2-minute visual reflection →</Link></aside> : null}
+                {index === 1 ? <aside className="inline-reflection-cta"><span>Notice your first response</span><h3>{test.title}</h3><p>{test.description}</p><Link href={testHref}>Take the 5-minute reflection →</Link></aside> : null}
               </section>
             ))}
             <section className="reflection-prompts"><span>Pause before the next label</span><h2>Three questions to take with you</h2><ol>{article.reflectionPrompts.map((prompt) => <li key={prompt}>{prompt}</li>)}</ol></section>
@@ -110,7 +110,7 @@ export default async function InsightArticlePage({ params }: { params: Promise<{
           </div>
           <aside className="article-test-card">
             <div className="article-test-image"><img alt={`Four visual choices from ${test.title}`} decoding="async" loading="lazy" src={testImage} /></div>
-            <span>Continue with images</span><h2>{test.title}</h2><p>{test.description}</p><Link href={testHref}>Start the free visual test <span aria-hidden="true">→</span></Link><small>4 choices · about 2 minutes · self-reflection, not diagnosis</small>
+            <span>Continue with images</span><h2>{test.title}</h2><p>{test.description}</p><Link href={testHref}>Start the free visual test <span aria-hidden="true">→</span></Link><small>15 choices · about 5 minutes · self-reflection, not diagnosis</small>
           </aside>
         </div>
       </article>
