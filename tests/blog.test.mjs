@@ -14,10 +14,7 @@ const requiredSlugs = [
 test("publishes five original attachment blog posts in the 800-1200 word range", async () => {
   const directory = new URL("../content/blog/", import.meta.url);
   const files = (await readdir(directory)).filter((name) => name.endsWith(".md")).sort();
-  assert.deepEqual(
-    files,
-    requiredSlugs.map((slug) => `${slug}.md`),
-  );
+  assert.deepEqual(files, [...requiredSlugs].sort().map((slug) => `${slug}.md`));
 
   for (const file of files) {
     const raw = await readFile(new URL(file, directory), "utf8");
