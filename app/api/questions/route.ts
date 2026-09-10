@@ -52,7 +52,17 @@ export async function PUT(request: Request) {
     return Response.json({ error: "Invalid question payload" }, { status: 400 });
   }
 
-  await saveQuestion({ ...body, options: body.options.map(({label,microcopy,meaning,projection}) => ({label,microcopy,meaning,projection})) });
+  await saveQuestion({
+    ...body,
+    options: body.options.map(({ label, microcopy, meaning, projection, styleKey, cardTone }) => ({
+      label,
+      microcopy,
+      meaning,
+      projection,
+      ...(styleKey ? { styleKey } : {}),
+      ...(cardTone ? { cardTone } : {}),
+    })),
+  });
   return Response.json({ ok: true });
 }
 

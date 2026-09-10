@@ -7,6 +7,8 @@ export type QuizOption = {
   microcopy: string;
   meaning: string;
   projection: string;
+  styleKey?: string;
+  cardTone?: string;
 };
 
 export type QuizQuestion = {
@@ -37,13 +39,15 @@ export type AffiliateProduct = {
 };
 
 export type ResultProfile = {
-  key: TraitKey | "choices";
+  key: TraitKey | "choices" | "anxious" | "avoidant" | "secure" | "fearful";
   eyebrow: string;
   title: string;
   summary: string;
   strength: string;
   watchout: string;
   nextStep: string;
+  anxiety?: number;
+  avoidance?: number;
   affiliateProductId?: string;
   affiliateRecommendation?: AffiliateRecommendation;
 };

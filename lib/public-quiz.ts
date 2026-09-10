@@ -7,5 +7,15 @@ export function publicTest(test: QuizTest): QuizTest {
 }
 
 export function publicQuestion(question: QuizQuestion): QuizQuestion {
-  return { ...question, options: question.options.map((option) => ({ ...option, meaning: "", projection: "" })) };
+  return {
+    ...question,
+    options: question.options.map((option) => ({
+      label: option.label,
+      microcopy: option.microcopy,
+      meaning: "",
+      projection: "",
+      ...(option.styleKey ? { styleKey: option.styleKey } : {}),
+      ...(option.cardTone ? { cardTone: option.cardTone } : {}),
+    })),
+  };
 }

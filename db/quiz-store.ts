@@ -1,7 +1,13 @@
 import { answerRecords } from '@/lib/admin-answer-records';
 import { ensureTrafficSchema } from './traffic-store';
 import { productionSession } from './traffic-stats';
-import { defaultQuestions, defaultTests } from "@/lib/quiz-content";
+import {
+  defaultQuestions,
+  defaultTests,
+  PUBLIC_QUESTION_IDS,
+  RETIRED_QUESTION_IDS,
+  RETIRED_QUESTION_PROMPTS,
+} from "@/lib/quiz-content";
 import { env } from "cloudflare:workers";
 import {
   type QuizOption,
@@ -233,11 +239,14 @@ function rowToQuestion(row: QuestionRow): QuizQuestion {
     prompt: row.prompt,
     atlasPath,
     options: parsedOptions.map((option, index) => {
+      const catalogOption = catalogQuestion?.options[index];
       return {
         label: option.label ?? `Choice ${String.fromCharCode(65 + index)}`,
         microcopy: option.microcopy ?? "Trust your first response",
         meaning: option.meaning?.trim() || "",
         projection: option.projection?.trim() || "",
+        ...(catalogOption?.styleKey ? { styleKey: catalogOption.styleKey } : {}),
+        ...(catalogOption?.cardTone ? { cardTone: catalogOption.cardTone } : option.cardTone ? { cardTone: option.cardTone } : {}),
       };
     }),
     position: row.position,
@@ -303,6 +312,10 @@ export async function deleteAffiliateProduct(id: string): Promise<void> {
   await ensureQuizSchema();
   await getD1().prepare("DELETE FROM affiliate_products WHERE id = ?").bind(id).run();
 }
+function isRetiredQuestion(question: { id: string; prompt: string }): boolean {
+  return RETIRED_QUESTION_IDS.includes(question.id) || RETIRED_QUESTION_PROMPTS.includes(question.prompt);
+}
+
 async function seedCatalogIfNeeded(): Promise<void> {
   const db = getD1();
   const count = await db.prepare("SELECT COUNT(*) AS total FROM quiz_tests").first<{ total: number }>();
@@ -324,9 +337,53 @@ async function seedCatalogIfNeeded(): Promise<void> {
   ]);
 }
 
+async function reconcilePublicCatalog(): Promise<void> {
+  const db = getD1();
+  const existing = await db.prepare("SELECT id, prompt FROM quiz_questions").all<{ id: string; prompt: string }>();
+  const retiredIds = [...new Set([
+    ...existing.results.filter(isRetiredQuestion).map((row) => row.id),
+    ...existing.results.filter((row) => !PUBLIC_QUESTION_IDS.has(row.id)).map((row) => row.id),
+  ])];
+
+  const writes = [
+    ...defaultTests.map((test) =>
+      db.prepare(`INSERT INTO quiz_tests
+        (id, title, kicker, description, cover_atlas_path, accent, results_json, position, active, featured, report_price_cents, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(id) DO UPDATE SET
+          title = excluded.title,
+          kicker = excluded.kicker,
+          description = excluded.description,
+          cover_atlas_path = excluded.cover_atlas_path,
+          accent = excluded.accent,
+          position = excluded.position,
+          active = excluded.active,
+          featured = excluded.featured,
+          report_price_cents = CASE
+            WHEN quiz_tests.report_price_cents IN (0, 499) THEN excluded.report_price_cents
+            ELSE quiz_tests.report_price_cents
+          END,
+          updated_at = CURRENT_TIMESTAMP`)
+        .bind(test.id, test.title, test.kicker, test.description, test.coverAtlasPath, test.accent, JSON.stringify(test.results ?? {}), test.position, test.active ? 1 : 0, test.featured ? 1 : 0, test.reportPriceCents),
+    ),
+    ...defaultQuestions.map((question) =>
+      db.prepare(`INSERT OR IGNORE INTO quiz_questions
+        (id, test_id, kicker, prompt, atlas_path, options_json, position, active)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+        .bind(question.id, question.testId, question.kicker, question.prompt, question.atlasPath, JSON.stringify(question.options), question.position, question.active ? 1 : 0),
+    ),
+    ...retiredIds.map((id) => db.prepare("DELETE FROM quiz_questions WHERE id = ?").bind(id)),
+  ];
+
+  for (let index = 0; index < writes.length; index += 40) {
+    await db.batch(writes.slice(index, index + 40));
+  }
+}
+
 export async function listTests(includeInactive = false): Promise<QuizTest[]> {
   await ensureQuizSchema();
   await seedCatalogIfNeeded();
+  await reconcilePublicCatalog();
   const where = includeInactive ? "" : "WHERE t.active = 1";
   const result = await getD1().prepare(`SELECT t.*,
       COUNT(CASE WHEN q.active = 1 THEN 1 END) AS question_count
@@ -362,6 +419,7 @@ export async function saveTest(test: QuizTest): Promise<void> {
 export async function listQuestions(testId?: string, includeInactive = false): Promise<QuizQuestion[]> {
   await ensureQuizSchema();
   await seedCatalogIfNeeded();
+  await reconcilePublicCatalog();
   const filters: string[] = [];
   const values: string[] = [];
   if (!includeInactive) filters.push("active = 1");
@@ -374,7 +432,11 @@ export async function listQuestions(testId?: string, includeInactive = false): P
     LEFT JOIN quiz_tests t ON t.id = q.test_id
     ${where ? where.replaceAll("active", "q.active") : ""}
     ORDER BY COALESCE(t.position, 2147483647), q.test_id, q.position, q.id`).bind(...values).all<QuestionRow>();
-  return result.results.map(rowToQuestion);
+  return result.results
+    .map(rowToQuestion)
+    .filter((question) => includeInactive
+      ? !isRetiredQuestion(question)
+      : PUBLIC_QUESTION_IDS.has(question.id) && !isRetiredQuestion(question));
 }
 
 export async function saveQuestion(question: QuizQuestion): Promise<void> {

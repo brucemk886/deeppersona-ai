@@ -9,8 +9,9 @@ export function InsightsHeader() {
         <span>DeepPersona AI</span>
       </Link>
       <nav aria-label="Insights navigation">
-        <Link href="/insights">Insights</Link>
-        <Link href="/#tests">Visual tests</Link>
+        <Link href="/#quiz">Quiz</Link>
+        <Link href="/insights">Learn</Link>
+        <Link href="/blog">Blog</Link>
       </nav>
     </header>
   );
@@ -24,8 +25,9 @@ export function InsightsFooter() {
         <span>Evidence-aware self-reflection. Not clinical diagnosis or treatment.</span>
       </div>
       <nav aria-label="Footer links">
-        <Link href="/insights">Insights</Link>
-        <Link href="/#tests">Visual tests</Link>
+        <Link href="/#quiz">Quiz</Link>
+        <Link href="/insights">Learn</Link>
+        <Link href="/blog">Blog</Link>
         <Link href="/disclaimer">Disclaimer</Link>
         <Link href="/privacy">Privacy</Link>
         <Link href="/contact">Contact</Link>

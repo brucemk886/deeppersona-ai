@@ -37,10 +37,18 @@ test("builds the complete DeepPersona AI experience", async () => {
     readFile(new URL("../db/traffic-stats.ts", import.meta.url), "utf8"),
   ]);
 
+  const homeLanding = await readFile(new URL("../app/_components/home-landing.tsx", import.meta.url), "utf8");
+  const siteChrome = await readFile(new URL("../app/_components/site-chrome.tsx", import.meta.url), "utf8");
+  const attachment = await readFile(new URL("../lib/attachment.ts", import.meta.url), "utf8");
   assert.match(quiz, /DeepPersona AI/);
-  assert.match(quiz, /Enter the test number from the video/);
-  assert.match(quiz, /matchTestByQuery/);
-  assert.match(quiz, /hero-search/);
+  assert.match(homeLanding, /Do you know your attachment style\?/);
+  assert.match(homeLanding, /Start the free quiz/);
+  assert.match(homeLanding, /A learning tool, not a diagnosis/);
+  assert.match(homeLanding, /Anxious-leaning/);
+  assert.match(homeLanding, /Avoidant-leaning/);
+  assert.match(siteChrome, /href="\/blog"/);
+  assert.doesNotMatch(quiz + homeLanding, /Enter the test number from the video/);
+  assert.doesNotMatch(quiz, /hero-search/);
   assert.match(quiz, /email_submitted|\/api\/submit/);
   assert.match(quiz, /upgrade_clicked/);
   assert.match(quiz, /Choose \$\{letter\}/);
@@ -50,18 +58,24 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(quiz, /defaultQuestions/);
   assert.match(quiz, /AbortController/);
   assert.doesNotMatch(quiz, /className="hero-mosaic"/);
-  assert.match(quiz, /className={`test-card/);
+  assert.match(quiz, /HomeLanding/);
   assert.match(quiz, /Your choices, decoded/);
   assert.match(quiz, /What this choice represents/);
   assert.match(quiz, /Your projection/);
   assert.doesNotMatch(quiz, /7-day|30-day|Your four-choice pattern/);
-  assert.doesNotMatch(quiz, /Natural strength|Watch for|Start here/);
+  assert.doesNotMatch(quiz, /Natural strength|Start here/);
   assert.match(quiz, /marketingConsent: false/);
   assert.doesNotMatch(quiz, /Instant reflection/);
   assert.match(quiz, /Your Inner Map/);
   assert.doesNotMatch(quiz, /That feels accurate/);
-  assert.match(quiz, /See what every choice reveals/);
+  assert.match(quiz, /See your attachment style/);
   assert.match(quiz, /Unlock my full reading/);
+  assert.match(attachment, /scoreAttachment/);
+  const liveCatalog = catalog.slice(0, catalog.indexOf("RETIRED_QUESTION_PROMPTS"));
+  assert.match(catalog, /ATTACHMENT_TEST_ID\}-q/);
+  assert.doesNotMatch(liveCatalog, /They suddenly go quiet/);
+  assert.doesNotMatch(liveCatalog, /Which room feels safest to share/);
+  assert.doesNotMatch(catalog, /id: "attachment-style-1"/);
   assert.match(deepResults, /buildChoiceReport/);
   assert.doesNotMatch(admin, /计分类型|连接者|创造者/);
   assert.doesNotMatch(quiz, /calculateResult|scoreKey/);
@@ -89,6 +103,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(adminStyles, /\.test-card-image \.atlas-image img/);
   assert.match(adminStyles, /aspect-ratio: 4 \/ 5/);
   assert.match(adminStyles, /\.lead-table-cn \{ font-size: 13px; \}/);
+  assert.match(store, /reconcilePublicCatalog|PUBLIC_QUESTION_IDS/);
   assert.match(store, /COUNT\(DISTINCT s\.id\) AS users FROM quiz_sessions/);
   assert.match(store, /answers: answerRecords/);
   assert.match(adminStyles, /\.stats-range-switcher/);
@@ -106,7 +121,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(adminStatsRange, /datetime\('now', '\+8 hours', '-29 days', 'start of day'\)/);
   assert.match(adminStatsRange, /today[\s\S]*yesterday[\s\S]*7d[\s\S]*30d/);
   assert.doesNotMatch(store, /COUNT\(DISTINCT session_id\) AS users FROM quiz_sessions/);
-  assert.match(layout, /DeepPersona AI — Visual Self-Reflection Tests/);
+  assert.match(layout, /DeepPersona AI — Free Attachment Style Quiz/);
   assert.match(layout, /og-deep-persona\.png/);
   assert.match(layout, /favicon\.svg/);
   assert.match(layout, /width: "device-width"/);
