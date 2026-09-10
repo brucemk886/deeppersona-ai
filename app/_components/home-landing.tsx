@@ -35,7 +35,7 @@ export function HomeLanding({
           <span className="editorial-kicker">A visual quiz for real relationships</span>
           <h1>Do you know your attachment style?</h1>
           <p className="hero-lede">
-            Explore how your early experiences with parents and caregivers may shape the way you connect in adult relationships.
+            Explore the patterns behind how you connect, receive care, and find your way back to each other through 20 visual choices.
           </p>
           <div className="attach-hero-actions">
             <button
@@ -65,12 +65,12 @@ export function HomeLanding({
           <p>
             In adult life, attachment shows up in how you ask for contact, how you take space,
             and what your body does when a message is late or a plan gets more intimate.
-            It is a useful map for relationships—not a label you have to wear forever.
+            It is a useful starting point for reflection, rather than a label you have to wear forever.
           </p>
           <p>
             Researchers often talk about two leanings: how strongly you seek reassurance,
             and how strongly you protect independence. Those leanings can combine into four
-            familiar styles: anxious, avoidant, secure, and fearful-avoidant.
+            familiar styles: anxious, avoidant, secure, and fearful-avoidant. Our visual quiz explores your preferences across everyday situations; it does not measure or diagnose those styles.
           </p>
         </div>
         <div className="attach-points">

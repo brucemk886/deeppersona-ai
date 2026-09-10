@@ -245,6 +245,7 @@ function rowToQuestion(row: QuestionRow): QuizQuestion {
         microcopy: option.microcopy ?? "Trust your first response",
         meaning: option.meaning?.trim() || "",
         projection: option.projection?.trim() || "",
+        ...(catalogOption?.readingFocus ? { readingFocus: catalogOption.readingFocus } : {}),
         ...(catalogOption?.styleKey ? { styleKey: catalogOption.styleKey } : {}),
         ...(catalogOption?.cardTone ? { cardTone: catalogOption.cardTone } : option.cardTone ? { cardTone: option.cardTone } : {}),
       };

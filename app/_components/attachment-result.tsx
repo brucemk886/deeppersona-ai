@@ -6,6 +6,12 @@ function isAttachmentStyle(key: ResultProfile["key"]): key is AttachmentStyle {
 }
 
 export function AttachmentResult({ result }: { result: ResultProfile }) {
+  if (result.key === 'choices') return result.strength ? (
+    <section className="attach-result-reads" aria-label="Your relationship reflection">
+      <article><span>A possible resource</span><p>{result.strength}</p></article>
+      <article><span>Something to notice</span><p>{result.watchout}</p></article>
+    </section>
+  ) : null;
   const anxiety = Math.max(0, Math.min(100, result.anxiety ?? 0));
   const avoidance = Math.max(0, Math.min(100, result.avoidance ?? 0));
   const style = isAttachmentStyle(result.key) ? result.key : null;

@@ -7,7 +7,7 @@ import { HomeLanding } from "@/app/_components/home-landing";
 import { AttachmentResult } from "@/app/_components/attachment-result";
 import { SceneCard, sceneKeyFromPath } from "@/app/_components/scene-card";
 import { SiteFooter, SiteNav } from "@/app/_components/site-chrome";
-import { ATTACHMENT_TEST_ID, PUBLIC_QUESTION_IDS, RETIRED_QUESTION_PROMPTS } from "@/lib/quiz-content";
+import { ATTACHMENT_TEST_ID, PUBLIC_QUESTION_IDS } from "@/lib/public-catalog";
 import { currentAttribution } from "@/lib/traffic";
 import { requestJson } from '@/lib/browser-request';
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -33,7 +33,7 @@ import {
 } from "@/lib/relationship-network";
 
 function isPublicQuestion(question: QuizQuestion): boolean {
-  return PUBLIC_QUESTION_IDS.has(question.id) && !RETIRED_QUESTION_PROMPTS.includes(question.prompt);
+  return PUBLIC_QUESTION_IDS.has(question.id);
 }
 
 type Stage = "home" | "detail" | "quiz" | "email" | "result";
@@ -657,11 +657,11 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
           </div>
           <div className="detail-story">
             <span className="detail-category">{selectedTest.kicker}</span>
-            <p className="detail-count">{quizReady ? `${questionCount} image choices · about 3 minutes` : "This older item bank has been removed"}</p>
+            <p className="detail-count">{quizReady ? `${questionCount} image choices · about 4 minutes` : "This older item bank has been removed"}</p>
             <h1>{quizReady ? detailPrompt : "This quiz is being prepared."}</h1>
             <p className="detail-intro">{quizReady ? "There is no right answer. Pick the scene that matches your first move when closeness feels uncertain." : "The previous question set is no longer offered. Start the free attachment quiz when you are ready."}</p>
             <p className="service-context">For entertainment and self-reflection, not diagnosis or treatment. <Link href="/disclaimer">Read the limitations</Link></p>
-            {quizReady ? <div className="detail-reveal"><span>YOUR FREE RESULT INCLUDES</span><div><p>A style label: anxious, avoidant, secure, or fearful-avoidant.</p><p>Short reads plus reaching and distance bars.</p><p>An optional written report if you want every scene unpacked.</p></div></div> : null}
+            {quizReady ? <div className="detail-reveal"><span>YOUR FREE RESULT INCLUDES</span><div><p>A short summary of the themes in your visual choices.</p><p>A starting point for reflecting on closeness, care, and personal space.</p><p>An optional full report with five themes and every selected image unpacked.</p></div></div> : null}
             <button className="primary-button detail-cta" disabled={!quizReady || loadingTest === selectedTest.id} onClick={() => void startTest(selectedTest)}>{!quizReady ? "Quiz items coming next" : loadingTest === selectedTest.id ? "Opening…" : "Start the free quiz"} <span aria-hidden="true">→</span></button>
             <div className="detail-assurance"><span>Free visual test</span><i /> <span>Private by design</span>{selectedTest.reportPriceCents > 0 ? <><i /> <span>Optional report: USD {(selectedTest.reportPriceCents / 100).toFixed(2)}</span></> : null}</div>
             {selectedTest.reportPriceCents > 0 ? <p className="detail-purchase-note">The type is free. A longer reading is a one-time optional payment. No subscription.</p> : null}
@@ -726,8 +726,8 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
           <div className="result-teaser"><span className="result-seal">Choices complete</span><div className="blurred-result"><span>{selectedTest.title}</span><h2>{preview.title}</h2><p>{preview.summary}</p></div></div>
           <form className="email-form" onSubmit={unlockResult}>
             <span className="pill">Your visual choices are complete</span>
-            <h1>See your attachment style.</h1>
-            <p>You have completed the image choices. Enter your email to save your result and see your free style, short reads, and bars. A longer written report is optional.</p>
+            <h1>See your relationship patterns.</h1>
+            <p>You have completed the image choices. Enter your email to save your result and see your free summary. A longer written report with five themes and an interpretation of each selected image is optional.</p>
             {profile.email ? <div className="saved-profile-email"><span>Saving this reflection to</span><strong>{profile.email}</strong></div> : <><label htmlFor="email">Email address</label><input aria-invalid={Boolean(error)} autoComplete="email" id="email" onBlur={(event) => { const validation = validateEmailAddress(event.target.value); if (!validation.valid) setError(validation.message); }} onChange={(event) => { setEmail(event.target.value); setError(""); }} placeholder="name@gmail.com" required type="email" value={email} /><small className="email-hint">Use an email you can access. Test, placeholder, and malformed addresses are not accepted.</small></>}            {error ? <p className="form-error" role="alert">{error}</p> : null}
             <button className="primary-button full-button" disabled={submitting} type="submit">{submitting ? "Saving your result…" : "See my result →"}</button>
             <small className="privacy-note">No password is needed on this device. By continuing, you acknowledge our <Link href="/privacy">Privacy Policy</Link> and <Link href="/terms">Terms</Link>.</small>
@@ -756,6 +756,14 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
           <h1>{result.title}</h1>
           <p className="result-summary">{result.summary}</p>
           <AttachmentResult result={result} />
+
+          {deepResult.modules?.map(module => (
+            <section className="pattern-lens" key={module.title}>
+              <h2>{module.title}</h2>
+              {module.explanation.split('\n\n').map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+              <p>{module.reflection}</p>
+            </section>
+          ))}
 
           <section className="choice-review" aria-labelledby="choice-review-title">
             <header>

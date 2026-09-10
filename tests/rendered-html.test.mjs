@@ -71,11 +71,11 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.doesNotMatch(quiz, /Instant reflection/);
   assert.match(quiz, /Your Inner Map/);
   assert.doesNotMatch(quiz, /That feels accurate/);
-  assert.match(quiz, /See your attachment style/);
+  assert.match(quiz, /See your relationship patterns/);
   assert.match(quiz, /Unlock my full reading/);
   assert.match(attachment, /scoreAttachment/);
   const liveCatalog = catalog.slice(0, catalog.indexOf("RETIRED_QUESTION_PROMPTS"));
-  assert.match(catalog, /ATTACHMENT_TEST_ID\}-q/);
+  assert.match(catalog, /relationshipQuestions\.map/);
   assert.doesNotMatch(liveCatalog, /They suddenly go quiet/);
   assert.doesNotMatch(liveCatalog, /Which room feels safest to share/);
   assert.doesNotMatch(catalog, /id: "attachment-style-1"/);

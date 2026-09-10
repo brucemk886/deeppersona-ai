@@ -3,6 +3,7 @@ export const TRAIT_KEYS = ["explorer", "connector", "architect", "creator"] as c
 export type TraitKey = (typeof TRAIT_KEYS)[number];
 
 export type QuizOption = {
+  readingFocus?: string;
   label: string;
   microcopy: string;
   meaning: string;
@@ -67,4 +68,3 @@ export type QuizTest = {
   results?: Record<string, ResultProfile>;
   questionCount?: number;
 };
-

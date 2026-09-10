@@ -1,8 +1,10 @@
 import { buildAttachmentResult } from "./attachment";
+import { buildRelationshipReading } from './relationship-reading';
 import { ATTACHMENT_TEST_ID } from "./quiz-content";
 import type { QuizQuestion, QuizTest, ResultProfile } from "./quiz";
 
 export type DeepResultContent = {
+  modules?: { title: string; explanation: string; reflection: string }[];
   lens: { title: string; explanation: string; reflectionPrompt: string };
   // Present only in historical report snapshots.
   depth?: { coreDrive: string; inRelationships: string; underPressure: string };
@@ -13,6 +15,9 @@ export function buildChoiceReport(
   questions: QuizQuestion[],
   choices: Record<string, number>,
 ): { result: ResultProfile; deepResult: DeepResultContent } {
+  if (test.id === ATTACHMENT_TEST_ID && questions.length > 0 && questions.every(q => q.id.startsWith('attachment-style-v3-'))) {
+    return buildRelationshipReading(questions, choices);
+  }
   if (test.id === ATTACHMENT_TEST_ID) {
     const result = buildAttachmentResult(questions, choices);
     return {
