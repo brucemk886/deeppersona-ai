@@ -475,6 +475,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 /* Legal and payment-readiness pages */
 .legal-shell { min-height: 100vh; background: linear-gradient(180deg,#f7f2e8 0,#fbfaf6 340px); }
 .legal-nav { width: min(1080px,calc(100% - 40px)); min-height: 84px; margin: 0 auto; display:flex;align-items:center;justify-content:space-between;gap:24px;border-bottom:1px solid var(--line) }
+.legal-nav-links { display: flex; align-items: center; gap: 18px; }
 .legal-document { width:min(900px,calc(100% - 40px));margin:0 auto;padding:72px 0 90px }
 .legal-hero { max-width:780px;padding-bottom:42px;border-bottom:1px solid var(--line) }
 .legal-hero>span { color:var(--wine);font-size:11px;font-weight:850;letter-spacing:.1em;text-transform:uppercase }
@@ -914,7 +915,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .test-card-start { min-height: 44px; display: inline-flex; align-items: center; font-size: 16px; }
   .site-footer { width: calc(100% - 28px); flex-direction: column; align-items: flex-start; justify-content: center; padding: 24px 0; }
   .site-footer-expanded > nav { justify-content: flex-start; }
-  .legal-nav { width:calc(100% - 28px);min-height:72px }.legal-nav .nav-link{font-size:11px}.legal-nav .brand{font-size:14px}.legal-document{width:calc(100% - 28px);padding:48px 0 64px}.legal-hero{padding-bottom:30px}.legal-hero h1{font-size:48px}.legal-hero p{font-size:15px}.policy-section{padding:24px 0}.policy-section h2{font-size:24px}.policy-section p,.policy-section li{font-size:13px}.contact-card{padding:22px 18px}.legal-footer{width:calc(100% - 28px);grid-template-columns:1fr}.legal-footer>.legal-links{justify-content:flex-start}.legal-footer>a{grid-column:auto}
+  .legal-nav { width:calc(100% - 28px);min-height:72px }.legal-nav-links{gap:12px}.legal-nav .nav-link{font-size:11px}.legal-nav .brand{font-size:14px}.legal-document{width:calc(100% - 28px);padding:48px 0 64px}.legal-hero{padding-bottom:30px}.legal-hero h1{font-size:48px}.legal-hero p{font-size:15px}.policy-section{padding:24px 0}.policy-section h2{font-size:24px}.policy-section p,.policy-section li{font-size:13px}.contact-card{padding:22px 18px}.legal-footer{width:calc(100% - 28px);grid-template-columns:1fr}.legal-footer>.legal-links{justify-content:flex-start}.legal-footer>a{grid-column:auto}
   .quiz-header, .question-section { width: calc(100% - 24px); }
   .quiz-header { height: 82px; grid-template-columns: auto 1fr; gap: 20px; }
   .question-section { padding-top: 34px; }
@@ -1062,7 +1063,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .insights-hero > * { position: relative; z-index: 1; }
 .insights-hero h1 { max-width: 790px; margin: 20px 0; font: 500 clamp(56px, 7vw, 94px)/.96 Georgia, serif; letter-spacing: -.058em; }
 .insights-hero p { max-width: 660px; margin: 0; color: var(--muted); font-size: 18px; line-height: 1.7; }
-.insights-hero > a { margin-top: 30px; padding: 15px 22px; border-radius: 999px; color: white; background: var(--forest); text-decoration: none; font-size: 13px; font-weight: 800; }
+.insights-hero > a, .blog-hero-actions a { margin-top: 30px; padding: 15px 22px; border-radius: 999px; color: white; background: var(--forest); text-decoration: none; font-size: 13px; font-weight: 800; }
+.blog-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+.blog-hero-actions a { margin-top: 22px; }
+.blog-hero-actions a:last-child { color: var(--forest); background: transparent; border: 1px solid var(--line); }
+.blog-card-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+.blog-article-body h3 { margin: 28px 0 12px; font: 500 26px/1.2 Georgia, serif; letter-spacing: -.03em; }
+.blog-article-body > ul, .blog-article-body > ol { margin: 24px 0; padding: 22px 26px 22px 46px; border-radius: 18px; background: var(--cream); }
+.blog-article-body li { margin: 10px 0; color: #3d4842; font-size: 16px; line-height: 1.65; }
+.blog-article-body a { color: var(--forest); }
 
 .insights-clusters, .insights-latest, .topic-content, .topic-tests, .related-insights {
   width: min(1180px, calc(100% - 40px));

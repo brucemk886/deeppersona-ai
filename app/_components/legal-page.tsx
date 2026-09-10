@@ -36,7 +36,10 @@ export function LegalPage({
     <main className="legal-shell">
       <header className="legal-nav">
         <Link aria-label="DeepPersona AI home" className="brand" href="/"><span className="brand-mark">DP</span><span>DeepPersona AI</span></Link>
-        <Link className="nav-link" href="/">Back to tests →</Link>
+        <div className="legal-nav-links">
+          <Link className="nav-link" href="/blog">Blog</Link>
+          <Link className="nav-link" href="/">Back to tests →</Link>
+        </div>
       </header>
       <article className="legal-document">
         <header className="legal-hero">

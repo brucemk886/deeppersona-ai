@@ -47,6 +47,7 @@ export function analyticsPagePath(pathname: string) {
   if (/^\/(reports|admin|recover|api)(\/|$)/.test(pathname)) return null;
   if (pathname.startsWith('/tests/')) return '/tests';
   if (pathname.startsWith('/insights/')) return '/insights';
+  if (pathname === '/blog' || pathname.startsWith('/blog/')) return '/blog';
   return ['/', '/privacy', '/terms', '/refunds', '/contact', '/disclaimer'].includes(pathname) ? pathname : '/other';
 }
 

@@ -1,3 +1,4 @@
+import { blogPosts } from "@/lib/blog";
 import { insightArticleCards, insightClusters } from "@/lib/insights-index";
 import { defaultTests } from "@/lib/quiz-content";
 
@@ -19,6 +20,7 @@ export async function GET() {
   const entries: SitemapEntry[] = [
     { path: "", changeFrequency: "weekly", priority: 1 },
     { path: "/insights", changeFrequency: "weekly", priority: 0.9 },
+    { path: "/blog", changeFrequency: "weekly", priority: 0.9 },
     { path: "/contact", changeFrequency: "monthly", priority: 0.3 },
     { path: "/privacy", changeFrequency: "yearly", priority: 0.2 },
     { path: "/terms", changeFrequency: "yearly", priority: 0.2 },
@@ -37,6 +39,12 @@ export async function GET() {
     ...insightArticleCards.map((article) => ({
       path: `/insights/${article.slug}`,
       lastModified: article.updatedAt,
+      changeFrequency: "monthly" as const,
+      priority: 0.8,
+    })),
+    ...blogPosts.map((post) => ({
+      path: `/blog/${post.slug}`,
+      lastModified: post.updatedAt,
       changeFrequency: "monthly" as const,
       priority: 0.8,
     })),

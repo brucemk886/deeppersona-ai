@@ -611,7 +611,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
     const detailPrompt = detailQuestion?.prompt ?? "Which image pulls you in before you can explain why?";
     return (
       <main className="test-detail-shell">
-        <nav className="nav-bar" aria-label="Main navigation"><Link className="brand" href="/"><span className="brand-mark">DP</span><span>DeepPersona AI</span></Link><div className="main-nav-links"><Link className="nav-note nav-link" href="/insights">Insights</Link><Link className="nav-note nav-link" href="/#tests">All visual tests ↓</Link></div></nav>
+        <nav className="nav-bar" aria-label="Main navigation"><Link className="brand" href="/"><span className="brand-mark">DP</span><span>DeepPersona AI</span></Link><div className="main-nav-links"><Link className="nav-note nav-link" href="/insights">Insights</Link><Link className="nav-link" href="/blog">Blog</Link><Link className="nav-note nav-link" href="/#tests">All visual tests ↓</Link></div></nav>
         <section className="detail-stage" style={{ "--test-accent": selectedTest.accent } as React.CSSProperties}>
           <div className="detail-gallery" aria-label="Four visual choices preview">
             {[0, 1, 2, 3].map((index) => <AtlasImage index={index} key={index} loading="eager" path={selectedTest.coverAtlasPath} priority={index === 0} sizes="(max-width: 640px) 50vw, 340px" />)}
@@ -629,7 +629,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
             {error ? <p className="form-error" role="alert">{error}</p> : null}
           </div>
         </section>
-        <footer className="site-footer"><div><strong>DeepPersona AI © 2026</strong></div><nav aria-label="Legal links"><Link href="/recover">My reports</Link><Link href="/insights">Insights</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds & delivery</Link><Link href="/contact">Contact</Link></nav></footer>
+        <footer className="site-footer"><div><strong>DeepPersona AI © 2026</strong></div><nav aria-label="Legal links"><Link href="/recover">My reports</Link><Link href="/insights">Insights</Link><Link href="/blog">Blog</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds & delivery</Link><Link href="/contact">Contact</Link></nav></footer>
       </main>
     );
   }
@@ -638,7 +638,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
       <main className="landing-shell">
         <nav className="nav-bar" aria-label="Main navigation">
           <a className="brand" href="#top" aria-label="DeepPersona AI home"><span className="brand-mark">DP</span><span>DeepPersona AI</span></a>
-          <div className="main-nav-links"><Link className="nav-note nav-link" href="/insights">Insights</Link><a className="nav-note nav-link" href="#tests">Explore 8 visual tests ↓</a></div>
+          <div className="main-nav-links"><Link className="nav-note nav-link" href="/insights">Insights</Link><Link className="nav-link" href="/blog">Blog</Link><a className="nav-note nav-link" href="#tests">Explore 8 visual tests ↓</a></div>
         </nav>
 
         <section className="hero hero-search-stage" id="top">
@@ -694,7 +694,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
         </section>
 
         <section className="how-it-works"><span>01 · Notice</span><p>Let your eyes land before your reasoning catches up.</p><span>02 · Choose</span><p>Pick the image that creates the strongest first response.</p><span>03 · Reveal</span><p>Read the interpretation behind each image you chose.</p></section>
-        <footer className="site-footer site-footer-expanded"><div><strong>DeepPersona AI © 2026</strong><span>For self-reflection, not clinical diagnosis.</span></div><nav aria-label="Legal and support links"><Link href="/insights">Insights</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds & delivery</Link><Link href="/disclaimer">Disclaimer</Link><Link href="/contact">Contact</Link></nav></footer>
+        <footer className="site-footer site-footer-expanded"><div><strong>DeepPersona AI © 2026</strong><span>For self-reflection, not clinical diagnosis.</span></div><nav aria-label="Legal and support links"><Link href="/insights">Insights</Link><Link href="/blog">Blog</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds & delivery</Link><Link href="/disclaimer">Disclaimer</Link><Link href="/contact">Contact</Link></nav></footer>
       </main>
     );
   }
