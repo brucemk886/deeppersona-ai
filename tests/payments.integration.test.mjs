@@ -201,6 +201,15 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       assert.equal(questions[0].options[0].scoreKey, undefined);
       assert.equal(state.data.deepResult, undefined);
       assert.equal(state.data.questions, undefined);
+      assert.equal(state.data.preview.totalChoices,20);
+      assert.equal(state.data.preview.overview.length,3);
+      assert.equal(state.data.preview.modules.length,5);
+      assert.equal(state.data.preview.choices,undefined);
+      assert.ok(state.data.preview.overview.every(item=>item.body.length>20));
+      const stored=JSON.parse((await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(report.id).first()).snapshot_json);
+      for (const q of stored.questions) for (const option of q.options) {
+        assert.ok(!JSON.stringify(state.data).includes(option.meaning), 'Unpaid response must not expose an individual image interpretation');
+      }
       assert.match(state.headers.get("cache-control"), /no-store/);
       assert.equal((await call(`/api/reports/${report.id}`)).status, 401);
       assert.equal((await call(`/api/reports/${report.id}`, { cookie: `dp_profile=${crypto.randomUUID()}` })).status, 404);

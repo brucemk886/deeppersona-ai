@@ -600,9 +600,14 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
       <article className="result-card result-card-expanded">
         <span className="result-test-name">{reportData.test.title}</span><span className="result-eyebrow">Your free summary</span>
         <h1>{reportData.result.title}</h1><p className="result-summary">{reportData.result.summary}</p>
-        <AttachmentResult result={reportData.result} />
+        {reportData.preview?.overview.length ? <section className="free-overview" aria-labelledby="free-overview-title">
+          <h2 id="free-overview-title">Your overall relationship pattern</h2>
+          {reportData.preview.overview.map(item=><article key={item.title}><h3>{item.title}</h3><p>{item.body}</p></article>)}
+        </section> : <AttachmentResult result={reportData.result} />}
         <section className="report-paywall">
           <h2>Explore the meaning behind every choice</h2>
+          {reportData.preview ? <p>Go deeper with all {reportData.preview.totalChoices} image interpretations{reportData.preview.modules.length ? ` and ${reportData.preview.modules.length} personal theme sections` : ''}.</p> : null}
+          {reportData.preview?.modules.length ? <ul className="report-preview-topics" aria-label="Theme sections in the full report">{reportData.preview.modules.map(title=><li key={title}>{title}<span>Full report</span></li>)}</ul> : null}
           <p>Your full reading includes each image you chose, its written interpretation, and a reflection prompt.</p><p className="service-context">For entertainment and self-reflection. Uses written interpretations for each selected image, not a validated psychological assessment or professional advice. <Link href="/disclaimer">How to use these results</Link></p>
           {reportData.sandbox ? <p className="sandbox-notice">Test checkout — no real money will be charged.</p> : null}
           {reportData.status === "refunded" ? <p>This purchase has been refunded. Full report access has ended.</p> : <>

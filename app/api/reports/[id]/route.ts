@@ -5,6 +5,7 @@ import { readProfileId } from "@/lib/profile-cookie";
 import { paymentConfig, stripeClient } from "@/lib/stripe";
 import type { ReportResponse } from "@/lib/payment-types";
 import { orderRefundPolicy } from '@/lib/refund-policy';
+import { reportPreview } from '@/lib/report-preview';
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         key: snapshot.result.key, title: snapshot.result.title, summary: snapshot.result.summary,
         eyebrow: snapshot.result.eyebrow, strength: "", watchout: "", nextStep: "",
       },
-      ...(unlocked ? { questions: snapshot.questions, answerChoices: snapshot.answerChoices, deepResult: snapshot.deepResult } : {}),
+      ...(unlocked ? { questions: snapshot.questions, answerChoices: snapshot.answerChoices, deepResult: snapshot.deepResult } : { preview: reportPreview(snapshot) }),
     };
     return privateJson(response);
   } catch (error) { return paymentError(error); }

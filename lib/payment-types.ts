@@ -10,6 +10,11 @@ export type ReportSnapshot = {
 };
 
 export type ReportResponse = {
+  preview?: {
+    totalChoices: number;
+    modules: string[];
+    overview: { title: string; body: string }[];
+  };
   id: string;
   unlocked: boolean;
   status: string;
