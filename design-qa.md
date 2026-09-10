@@ -32,3 +32,8 @@ Focused comparison: title, CTA, photo and sample heading are all readable in the
 - Question-image bank and full blog redesign are outside this selected homepage implementation.
 
 final result: passed
+
+## User-directed homepage simplification — 2026-09-10
+The subsequent user screenshots explicitly supersede the initial mock's question-count, timing, price and report-preview sections. Homepage now follows the reference site's subject introduction, relationship-pattern content and free-quiz CTA hierarchy. Removed the report sample, purchasing copy and how-to steps; payment confirmation still displays the actual backend price. Competitor-only courses, clinical services and expert claims were not imported.
+Evidence: work/design/home-simplified.png, captured at 390 x 844 CSS. Compared with the user-marked screenshot regions: all marked pricing/count content is absent, the same cream/green/photo styling remains, mobile title wraps cleanly and the first quiz button is visible before scrolling. CTA still opens question 1. Existing regression suite 30/30 and TypeScript pass. Prior mock-specific sample/price checks no longer apply by user request.
+final result: passed

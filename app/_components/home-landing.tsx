@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { QuizTest } from "@/lib/quiz";
 import { SiteFooter, SiteNav } from "@/app/_components/site-chrome";
 
@@ -27,12 +26,6 @@ export function HomeLanding({
   loading?: boolean;
   onStart: (test: QuizTest) => void;
 }) {
-  const price = featuredTest && featuredTest.reportPriceCents > 0
-    ? `USD ${(featuredTest.reportPriceCents / 100).toFixed(2)}`
-    : null;
-  const questionCount = featuredTest?.questionCount;
-  const duration = questionCount ? Math.max(1, Math.ceil(questionCount / 4)) : null;
-
   return (
     <main className="landing-shell marketing-shell editorial-home">
       <SiteNav active="home" />
@@ -40,9 +33,9 @@ export function HomeLanding({
       <section className="attach-hero" id="top">
         <div className="attach-hero-copy">
           <span className="editorial-kicker">A visual quiz for real relationships</span>
-          <h1>How do you move toward closeness?</h1>
+          <h1>Do you know your attachment style?</h1>
           <p className="hero-lede">
-            Explore your relationship patterns through {questionCount ? `${questionCount} image choices` : "a short visual quiz"}.
+            Discover the patterns behind how you connect, seek reassurance, and make space in your relationships.
           </p>
           <div className="attach-hero-actions">
             <button
@@ -55,11 +48,6 @@ export function HomeLanding({
             </button>
           </div>
           {error ? <p className="form-error" role="alert">{error}</p> : null}
-          <div className="trust-row">
-            <span>{duration ? `${duration} minutes` : "Go at your own pace"}</span>
-            <i />
-            <span>Free summary</span>
-          </div>
         </div>
         <figure className="editorial-hero-image">
           <img src="/images/editorial/connection-1200.webp"
@@ -70,33 +58,10 @@ export function HomeLanding({
         </figure>
       </section>
 
-      <p className="editorial-price">{price ? `Full report: ${price} · One-time payment` : featuredTest ? "This report is currently free" : "Report pricing will appear when the quiz loads"}</p>
-
-      <section className="editorial-preview" aria-labelledby="preview-title">
-        <span className="editorial-kicker">What you’ll see</span>
-        <h2 id="preview-title">A closer look at your patterns</h2>
-        <div className="editorial-preview-content">
-          <div>
-            <h3>Your choices, explained</h3>
-            <p>Explore each image you chose, its interpretation, and a reflection to bring back to your own relationships.</p>
-            <a href="#report-sample">Read a sample</a>
-            <p className="editorial-delivery">After payment, read your report here. We’ll also email a private link so you can return to it.</p>
-          </div>
-          <details className="editorial-sample" id="report-sample" open>
-            <summary>Sample report</summary>
-            <h3>A pattern, not a verdict</h3>
-            <p>These scores describe how often your image choices leaned toward reaching, stepping back, staying steady, or doing both. They are a reflection prompt for this moment, not a diagnosis or a fixed identity.</p>
-            <p><strong>A question to take with you</strong></p>
-            <p>Where did your first picture feel familiar, and where would you choose differently on a calmer day?</p>
-          </details>
-        </div>
-        <p className="editorial-note">For self-reflection and educational purposes only. Not a diagnosis.</p>
-      </section>
-
       <section className="attach-section" id="attachment">
         <div className="attach-section-copy">
           <span>What this is about</span>
-          <h2>Attachment is the pattern you bring to closeness.</h2>
+          <h2>What does attachment mean for you?</h2>
           <p>
             In adult life, attachment shows up in how you ask for contact, how you take space,
             and what your body does when a message is late or a plan gets more intimate.
@@ -155,40 +120,12 @@ export function HomeLanding({
         </p>
       </section>
 
-      <section className="attach-trust" id="trust">
-        <div>
-          <span>How to use this</span>
-          <h2>A learning tool, not a diagnosis.</h2>
-          <p>
-            DeepPersona is for self-reflection and conversation. The quiz does not assess, treat, or name a
-            mental-health condition. If you are in distress, talk with a licensed clinician or a trusted local resource.
-          </p>
-          <p>
-            <Link prefetch={false} href="/disclaimer">Read the limitations</Link>
-            {" · "}
-            <Link prefetch={false} href="/insights">Learn more in Insights</Link>
-            {" · "}
-            <Link prefetch={false} href="/blog">Read the blog</Link>
-          </p>
-        </div>
-      </section>
-
-      <section className="how-it-works attach-how" id="how">
-        <span>01 · Notice</span>
-        <p>Look at four scenes. Let your eyes land before you explain the choice.</p>
-        <span>02 · Choose</span>
-        <p>Pick A, B, C, or D — the picture that matches your first move.</p>
-        <span>03 · Explore your pattern</span>
-        <p>See your free summary. Unlock the full written interpretation if you want to go deeper.</p>
-      </section>
-
       <section className="attach-cta" id="quiz">
         <div>
           <span>Ready when you are</span>
-          <h2>Take the free attachment quiz.</h2>
+          <h2>Explore your attachment style.</h2>
           <p>
-            {questionCount ? `${questionCount} situational image choices. ` : "A short visual quiz. "}Your free result explores how strongly
-            you leaned toward reaching and stepping back.{price ? ` You can unlock the full report for ${price}. One-time payment, no subscription.` : ""}
+            Get to know how you respond to closeness and distance. Start with the free quiz.
           </p>
           <button
             className="primary-button"
