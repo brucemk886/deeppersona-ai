@@ -1,4 +1,6 @@
 "use client";
+import { BrandLogo, BrandMark } from "@/app/_components/brand";
+
 
 import Link from "next/link";
 import { HomeLanding } from "@/app/_components/home-landing";
@@ -590,7 +592,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  if (initialReportId && !reportData) return <main className="detail-loading"><span className="brand-mark">DP</span><p role={error ? "alert" : "status"}>{error || (reportLoading ? "Loading your saved report…" : "Report unavailable.")}</p>{error && <button className="primary-button" disabled={reportLoading} onClick={async () => { setReportLoading(true); setError(''); try { await refreshReport(new URLSearchParams(window.location.search).get('payment') === 'success'); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load your report. Please try again.'); } finally { setReportLoading(false); } }}>Try again</button>}<Link href="/">Back to tests</Link></main>;
+  if (initialReportId && !reportData) return <main className="detail-loading"><BrandMark /><p role={error ? "alert" : "status"}>{error || (reportLoading ? "Loading your saved report…" : "Report unavailable.")}</p>{error && <button className="primary-button" disabled={reportLoading} onClick={async () => { setReportLoading(true); setError(''); try { await refreshReport(new URLSearchParams(window.location.search).get('payment') === 'success'); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load your report. Please try again.'); } finally { setReportLoading(false); } }}>Try again</button>}<Link href="/">Back to tests</Link></main>;
 
     if (initialReportId && reportData && !reportData.unlocked) return (
     <main className="result-shell">
@@ -685,7 +687,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
     return (
       <main className="quiz-shell">
         <header className="quiz-header">
-          <button className="brand brand-button" onClick={returnHome}><span className="brand-mark">DP</span><span>DeepPersona AI</span></button>
+          <button className="brand brand-button" onClick={returnHome}><BrandLogo /></button>
           <div className="progress-copy"><span>{relationshipContext ? `With ${relationshipContext.nickname} · ${selectedTest.title}` : selectedTest.title} · {questionIndex + 1} of {questions.length}</span><span>{Math.round(progress)}%</span></div>
           <div className="progress-track"><span style={{ width: `${progress}%`, background: selectedTest.accent }} /></div>
         </header>
@@ -745,7 +747,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
 
   return (
     <main className="result-shell">
-      <nav className="nav-bar"><button className="brand brand-button" onClick={returnHome}><span className="brand-mark">DP</span><span>DeepPersona AI</span></button><button className="text-button" onClick={() => window.print()}>Save report</button></nav>
+      <nav className="nav-bar"><button className="brand brand-button" onClick={returnHome}><BrandLogo /></button><button className="text-button" onClick={() => window.print()}>Save report</button></nav>
       {result && selectedTest && deepResult ? (
         <article className="result-card result-card-expanded">
           <span className="result-test-name">{selectedTest.title}</span>

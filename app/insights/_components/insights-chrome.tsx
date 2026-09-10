@@ -1,3 +1,4 @@
+import { BrandLogo } from "@/app/_components/brand";
 import Link from "next/link";
 import type { InsightArticleCard } from "@/lib/insights-index";
 
@@ -5,8 +6,7 @@ export function InsightsHeader() {
   return (
     <header className="insights-header">
       <Link className="brand" href="/">
-        <span className="brand-mark">DP</span>
-        <span>DeepPersona AI</span>
+        <BrandLogo />
       </Link>
       <nav aria-label="Site navigation">
         <Link href="/#quiz">Quiz</Link>

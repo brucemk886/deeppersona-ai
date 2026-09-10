@@ -37,3 +37,12 @@ final result: passed
 The subsequent user screenshots explicitly supersede the initial mock's question-count, timing, price and report-preview sections. Homepage now follows the reference site's subject introduction, relationship-pattern content and free-quiz CTA hierarchy. Removed the report sample, purchasing copy and how-to steps; payment confirmation still displays the actual backend price. Competitor-only courses, clinical services and expert claims were not imported.
 Evidence: work/design/home-simplified.png, captured at 390 x 844 CSS. Compared with the user-marked screenshot regions: all marked pricing/count content is absent, the same cream/green/photo styling remains, mobile title wraps cleanly and the first quiz button is visible before scrolling. CTA still opens question 1. Existing regression suite 30/30 and TypeScript pass. Prior mock-specific sample/price checks no longer apply by user request.
 final result: passed
+## Selected identity 3 — 2026-09-10
+
+User selected the third displayed identity: interlocked lowercase d/p monogram and serif DeepPersona AI wordmark. Reference: generated image exec-f1ca3bc2-b97d-4693-a661-ce2e4ece4d6b.png. Image-generated transparent artwork is shared across public headers, quiz/report chrome, and admin branding. Small-size raster favicon variants replace the former DP circle.
+
+Compared the reference header crop with the rendered homepage header at matching 375 px output width (work/brand-comparison.png). The monogram, serif lettering, green palette and horizontal arrangement match the chosen direction. Local browser screenshots: work/brand-mobile.png and work/brand-quiz.png, captured at 390 x 844 CSS. Homepage and quiz controls remain usable, article navigation fits, logo loads at its correct intrinsic ratio, and inspected browser console has no errors. Brand wordmark is 660 x 143 WebP, 23,906 bytes, served with long-lived versioned-asset caching. TypeScript and all 30 existing tests passed. No payment behavior changed or payment transaction performed.
+
+No P0/P1/P2 identity issues remain. P3: regenerated raster outlines differ slightly from the original concept sheet; the tiny AI suffix is secondary at favicon/mobile scale.
+
+final result: passed

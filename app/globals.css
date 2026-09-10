@@ -55,18 +55,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
 .brand-button { border: 0; background: none; cursor: pointer; padding: 0; }
 
-.brand-mark {
-  width: 34px;
-  height: 34px;
-  border-radius: 50% 50% 45% 55%;
-  background: var(--forest);
-  color: #fff;
-  display: grid;
-  place-items: center;
-  font-family: Georgia, serif;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-}
+
 
 .nav-note { color: var(--muted); font-size: 13px; }
 
@@ -1340,7 +1329,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .nav-bar .main-nav-links { display: none; }
   .mobile-site-menu { display: block; }
   .editorial-home .nav-bar { width: calc(100% - 44px); height: 62px; }
-  .editorial-home .brand-mark { width: 32px; height: 32px; font-size: 11px; }
   .editorial-home .attach-hero { width: 100%; padding: 0; gap: 0; }
   .editorial-home .attach-hero-copy { padding: 0 24px 14px; }
   .editorial-home .editorial-kicker { font-size: 9px; letter-spacing: .18em; }
@@ -1360,3 +1348,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
 .editorial-home .attach-hero { margin-bottom: 48px; }
 @media (max-width: 900px) { .editorial-home .attach-hero { margin-bottom: 36px; } }
+
+/* Shared DeepPersona monogram and wordmark. */
+.brand-lockup { display: block; width: 220px; height: auto; max-width: 100%; flex: 0 0 auto; }
+.brand-symbol { display: block; width: 36px; height: 36px; object-fit: contain; flex: 0 0 auto; }
+.brand-symbol-inverse { filter: brightness(0) invert(1); }
+.brand { flex-shrink: 0; }
+@media (max-width: 640px) {
+  .brand-lockup { width: 195px; }
+  .legal-nav .brand-lockup { width: 160px; }
+  .quiz-header .brand-lockup { width: 170px; }
+}

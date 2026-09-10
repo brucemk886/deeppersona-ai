@@ -22,8 +22,12 @@ export async function generateMetadata(): Promise<Metadata> {
       "A free 12-image attachment quiz for adult relationships. See whether you lean anxious, avoidant, secure, or fearful-avoidant. Educational self-reflection, not a diagnosis.",
     applicationName: "DeepPersona AI",
     icons: {
-      icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
-      shortcut: "/favicon.svg",
+      icon: [
+        { url: "/brand/favicon-v2-32.png", type: "image/png", sizes: "32x32" },
+        { url: "/brand/favicon-v2-16.png", type: "image/png", sizes: "16x16" },
+      ],
+      shortcut: "/brand/favicon-v2-32.png",
+      apple: [{ url: "/brand/apple-touch-icon-v2.png", sizes: "180x180", type: "image/png" }],
     },
     openGraph: {
       title: "Do you know your attachment style?",

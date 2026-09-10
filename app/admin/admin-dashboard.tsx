@@ -1,4 +1,6 @@
 "use client";
+import { BrandMark } from "@/app/_components/brand";
+
 import type { AnswerRecord } from "@/lib/admin-answer-records";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -404,7 +406,7 @@ export function AdminDashboard({
     <main className="admin-shell admin-cn">
       <aside className="admin-sidebar">
         <Link className="admin-logo" href="/">
-          <span className="brand-mark">DP</span>
+          <BrandMark inverse />
           <span><strong>DeepPersona AI</strong><small>运营管理后台</small></span>
         </Link>
         <nav className="admin-side-nav" aria-label="后台导航">

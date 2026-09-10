@@ -6,7 +6,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   await access(new URL("../dist/server/index.js", import.meta.url));
   await access(new URL("../dist/.openai/hosting.json", import.meta.url));
   await access(new URL("../public/og-deep-persona.png", import.meta.url));
-  await access(new URL("../public/favicon.svg", import.meta.url));
+  await access(new URL("../public/brand/favicon-v2-32.png", import.meta.url));
   await access(new URL("../public/quiz/doors.webp", import.meta.url));
   await access(new URL("../public/quiz/doors-768.webp", import.meta.url));
 
@@ -42,7 +42,8 @@ test("builds the complete DeepPersona AI experience", async () => {
   const homeLanding = await readFile(new URL("../app/_components/home-landing.tsx", import.meta.url), "utf8");
   const siteChrome = await readFile(new URL("../app/_components/site-chrome.tsx", import.meta.url), "utf8");
   const attachment = await readFile(new URL("../lib/attachment.ts", import.meta.url), "utf8");
-  assert.match(quiz, /DeepPersona AI/);
+  assert.match(quiz, /<BrandLogo/);
+  assert.match(await readFile("app/_components/brand.tsx", "utf8"), /alt="DeepPersona AI"/);
   assert.match(homeLanding, /Do you know your attachment style\?/);
   assert.match(homeLanding, /Start the free quiz/);
   assert.match(siteChrome, /Not a clinical diagnosis/);
@@ -125,7 +126,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.doesNotMatch(store, /COUNT\(DISTINCT session_id\) AS users FROM quiz_sessions/);
   assert.match(layout, /DeepPersona AI — Free Attachment Style Quiz/);
   assert.match(layout, /og-deep-persona\.png/);
-  assert.match(layout, /favicon\.svg/);
+  assert.match(layout, /favicon-v2-32\.png/);
   assert.match(layout, /width: "device-width"/);
   assert.match(layout, /GoogleAnalytics/);
   assert.match(analytics, /G-WS2Z8SKMY1/);

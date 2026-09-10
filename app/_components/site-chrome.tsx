@@ -1,3 +1,4 @@
+import { BrandLogo } from "@/app/_components/brand";
 import Link from "next/link";
 import { ListIcon } from "@phosphor-icons/react/dist/ssr";
 
@@ -10,8 +11,7 @@ type SiteNavProps = {
 export function SiteNav({ active = "home", brandHref = "/", onBrandClick }: SiteNavProps) {
   const brand = (
     <>
-      <span className="brand-mark">DP</span>
-      <span>DeepPersona AI</span>
+      <BrandLogo />
     </>
   );
 

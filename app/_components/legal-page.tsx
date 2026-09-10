@@ -1,3 +1,4 @@
+import { BrandLogo } from "@/app/_components/brand";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -35,7 +36,7 @@ export function LegalPage({
   return (
     <main className="legal-shell">
       <header className="legal-nav">
-        <Link aria-label="DeepPersona AI home" className="brand" href="/"><span className="brand-mark">DP</span><span>DeepPersona AI</span></Link>
+        <Link aria-label="DeepPersona AI home" className="brand" href="/"><BrandLogo /></Link>
         <div className="legal-nav-links">
           <Link className="nav-link" href="/blog">Blog</Link>
           <Link className="nav-link" href="/#quiz">Start the free quiz →</Link>
