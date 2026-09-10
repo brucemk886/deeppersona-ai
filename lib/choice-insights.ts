@@ -209,6 +209,9 @@ function atlasKey(path: string) {
 
 export function getOptionInsight(testId: string, atlasPath: string, scoreKey: TraitKey): ChoiceInsight {
   const signal = testSignals[testId]?.[scoreKey] ?? fallbackSignals[scoreKey];
+  if (!atlasPath) {
+    return { meaning: signal.meaning, projection: signal.projection };
+  }
   const visualProjection = atlasProjections[atlasKey(atlasPath)]?.[scoreKey] ?? "Your first visual pull is part of the pattern.";
   return {
     meaning: signal.meaning,

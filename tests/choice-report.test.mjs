@@ -1,0 +1,44 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+import { questionBank } from "../lib/quiz-question-bank.ts";
+import { buildTypedResult } from "../lib/result-profiles.ts";
+
+test("each live test has 15 catalog questions", () => {
+  const tests = Object.keys(questionBank);
+  assert.equal(tests.length, 8);
+  assert.equal(Object.values(questionBank).reduce((sum, bank) => sum + bank.length, 0), 120);
+  for (const id of tests) {
+    const bank = questionBank[id];
+    assert.equal(bank.length, 15, id);
+    assert.ok(bank.slice(0, 5).every((question) => question.atlas), `${id} should open with visual items`);
+    assert.ok(bank.slice(5).every((question) => !question.atlas), `${id} should continue with situation items`);
+    assert.ok(bank.every((question) => question.options.length === 4), id);
+  }
+});
+
+test("typed results and locked modules are wired into the report", async () => {
+  const [profiles, deepResults, store] = await Promise.all([
+    readFile(new URL("../lib/result-profiles.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/deep-results.ts", import.meta.url), "utf8"),
+    readFile(new URL("../db/quiz-store.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(profiles, /You reach first/);
+  assert.match(profiles, /You need a map/);
+  assert.match(profiles, /Every choice decoded/);
+  assert.match(profiles, /Your trigger/);
+  assert.match(deepResults, /buildTypedResult/);
+  assert.match(deepResults, /lockedModules/);
+  assert.match(store, /syncCatalogQuestions/);
+});
+
+test("typed result names the winning pattern and scores both free axes", () => {
+  const typed = buildTypedResult("attachment-style", [0, 0, 0, 1, 1, 1, 2, 2, 3, 3, 0, 1, 2, 3, 0]);
+  assert.equal(typed.copy.title, "You reach first");
+  assert.equal(typed.winner, "explorer");
+  assert.equal(typed.axes.length, 2);
+  assert.equal(typed.axes[0].value, 6);
+  assert.equal(typed.axes[1].value, 4);
+  assert.equal(typed.lockedModules.length, 4);
+  assert.match(typed.lockedModules[0].title, /Every choice decoded/);
+});

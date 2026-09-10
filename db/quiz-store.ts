@@ -303,10 +303,45 @@ export async function deleteAffiliateProduct(id: string): Promise<void> {
   await ensureQuizSchema();
   await getD1().prepare("DELETE FROM affiliate_products WHERE id = ?").bind(id).run();
 }
+let catalogSync: Promise<void> | undefined;
+
+async function syncCatalogQuestions(): Promise<void> {
+  catalogSync ??= (async () => {
+    const db = getD1();
+    const count = await db.prepare("SELECT COUNT(*) AS total FROM quiz_questions").first<{ total: number }>();
+    if ((count?.total ?? 0) >= defaultQuestions.length) return;
+    const statements = defaultQuestions.map((question) =>
+      db.prepare(`INSERT INTO quiz_questions
+        (id, test_id, kicker, prompt, atlas_path, options_json, position, active, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(id) DO UPDATE SET
+          test_id = excluded.test_id,
+          kicker = excluded.kicker,
+          prompt = excluded.prompt,
+          atlas_path = excluded.atlas_path,
+          options_json = excluded.options_json,
+          position = excluded.position,
+          active = excluded.active,
+          updated_at = CURRENT_TIMESTAMP`)
+        .bind(question.id, question.testId, question.kicker, question.prompt, question.atlasPath, JSON.stringify(question.options), question.position, question.active ? 1 : 0),
+    );
+    for (let index = 0; index < statements.length; index += 40) {
+      await db.batch(statements.slice(index, index + 40));
+    }
+  })().catch((error) => {
+    catalogSync = undefined;
+    throw error;
+  });
+  await catalogSync;
+}
+
 async function seedCatalogIfNeeded(): Promise<void> {
   const db = getD1();
   const count = await db.prepare("SELECT COUNT(*) AS total FROM quiz_tests").first<{ total: number }>();
-  if ((count?.total ?? 0) > 0) return;
+  if ((count?.total ?? 0) > 0) {
+    await syncCatalogQuestions();
+    return;
+  }
 
   await db.batch([
     ...defaultTests.map((test) =>
