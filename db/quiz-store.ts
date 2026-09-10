@@ -360,7 +360,7 @@ async function reconcilePublicCatalog(): Promise<void> {
           active = excluded.active,
           featured = excluded.featured,
           report_price_cents = CASE
-            WHEN quiz_tests.report_price_cents IN (0, 499) THEN excluded.report_price_cents
+            WHEN quiz_tests.report_price_cents = 499 THEN excluded.report_price_cents
             ELSE quiz_tests.report_price_cents
           END,
           updated_at = CURRENT_TIMESTAMP`)

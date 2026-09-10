@@ -83,7 +83,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(choiceInsights, /attachment-style/);
   assert.match(catalog, /attachment-style/);
   assert.match(catalog, /hidden-strength/);
-  assert.equal((catalog.match(/id: "[a-z-]+",\r?\n    title:/g) ?? []).length, 8);
+  assert.equal((catalog.match(/id: ATTACHMENT_TEST_ID|id: "[a-z-]+",\r?\n    title:/g) ?? []).length, 8);
   assert.match(admin, /测试管理/);
   assert.match(admin, /题目管理/);
   assert.match(admin, /邮箱用户/);

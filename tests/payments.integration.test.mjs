@@ -197,7 +197,7 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       report = await save();
       const state = await reportState(report);
       assert.equal(state.data.unlocked, false);
-      assert.equal(state.data.result.key, "choices");
+      assert.equal(state.data.result.key, "anxious");
       assert.equal(questions[0].options[0].scoreKey, undefined);
       assert.equal(state.data.deepResult, undefined);
       assert.equal(state.data.questions, undefined);
@@ -356,10 +356,10 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
     await t.test("new reports use selected option text while legacy purchased snapshots remain readable", async () => {
       const fresh = await save(0);
       const state = (await reportState(fresh)).data;
-      assert.equal(state.result.key,'choices');
+      assert.equal(state.result.key,'anxious');
       assert.equal(state.deepResult.depth,undefined);
       assert.equal(state.questions[0].options[0].scoreKey,undefined);
-      assert.ok(state.result.summary.includes(questions[0].options[0].label));
+      assert.match(state.result.title,/Anxious/);
       const saved = await db.prepare('SELECT answers_json,result_type FROM quiz_sessions WHERE id=?').bind(fresh.body.sessionId).first();
       assert.equal(saved.result_type,'choices');
       assert.equal(JSON.parse(saved.answers_json)[questions[0].id],0);

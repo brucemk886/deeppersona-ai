@@ -10,6 +10,7 @@ const localBindingConfig = {
   // Match the workerd version bundled with the local Vite runtime. Production
   // continues to use the newer date declared in wrangler.jsonc.
   compatibility_date: "2026-05-22",
+  compatibility_flags: ["nodejs_compat"],
 };
 
 export default defineConfig(async ({ command }) => {
