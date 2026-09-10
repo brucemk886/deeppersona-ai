@@ -14,7 +14,7 @@ export const defaultTests: QuizTest[] = [
     position: 1,
     active: true,
     featured: true,
-    reportPriceCents: 999,
+    reportPriceCents: 499,
   },
   {
     id: "emotional-needs",
@@ -26,7 +26,7 @@ export const defaultTests: QuizTest[] = [
     position: 2,
     active: false,
     featured: false,
-    reportPriceCents: 999,
+    reportPriceCents: 499,
   },
   {
     id: "conflict-style",
@@ -38,7 +38,7 @@ export const defaultTests: QuizTest[] = [
     position: 3,
     active: false,
     featured: false,
-    reportPriceCents: 999,
+    reportPriceCents: 499,
   },
   {
     id: "social-energy",
@@ -50,7 +50,7 @@ export const defaultTests: QuizTest[] = [
     position: 4,
     active: false,
     featured: false,
-    reportPriceCents: 999,
+    reportPriceCents: 499,
   },
   {
     id: "love-language",
@@ -62,7 +62,7 @@ export const defaultTests: QuizTest[] = [
     position: 5,
     active: false,
     featured: false,
-    reportPriceCents: 999,
+    reportPriceCents: 499,
   },
   {
     id: "stress-reset",
@@ -74,7 +74,7 @@ export const defaultTests: QuizTest[] = [
     position: 6,
     active: false,
     featured: false,
-    reportPriceCents: 999,
+    reportPriceCents: 499,
   },
   {
     id: "boundary-style",
@@ -86,7 +86,7 @@ export const defaultTests: QuizTest[] = [
     position: 7,
     active: false,
     featured: false,
-    reportPriceCents: 999,
+    reportPriceCents: 499,
   },
   {
     id: "hidden-strength",
@@ -98,7 +98,7 @@ export const defaultTests: QuizTest[] = [
     position: 8,
     active: false,
     featured: false,
-    reportPriceCents: 999,
+    reportPriceCents: 499,
   },
 ];
 

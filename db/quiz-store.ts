@@ -359,10 +359,6 @@ async function reconcilePublicCatalog(): Promise<void> {
           position = excluded.position,
           active = excluded.active,
           featured = excluded.featured,
-          report_price_cents = CASE
-            WHEN quiz_tests.report_price_cents = 499 THEN excluded.report_price_cents
-            ELSE quiz_tests.report_price_cents
-          END,
           updated_at = CURRENT_TIMESTAMP`)
         .bind(test.id, test.title, test.kicker, test.description, test.coverAtlasPath, test.accent, JSON.stringify(test.results ?? {}), test.position, test.active ? 1 : 0, test.featured ? 1 : 0, test.reportPriceCents),
     ),

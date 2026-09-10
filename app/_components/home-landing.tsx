@@ -29,7 +29,7 @@ export function HomeLanding({
 }) {
   const price = featuredTest && featuredTest.reportPriceCents > 0
     ? `$${(featuredTest.reportPriceCents / 100).toFixed(2)}`
-    : "$9.99";
+    : "$4.99";
 
   return (
     <main className="landing-shell marketing-shell">
