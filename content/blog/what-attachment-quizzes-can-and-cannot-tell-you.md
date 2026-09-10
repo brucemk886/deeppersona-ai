@@ -10,7 +10,7 @@ primaryTestId: attachment-style
 
 An attachment quiz can be useful the way a weather app is useful. It offers a snapshot of conditions you might not have named. It cannot tell you the climate of your whole life, the forecast for a particular relationship, or whether you need treatment. When people get hurt by quizzes, it is usually because they asked a snapshot to do the work of a biography.
 
-DeepPersona’s attachment experience is a two-minute visual reflection. You choose images. You receive a written interpretation of those choices. That is a prompt for self-reflection and entertainment, not a clinical instrument. The more clearly you understand that limit, the more you can take from the result.
+DeepPersona’s attachment experience is a short visual reflection. You choose images. You receive a written interpretation of those choices. That is a prompt for self-reflection and entertainment, not a clinical instrument. The more clearly you understand that limit, the more you can take from the result.
 
 ## What a short quiz can tell you
 

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ListIcon } from "@phosphor-icons/react/dist/ssr";
 
 type SiteNavProps = {
   active?: "home" | "quiz" | "insights" | "blog";
@@ -36,6 +37,16 @@ export function SiteNav({ active = "home", brandHref = "/", onBrandClick }: Site
           Blog
         </Link>
       </div>
+      <details className="mobile-site-menu">
+        <summary aria-label="Open navigation"><ListIcon size={28} weight="regular" /></summary>
+        <div>
+          <Link href="/#quiz">Take the quiz</Link>
+          <Link href="/insights">Learn</Link>
+          <Link href="/blog">Blog</Link>
+          <Link href="/recover">My reports</Link>
+          <Link href="/contact">About & contact</Link>
+        </div>
+      </details>
     </nav>
   );
 }

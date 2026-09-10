@@ -53,7 +53,7 @@ If the anxiety is constant, attached to panic, sleeplessness, or a sense that yo
 
 ## What a short quiz can add
 
-A two-minute visual reflection cannot establish an attachment style. It can help you notice whether your first instinct, when closeness feels uncertain, is to move in, gather information, or seek a signal that the bond is still intact. That observation is a starting hypothesis. It is not a clinical finding and it does not tell you what your partner secretly feels.
+A short visual reflection cannot establish an attachment style. It can help you notice whether your first instinct, when closeness feels uncertain, is to move in, gather information, or seek a signal that the bond is still intact. That observation is a starting hypothesis. It is not a clinical finding and it does not tell you what your partner secretly feels.
 
 Use the result as a mirror for one current pattern. Then look back at your week. If the quiz names a pull toward reassurance and your actual life shows the same move across texts, plans, and conflict, you have something useful to work with. If the quiz and your life disagree, trust the life.
 

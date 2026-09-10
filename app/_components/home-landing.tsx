@@ -28,20 +28,21 @@ export function HomeLanding({
   onStart: (test: QuizTest) => void;
 }) {
   const price = featuredTest && featuredTest.reportPriceCents > 0
-    ? `$${(featuredTest.reportPriceCents / 100).toFixed(2)}`
-    : "$4.99";
+    ? `USD ${(featuredTest.reportPriceCents / 100).toFixed(2)}`
+    : null;
+  const questionCount = featuredTest?.questionCount;
+  const duration = questionCount ? Math.max(1, Math.ceil(questionCount / 4)) : null;
 
   return (
-    <main className="landing-shell marketing-shell">
+    <main className="landing-shell marketing-shell editorial-home">
       <SiteNav active="home" />
 
       <section className="attach-hero" id="top">
         <div className="attach-hero-copy">
-          <span className="pill">Free visual quiz · 12 image choices</span>
-          <h1>Do you know your attachment style?</h1>
+          <span className="editorial-kicker">A visual quiz for real relationships</span>
+          <h1>How do you move toward closeness?</h1>
           <p className="hero-lede">
-            When closeness feels uncertain, people reach, step back, stay steady, or do both.
-            This short image quiz helps you notice the pattern you use in adult relationships.
+            Explore your relationship patterns through {questionCount ? `${questionCount} image choices` : "a short visual quiz"}.
           </p>
           <div className="attach-hero-actions">
             <button
@@ -52,25 +53,44 @@ export function HomeLanding({
             >
               {loading ? "Opening…" : "Start the free quiz"} <span aria-hidden="true">→</span>
             </button>
-            <a className="text-button attach-secondary-cta" href="#attachment">
-              What attachment means
-            </a>
           </div>
           {error ? <p className="form-error" role="alert">{error}</p> : null}
           <div className="trust-row">
-            <span>About 3 minutes</span>
+            <span>{duration ? `${duration} minutes` : "Go at your own pace"}</span>
             <i />
-            <span>No right answer</span>
-            <i />
-            <span>Educational, not a diagnosis</span>
+            <span>Free summary</span>
           </div>
         </div>
-        <div className="attach-hero-panel" aria-hidden="true">
-          <article className="style-tile style-tile-anxious"><span>A</span><strong>Anxious</strong><small>Reach when it goes quiet</small></article>
-          <article className="style-tile style-tile-avoidant"><span>B</span><strong>Avoidant</strong><small>Protect space first</small></article>
-          <article className="style-tile style-tile-secure"><span>C</span><strong>Secure</strong><small>Stay close, stay steady</small></article>
-          <article className="style-tile style-tile-fearful"><span>D</span><strong>Fearful-avoidant</strong><small>Want in, keep an exit</small></article>
+        <figure className="editorial-hero-image">
+          <img src="/images/editorial/connection-1200.webp"
+            srcSet="/images/editorial/connection-640.webp 640w, /images/editorial/connection-1200.webp 1200w"
+            sizes="(max-width: 900px) 100vw, 50vw" width={1200} height={800}
+            fetchPriority="high" decoding="async"
+            alt="Two adults sharing a quiet conversation at home" />
+        </figure>
+      </section>
+
+      <p className="editorial-price">{price ? `Full report: ${price} · One-time payment` : featuredTest ? "This report is currently free" : "Report pricing will appear when the quiz loads"}</p>
+
+      <section className="editorial-preview" aria-labelledby="preview-title">
+        <span className="editorial-kicker">What you’ll see</span>
+        <h2 id="preview-title">A closer look at your patterns</h2>
+        <div className="editorial-preview-content">
+          <div>
+            <h3>Your choices, explained</h3>
+            <p>Explore each image you chose, its interpretation, and a reflection to bring back to your own relationships.</p>
+            <a href="#report-sample">Read a sample</a>
+            <p className="editorial-delivery">After payment, read your report here. We’ll also email a private link so you can return to it.</p>
+          </div>
+          <details className="editorial-sample" id="report-sample" open>
+            <summary>Sample report</summary>
+            <h3>A pattern, not a verdict</h3>
+            <p>These scores describe how often your image choices leaned toward reaching, stepping back, staying steady, or doing both. They are a reflection prompt for this moment, not a diagnosis or a fixed identity.</p>
+            <p><strong>A question to take with you</strong></p>
+            <p>Where did your first picture feel familiar, and where would you choose differently on a calmer day?</p>
+          </details>
         </div>
+        <p className="editorial-note">For self-reflection and educational purposes only. Not a diagnosis.</p>
       </section>
 
       <section className="attach-section" id="attachment">
@@ -158,8 +178,8 @@ export function HomeLanding({
         <p>Look at four scenes. Let your eyes land before you explain the choice.</p>
         <span>02 · Choose</span>
         <p>Pick A, B, C, or D — the picture that matches your first move.</p>
-        <span>03 · See your style</span>
-        <p>Get a free type, short reads, and bars. A longer report is optional.</p>
+        <span>03 · Explore your pattern</span>
+        <p>See your free summary. Unlock the full written interpretation if you want to go deeper.</p>
       </section>
 
       <section className="attach-cta" id="quiz">
@@ -167,8 +187,8 @@ export function HomeLanding({
           <span>Ready when you are</span>
           <h2>Take the free attachment quiz.</h2>
           <p>
-            Twelve situational image choices. Your free result names a style and shows how strongly
-            you leaned toward reaching and stepping back. You can later unlock a written report for {price} if you want more detail.
+            {questionCount ? `${questionCount} situational image choices. ` : "A short visual quiz. "}Your free result explores how strongly
+            you leaned toward reaching and stepping back.{price ? ` You can unlock the full report for ${price}. One-time payment, no subscription.` : ""}
           </p>
           <button
             className="primary-button"

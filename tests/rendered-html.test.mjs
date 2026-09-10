@@ -43,7 +43,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   const siteChrome = await readFile(new URL("../app/_components/site-chrome.tsx", import.meta.url), "utf8");
   const attachment = await readFile(new URL("../lib/attachment.ts", import.meta.url), "utf8");
   assert.match(quiz, /DeepPersona AI/);
-  assert.match(homeLanding, /Do you know your attachment style\?/);
+  assert.match(homeLanding, /How do you move toward closeness\?/);
   assert.match(homeLanding, /Start the free quiz/);
   assert.match(homeLanding, /A learning tool, not a diagnosis/);
   assert.match(homeLanding, /Anxious-leaning/);

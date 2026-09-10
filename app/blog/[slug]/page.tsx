@@ -65,7 +65,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
       <span>Notice your first response</span>
       <h3>{test.title}</h3>
       <p>{BLOG_CTA_COPY}</p>
-      <Link href={quizHref}>Take the 2-minute visual reflection →</Link>
+      <Link href={quizHref}>Take the short visual reflection →</Link>
     </aside>
   );
 
@@ -85,7 +85,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           <p>{post.excerpt}</p>
           <div>
             <span>By DeepPersona AI Editorial Team</span>
-            <span>Reviewed {post.updatedAt}</span>
+            <span>Updated {post.updatedAt}</span>
             <span>{post.readMinutes} min read</span>
           </div>
         </header>
@@ -106,7 +106,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
             <h2>{test.title}</h2>
             <p>{BLOG_CTA_COPY}</p>
             <Link href={quizHref}>Start the free visual quiz <span aria-hidden="true">→</span></Link>
-            <small>4 choices · about 2 minutes · self-reflection, not diagnosis</small>
+            <small>Image-based self-reflection · not a diagnosis</small>
           </aside>
         </div>
       </article>

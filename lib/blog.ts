@@ -6,7 +6,7 @@ import quizLimits from "@/content/blog/what-attachment-quizzes-can-and-cannot-te
 import { countMarkdownWords, parseFrontmatter, type BlogFrontmatter } from "@/lib/blog-parse";
 
 export const ATTACHMENT_QUIZ_PATH = "/tests/attachment-style";
-export const BLOG_CTA_COPY = "Notice your pattern in images, not labels. Take the 2-minute visual reflection.";
+export const BLOG_CTA_COPY = "Notice your pattern in images, not labels. Take the short visual reflection.";
 
 export type BlogPost = BlogFrontmatter & {
   body: string;

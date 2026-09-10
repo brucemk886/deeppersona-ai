@@ -63,7 +63,7 @@ export default function InsightsPage() {
         <div className="insights-section-heading">
           <span>Latest reflections</span>
           <h2 id="latest-title">Start with a question from real life.</h2>
-          <p>Each guide gives you a complete answer first, then offers a related two-minute visual reflection.</p>
+          <p>Each guide gives you a complete answer first, then offers a related short visual reflection.</p>
         </div>
         <div className="insight-card-grid">
           {insightArticleCards.map((article) => <InsightCard article={article} key={article.slug} />)}
