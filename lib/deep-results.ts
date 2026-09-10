@@ -1,19 +1,37 @@
-import type { QuizQuestion, QuizTest, ResultProfile } from './quiz';
+import { buildTypedResult } from "@/lib/result-profiles";
+import type { QuizQuestion, QuizTest, ResultProfile } from "./quiz";
 
 export type DeepResultContent = {
   lens: { title: string; explanation: string; reflectionPrompt: string };
-  // Present only in historical report snapshots.
   depth?: { coreDrive: string; inRelationships: string; underPressure: string };
 };
 
 export function buildChoiceReport(test: QuizTest, questions: QuizQuestion[], choices: Record<string, number>): { result: ResultProfile; deepResult: DeepResultContent } {
-  const labels = questions.map(question => question.options[choices[question.id]].label);
+  const orderedIndexes = questions.map((question) => choices[question.id]).filter((index): index is number => Number.isInteger(index));
+  const typed = buildTypedResult(test.id, orderedIndexes);
   return {
-    result: { key: 'choices', eyebrow: 'Your personal reading', title: test.title,
-      summary: `Your choices: ${labels.join(' · ')}. Explore what each selection means to you in the full reading.`,
-      strength: '', watchout: '', nextStep: '' },
-    deepResult: { lens: { title: 'Bring these choices back to your own experience',
-      explanation: 'Each section explains one image you selected. These interpretations are prompts for reflection, not scores or a fixed personality label. You can relate to different ideas in different situations.',
-      reflectionPrompt: 'Which interpretation connects with something happening in your life, and which would you describe differently?' } },
+    result: {
+      key: "choices",
+      eyebrow: "Your free summary",
+      title: typed.copy.title,
+      summary: typed.copy.summary,
+      strength: typed.copy.superpower,
+      watchout: typed.copy.trigger,
+      nextStep: typed.copy.inRelationships,
+      axes: typed.axes,
+      lockedModules: typed.lockedModules,
+    },
+    deepResult: {
+      lens: {
+        title: typed.copy.title,
+        explanation: typed.copy.summary,
+        reflectionPrompt: `When does "${typed.copy.title.toLowerCase()}" help you, and when does it cost you more than it gives?`,
+      },
+      depth: {
+        coreDrive: typed.copy.coreDrive,
+        inRelationships: typed.copy.inRelationships,
+        underPressure: typed.copy.underPressure,
+      },
+    },
   };
 }

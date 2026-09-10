@@ -303,10 +303,71 @@ export async function deleteAffiliateProduct(id: string): Promise<void> {
   await ensureQuizSchema();
   await getD1().prepare("DELETE FROM affiliate_products WHERE id = ?").bind(id).run();
 }
+let catalogSync: Promise<void> | undefined;
+
+async function syncCatalogQuestions(): Promise<void> {
+  catalogSync ??= (async () => {
+    const db = getD1();
+    const [count, marker, testMarker] = await Promise.all([
+      db.prepare("SELECT COUNT(*) AS total FROM quiz_questions").first<{ total: number }>(),
+      db.prepare("SELECT prompt FROM quiz_questions WHERE id = ?").bind("attachment-style-6").first<{ prompt: string }>(),
+      db.prepare("SELECT title FROM quiz_tests WHERE id = ?").bind("attachment-style").first<{ title: string }>(),
+    ]);
+    const expectedPrompt = defaultQuestions.find((question) => question.id === "attachment-style-6")?.prompt;
+    const expectedTitle = defaultTests.find((test) => test.id === "attachment-style")?.title;
+    const questionsStale = (count?.total ?? 0) < defaultQuestions.length || marker?.prompt !== expectedPrompt;
+    const testsStale = Boolean(expectedTitle) && testMarker?.title !== expectedTitle;
+    if (!questionsStale && !testsStale) return;
+    if (testsStale) {
+      await db.batch(defaultTests.map((test) =>
+        db.prepare(`INSERT INTO quiz_tests
+          (id, title, kicker, description, cover_atlas_path, accent, results_json, position, active, featured, report_price_cents)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            title = excluded.title,
+            kicker = excluded.kicker,
+            description = excluded.description,
+            cover_atlas_path = excluded.cover_atlas_path,
+            accent = excluded.accent,
+            position = excluded.position,
+            featured = excluded.featured,
+            report_price_cents = excluded.report_price_cents`)
+          .bind(test.id, test.title, test.kicker, test.description, test.coverAtlasPath, test.accent, JSON.stringify(test.results ?? {}), test.position, test.active ? 1 : 0, test.featured ? 1 : 0, test.reportPriceCents),
+      ));
+    }
+    if (!questionsStale) return;
+    const statements = defaultQuestions.map((question) =>
+      db.prepare(`INSERT INTO quiz_questions
+        (id, test_id, kicker, prompt, atlas_path, options_json, position, active, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(id) DO UPDATE SET
+          test_id = excluded.test_id,
+          kicker = excluded.kicker,
+          prompt = excluded.prompt,
+          atlas_path = excluded.atlas_path,
+          options_json = excluded.options_json,
+          position = excluded.position,
+          active = excluded.active,
+          updated_at = CURRENT_TIMESTAMP`)
+        .bind(question.id, question.testId, question.kicker, question.prompt, question.atlasPath, JSON.stringify(question.options), question.position, question.active ? 1 : 0),
+    );
+    for (let index = 0; index < statements.length; index += 40) {
+      await db.batch(statements.slice(index, index + 40));
+    }
+  })().catch((error) => {
+    catalogSync = undefined;
+    throw error;
+  });
+  await catalogSync;
+}
+
 async function seedCatalogIfNeeded(): Promise<void> {
   const db = getD1();
   const count = await db.prepare("SELECT COUNT(*) AS total FROM quiz_tests").first<{ total: number }>();
-  if ((count?.total ?? 0) > 0) return;
+  if ((count?.total ?? 0) > 0) {
+    await syncCatalogQuestions();
+    return;
+  }
 
   await db.batch([
     ...defaultTests.map((test) =>

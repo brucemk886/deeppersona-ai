@@ -24,7 +24,7 @@ export async function GET() {
     { path: "/terms", changeFrequency: "yearly", priority: 0.2 },
     { path: "/refunds", changeFrequency: "yearly", priority: 0.2 },
     { path: "/disclaimer", changeFrequency: "yearly", priority: 0.2 },
-    ...defaultTests.filter((test) => test.active).map((test) => ({
+    ...defaultTests.filter((test) => test.active && test.id === "attachment-style").map((test) => ({
       path: `/tests/${test.id}`,
       changeFrequency: "monthly" as const,
       priority: 0.8,

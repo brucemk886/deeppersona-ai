@@ -28,20 +28,20 @@ const testSignals: Record<string, SignalSet> = {
   },
   "emotional-needs": {
     explorer: {
-      meaning: "A need for movement, choice, and room to change direction without feeling trapped.",
-      projection: "You may project relief onto open possibilities because agency helps your inner world feel alive again.",
+      meaning: "A need for movement, choice, and a way to change the scene when they pull back.",
+      projection: "You may project relief onto a next option because agency helps the distance feel less like a trap.",
     },
     connector: {
       meaning: "A need to feel emotionally received rather than merely listened to or advised.",
-      projection: "You may project comfort onto signs of warmth and mutual presence; being accurately understood can matter more than having the problem solved.",
+      projection: "You may project comfort onto signs of warmth; being understood can matter more than having the distance solved.",
     },
     architect: {
       meaning: "A need for order, dependable boundaries, and a clear sense of what happens next.",
-      projection: "You may project calm onto structure because clarity reduces the amount of uncertainty your attention has to carry.",
+      projection: "You may project calm onto a plan because clarity reduces what their silence asks your attention to carry.",
     },
     creator: {
-      meaning: "A need for private expression, imagination, and space where feelings do not have to be simplified.",
-      projection: "You may project relief onto beauty or solitude because symbolic experiences give your inner world room to become understandable.",
+      meaning: "A need for private space where the feeling does not have to be simplified.",
+      projection: "You may project relief onto solitude because the distance has to finish inside you before language returns.",
     },
   },
   "conflict-style": {
@@ -64,20 +64,20 @@ const testSignals: Record<string, SignalSet> = {
   },
   "social-energy": {
     explorer: {
-      meaning: "A social preference for novelty, movement, and low-friction participation.",
-      projection: "You may project energy onto environments that offer momentum and possibility, where connection can happen through doing rather than prolonged self-explanation.",
+      meaning: "A pull that wants a next move — a text, a plan, a way to turn almost into a yes.",
+      projection: "You may project relief onto action because the chase is how you metabolize not knowing where you stand.",
     },
     connector: {
-      meaning: "A social preference for warmth, familiarity, and one genuinely mutual exchange.",
-      projection: "You may measure a social experience by emotional quality rather than crowd size; one attentive person can change the entire room for you.",
+      meaning: "A pull organized around the sign that you are still chosen.",
+      projection: "You may measure the whole bond by the last warm signal; crumbs can feel like proof and like withdrawal at once.",
     },
     architect: {
-      meaning: "A social preference for manageable stimulation, a clear role, and time to observe before joining.",
-      projection: "You may project ease onto predictable settings because knowing the shape of the interaction protects your attention.",
+      meaning: "A pull you try to map, explain, and make consistent before you can rest.",
+      projection: "You may project safety onto an interpretation that holds together, even when the person stays inconsistent.",
     },
     creator: {
-      meaning: "A social preference for autonomy, atmosphere, and enough solitude to hear your own thoughts.",
-      projection: "You may project restoration onto spaces that ask nothing from you, especially after carrying noise, performance, or other people's expectations.",
+      meaning: "A pull that lives in the story and atmosphere of them, not only in what they did.",
+      projection: "You may project meaning onto a magical night or a small detail until the ordinary version of them feels less real.",
     },
   },
   "love-language": {
@@ -100,20 +100,20 @@ const testSignals: Record<string, SignalSet> = {
   },
   "stress-reset": {
     explorer: {
-      meaning: "A reset through movement, changed scenery, and enough momentum to interrupt feeling stuck.",
-      projection: "You may project relief onto forward motion because your thoughts often reorganize after your body has somewhere to go.",
+      meaning: "A reset through movement after a text, a tone shift, or silence from them.",
+      projection: "You may project relief onto a change of place because the body has to move before the chat can be answered well.",
     },
     connector: {
-      meaning: "A reset through safe contact, shared presence, and the feeling that the burden is no longer carried alone.",
-      projection: "You may project calm onto a responsive person or welcoming space because connection tells your nervous system that support is available.",
+      meaning: "A reset through safe contact, so the charge of the relationship is not carried alone.",
+      projection: "You may project calm onto a responsive person because company tells your nervous system the silence is not the whole world.",
     },
     architect: {
-      meaning: "A reset through reduced noise, clear priorities, and one controllable piece of order.",
-      projection: "You may project safety onto structure because a workable boundary helps separate the real problem from the surrounding overwhelm.",
+      meaning: "A reset through one controllable piece of order when the bond feels loud.",
+      projection: "You may project safety onto a list or a rule because a smaller problem is easier for the body than a mixed signal.",
     },
     creator: {
-      meaning: "A reset through low stimulation, solitude, and room for feelings to settle without demand.",
-      projection: "You may project restoration onto quiet or beauty because your system needs space to metabolize experience before language returns.",
+      meaning: "A reset through quiet, so the feeling can finish before you send anything.",
+      projection: "You may project restoration onto darkness or no input because language comes back after the weather changes.",
     },
   },
   "boundary-style": {
@@ -136,20 +136,20 @@ const testSignals: Record<string, SignalSet> = {
   },
   "hidden-strength": {
     explorer: {
-      meaning: "The ability to initiate, experiment, and create movement before certainty is available.",
-      projection: "You may be drawn to cues of direction and possibility because beginning is one of the ways you turn uncertainty into information.",
+      meaning: "The ability to start repair or motion in love before certainty is available.",
+      projection: "You may be drawn to a first step because beginning is how you turn a stuck bond into information.",
     },
     connector: {
-      meaning: "The ability to notice emotional context and help different people feel understood.",
-      projection: "You may be drawn to signs of life and welcome because your attention naturally looks for what can be nurtured between people.",
+      meaning: "The ability to notice emotional weather and help them feel understood.",
+      projection: "You may be drawn to signs of warmth because your attention looks for what can be nurtured between the two of you.",
     },
     architect: {
-      meaning: "The ability to detect structure, preserve what matters, and make complexity workable.",
-      projection: "You may be drawn to depth and order because your mind looks for the pattern that will still make sense after the first impression fades.",
+      meaning: "The ability to keep a relationship workable after the first spark fades.",
+      projection: "You may be drawn to structure because your mind looks for the version that will still make sense tomorrow.",
     },
     creator: {
-      meaning: "The ability to connect unlikely details and reveal meaning that other people overlook.",
-      projection: "You may be drawn to ambiguity and visual surprise because your mind comes alive where more than one interpretation can be true.",
+      meaning: "The ability to read the second meaning under a fight or a text.",
+      projection: "You may be drawn to nuance because your mind comes alive where more than one reading of the bond can be true.",
     },
   },
 };
@@ -209,6 +209,9 @@ function atlasKey(path: string) {
 
 export function getOptionInsight(testId: string, atlasPath: string, scoreKey: TraitKey): ChoiceInsight {
   const signal = testSignals[testId]?.[scoreKey] ?? fallbackSignals[scoreKey];
+  if (!atlasPath) {
+    return { meaning: signal.meaning, projection: signal.projection };
+  }
   const visualProjection = atlasProjections[atlasKey(atlasPath)]?.[scoreKey] ?? "Your first visual pull is part of the pattern.";
   return {
     meaning: signal.meaning,

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { matchTestByQuery } from "@/lib/test-search";
+import { LANDING_STYLES, PUBLIC_TEST_ID } from "@/lib/attachment-styles";
 import { currentAttribution } from "@/lib/traffic";
 import { requestJson } from '@/lib/browser-request';
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  isVisualQuestion,
   type QuizQuestion,
   type AffiliateProduct,
   type QuizTest,
@@ -17,7 +18,6 @@ import { trackGoogleAnalyticsEvent, trackQuizGoogleAnalyticsEvent } from "@/lib/
 import { getInsightCardsForTest } from "@/lib/insights-index";
 import {
   getDimensionProgress,
-  recommendNextTest,
   TEST_DIMENSIONS,
   type InnerProfileSummary,
 } from "@/lib/inner-map";import {
@@ -88,7 +88,7 @@ function AtlasImage({
 }
 
 function preloadAtlas(path: string) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || !path) return;
   const optimized = optimizedAtlases[path];
   const image = new Image();
   image.decoding = "async";
@@ -103,6 +103,20 @@ function preloadAtlas(path: string) {
 }
 
 function getAttribution() { return currentAttribution(); }
+
+function ResultAxes({ axes }: { axes: ResultProfile["axes"] }) {
+  if (!axes?.length) return null;
+  return (
+    <section className="result-axes" aria-label="Your scores in this test">
+      {axes.map((axis) => (
+        <div className="result-axis" key={axis.label}>
+          <div className="result-axis-copy"><strong>{axis.label}</strong><span>{axis.value.toFixed(1)} / 10 · {axis.caption}</span></div>
+          <div className="result-axis-track" aria-hidden="true"><i style={{ width: `${Math.min(100, axis.value * 10)}%` }} /></div>
+        </div>
+      ))}
+    </section>
+  );
+}
 
 function InnerMap({ completedTestIds, compact = false }: { completedTestIds: string[]; compact?: boolean }) {
   const dimensions = getDimensionProgress(completedTestIds);
@@ -194,7 +208,6 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
   const [isAdvancing, setIsAdvancing] = useState(false);
   const [loadingTest, setLoadingTest] = useState("");
   const [error, setError] = useState("");
-  const [testQuery, setTestQuery] = useState("");
   const [result, setResult] = useState<ResultProfile | null>(null);
   const [reportData, setReportData] = useState<ReportResponse | null>(null);
   const [reportLoading, setReportLoading] = useState(Boolean(initialReportId));
@@ -402,14 +415,13 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
     }
   }
 
-  const featuredTest = tests.find((test) => test.featured) ?? tests[0];
+  const featuredTest = tests.find((test) => test.id === PUBLIC_TEST_ID) ?? tests.find((test) => test.featured) ?? tests[0];
   const activeQuestion = questions[questionIndex];
   const progress = stage === "email" ? 100 : questions.length ? ((questionIndex + 1) / questions.length) * 100 : 0;
   const selectedOptionIndex = activeQuestion ? answerChoices[activeQuestion.id] : undefined;
   const completedTestIds = profile.completedTestIds;
   const mapDimensions = getDimensionProgress(completedTestIds);
   const unlockedDimensions = mapDimensions.filter((dimension) => dimension.unlocked).length;
-  const recommendedTest = recommendNextTest(tests, completedTestIds, selectedTest?.id);
 
   useEffect(() => {
     if (!featuredTest || stage !== "home") return;
@@ -429,33 +441,12 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
     if (nextQuestion) preloadAtlas(nextQuestion.atlasPath);
   }, [questionIndex, questions, stage]);
 
-  function detailHref(test: QuizTest, content?: string) {
-    const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
-    const source = currentAttribution();
-    if (!params.has('utm_source') && source.source !== 'direct') params.set('utm_source', source.source);
-    if (content && !params.get('utm_content')) params.set('utm_content', content.replace(/[^a-zA-Z0-9._ -]/g, '').slice(0, 120));
-    const query = params.size ? '?' + params.toString() : '';
-    return `/tests/${encodeURIComponent(test.id)}${query}`;
-  }
-
-  function prepareDetail(test: QuizTest) {
-    preloadAtlas(test.coverAtlasPath);
-    void loadQuestions(test.id).catch(() => undefined);
-  }
-
-  function openDetail(test: QuizTest, content?: string) {
-    prepareDetail(test);
-    window.location.assign(detailHref(test, content));
-  }
-
-  function submitTestSearch() {
-    const matched = matchTestByQuery(testQuery, tests);
-    if (!matched) {
-      setError("No matching test. Try 01–08 or a test name.");
+  function startPublicTest() {
+    if (!featuredTest) {
+      setError("This test is not available yet.");
       return;
     }
-    setError("");
-    openDetail(matched, testQuery.trim());
+    void startTest(featuredTest);
   }
   async function startTest(test: QuizTest, relationship?: RelationshipNode) {
     setLoadingTest(test.id);
@@ -577,15 +568,36 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
 
   if (initialReportId && !reportData) return <main className="detail-loading"><span className="brand-mark">DP</span><p role={error ? "alert" : "status"}>{error || (reportLoading ? "Loading your saved report…" : "Report unavailable.")}</p>{error && <button className="primary-button" disabled={reportLoading} onClick={async () => { setReportLoading(true); setError(''); try { await refreshReport(new URLSearchParams(window.location.search).get('payment') === 'success'); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load your report. Please try again.'); } finally { setReportLoading(false); } }}>Try again</button>}<Link href="/">Back to tests</Link></main>;
 
-  if (initialReportId && reportData && !reportData.unlocked) return (
+  if (initialReportId && reportData && !reportData.unlocked) {
+    const previewAxes = reportData.result.axes ?? [];
+    const previewModules = reportData.result.lockedModules ?? [
+      { title: "Every choice decoded", teaser: "What each answer may be reflecting back to you." },
+      { title: "In close relationships", teaser: "How this pattern shows up with someone you love." },
+      { title: "Your trigger", teaser: "The moment this pattern typically takes over." },
+      { title: "Your superpower", teaser: "The strength hidden inside the same pattern." },
+    ];
+    return (
     <main className="result-shell">
-      <nav className="nav-bar"><Link className="brand" href="/">DeepPersona AI</Link><Link href="/#tests">All tests</Link></nav>
+      <nav className="nav-bar"><Link className="brand" href="/">DeepPersona AI</Link><Link href="/">Attachment test</Link></nav>
       <article className="result-card result-card-expanded">
-        <span className="result-test-name">{reportData.test.title}</span><span className="result-eyebrow">Your free summary</span>
+        <span className="result-test-name">{reportData.test.title}</span><span className="result-eyebrow">{reportData.result.eyebrow || "Your free summary"}</span>
         <h1>{reportData.result.title}</h1><p className="result-summary">{reportData.result.summary}</p>
+        <ResultAxes axes={previewAxes} />
+        <section className="locked-module-grid" aria-label="Locked full-report sections">
+          {previewModules.map((module) => (
+            <article className="locked-module" key={module.title}>
+              <span className="locked-module-icon" aria-hidden="true">✕</span>
+              <div>
+                <strong>{module.title}</strong>
+                <p>{module.teaser}</p>
+              </div>
+              <em>Unlock to read</em>
+            </article>
+          ))}
+        </section>
         <section className="report-paywall">
-          <h2>Explore the meaning behind every choice</h2>
-          <p>Your full reading includes each image you chose, its written interpretation, and a reflection prompt.</p><p className="service-context">For entertainment and self-reflection. Uses written interpretations for each selected image, not a validated psychological assessment or professional advice. <Link href="/disclaimer">How to use these results</Link></p>
+          <h2>Unlock the full reading</h2>
+          <p>Your complete report includes every choice decoded, how this pattern shows up in close relationships, your trigger, and the strength inside it.</p><p className="service-context">For entertainment and self-reflection. Uses written interpretations of your answers, not a validated psychological assessment or professional advice. <Link href="/disclaimer">How to use these results</Link></p>
           {reportData.sandbox ? <p className="sandbox-notice">Test checkout — no real money will be charged.</p> : null}
           {reportData.status === "refunded" ? <p>This purchase has been refunded. Full report access has ended.</p> : <>
             <p className="report-price">{reportData.amountCents === 0 ? "Free report" : `USD ${(reportData.amountCents / 100).toFixed(2)} · One-time payment`}</p>
@@ -603,7 +615,8 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
         </section>
       </article>
     </main>
-  );
+    );
+  }
 
   if (stage === "detail") {
     if (!selectedTest) return <main className="detail-loading"><span className="brand-mark">DP</span><p>Finding this visual test…</p></main>;
@@ -611,7 +624,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
     const detailPrompt = detailQuestion?.prompt ?? "Which image pulls you in before you can explain why?";
     return (
       <main className="test-detail-shell">
-        <nav className="nav-bar" aria-label="Main navigation"><Link className="brand" href="/"><span className="brand-mark">DP</span><span>DeepPersona AI</span></Link><div className="main-nav-links"><Link className="nav-note nav-link" href="/insights">Insights</Link><Link className="nav-note nav-link" href="/#tests">All visual tests ↓</Link></div></nav>
+        <nav className="nav-bar" aria-label="Main navigation"><Link className="brand" href="/"><span className="brand-mark">DP</span><span>DeepPersona AI</span></Link><div className="main-nav-links"><Link className="nav-note nav-link" href="/insights">Insights</Link></div></nav>
         <section className="detail-stage" style={{ "--test-accent": selectedTest.accent } as React.CSSProperties}>
           <div className="detail-gallery" aria-label="Four visual choices preview">
             {[0, 1, 2, 3].map((index) => <AtlasImage index={index} key={index} loading="eager" path={selectedTest.coverAtlasPath} priority={index === 0} sizes="(max-width: 640px) 50vw, 340px" />)}
@@ -619,9 +632,9 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
           </div>
           <div className="detail-story">
             <span className="detail-category">{selectedTest.kicker}</span>
-            <p className="detail-count">4 visual choices · about 2 minutes</p>
+            <p className="detail-count">{selectedTest.questionCount || 15} choices · about 5 minutes</p>
             <h1>{detailPrompt}</h1>
-            <p className="detail-intro">There is no right answer. Use your image choices as a starting point to reflect on familiar patterns in your life.</p>
+            <p className="detail-intro">There is no right answer. Start with a few image choices, then answer everyday situations the way you actually respond.</p>
             <p className="service-context">For entertainment and self-reflection, not diagnosis or treatment. Uses written interpretations for each selected image. <Link href="/disclaimer">Read the limitations</Link></p><div className="detail-reveal"><span>YOUR REFLECTION WILL EXPLORE</span><div><p>What your first instinct is trying to protect.</p><p>How this pattern shapes closeness, stress, or boundaries.</p><p>The strength hidden inside the response you repeat.</p></div></div>
             <button className="primary-button detail-cta" disabled={loadingTest === selectedTest.id} onClick={() => void startTest(selectedTest)}>{loadingTest === selectedTest.id ? "Opening…" : "See what your first choice reveals"} <span aria-hidden="true">→</span></button>
             <div className="detail-assurance"><span>Free visual test</span><i /> <span>Private by design</span>{selectedTest.reportPriceCents > 0 ? <><i /> <span>Full report: USD {(selectedTest.reportPriceCents / 100).toFixed(2)}</span></> : null}</div>
@@ -635,38 +648,37 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
   }
   if (stage === "home") {
     return (
-      <main className="landing-shell">
+      <main className="landing-shell attachment-shell">
         <nav className="nav-bar" aria-label="Main navigation">
           <a className="brand" href="#top" aria-label="DeepPersona AI home"><span className="brand-mark">DP</span><span>DeepPersona AI</span></a>
-          <div className="main-nav-links"><Link className="nav-note nav-link" href="/insights">Insights</Link><a className="nav-note nav-link" href="#tests">Explore 8 visual tests ↓</a></div>
+          <div className="main-nav-links"><Link className="nav-note nav-link" href="/insights">Insights</Link></div>
         </nav>
 
-        <section className="hero hero-search-stage" id="top">
-          <form className="hero-search" onSubmit={(event) => { event.preventDefault(); submitTestSearch(); }} role="search">
-            <label className="hero-search-label" htmlFor="test-code">Enter the test number from the video</label>
-            <div className="hero-search-row">
-              <input
-                autoComplete="off"
-                autoFocus
-                id="test-code"
-                inputMode="search"
-                onChange={(event) => { setTestQuery(event.target.value); if (error) setError(""); }}
-                placeholder="01"
-                spellCheck={false}
-                value={testQuery}
-              />
-              <button className="primary-button" disabled={!testQuery.trim() || Boolean(loadingTest)} type="submit">
-                {loadingTest ? "Opening…" : "Go"}
-              </button>
-            </div>
-            <p className="hero-search-hint">Use 01–08, or search a test name.</p>
-            {error ? <p className="form-error" role="alert">{error}</p> : null}
-          </form>
+        <section className="attachment-landing" id="top">
+          <p className="attachment-landing-kicker">Discover your attachment style in 5 minutes</p>
+          <h1>Attachment Style Test</h1>
+          <ul className="attachment-styles">
+            {LANDING_STYLES.map((style) => (
+              <li className="attachment-style-item" key={style.key}>
+                <figure>
+                  <span className={`attachment-style-photo attachment-style-${style.key}`}>
+                    <AtlasImage className="attachment-style-atlas" index={style.atlasIndex} loading="eager" path="/quiz/doors.png" priority={style.atlasIndex === 0} sizes="168px" />
+                  </span>
+                  <figcaption>{style.label}</figcaption>
+                </figure>
+              </li>
+            ))}
+          </ul>
+          <button className="primary-button attachment-start" disabled={Boolean(loadingTest) || !featuredTest} onClick={startPublicTest} type="button">
+            {loadingTest ? "Opening…" : "Start the test"}
+          </button>
+          {error ? <p className="form-error" role="alert">{error}</p> : null}
+          <p className="attachment-landing-note">Free to take. For entertainment and self-reflection, not a diagnosis. <Link href="/disclaimer">How to use these results</Link></p>
         </section>
 
         {RETURNING_MAP_ENABLED && completedTestIds.length ? <>
           <section className="returning-profile">
-            <div className="returning-profile-copy"><span>Welcome back</span><h2>Your map remembers where you left off.</h2><p>{unlockedDimensions} of 6 dimensions discovered. One short reflection is enough to keep building.</p>{recommendedTest ? <button className="primary-button" onClick={() => openDetail(recommendedTest)} type="button">Continue with {recommendedTest.title} →</button> : null}</div>
+            <div className="returning-profile-copy"><span>Welcome back</span><h2>Your map remembers where you left off.</h2><p>{unlockedDimensions} of 6 dimensions discovered. One short reflection is enough to keep building.</p></div>
             <InnerMap compact completedTestIds={completedTestIds} />
           </section>
           {RELATIONSHIP_NETWORK_ENABLED ? <>
@@ -678,22 +690,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
             />
             {relationshipError ? <p className="relationship-error" role="alert">{relationshipError}</p> : null}
           </> : null}
-        </> : null}        <section className="test-library" id="tests" aria-label="Visual tests">
-          <div className="test-card-grid">
-            {tests.map((test, index) => (
-              <button aria-label={`View details for ${test.title}`} className={`test-card ${test.featured ? "featured" : ""}`} disabled={loadingTest === test.id} key={test.id} onClick={() => openDetail(test)} onFocus={() => prepareDetail(test)} onPointerEnter={() => prepareDetail(test)} style={{ "--test-accent": test.accent } as React.CSSProperties} type="button">
-                <div className="test-card-image">
-                  <AtlasImage index={0} path={test.coverAtlasPath} sizes="(max-width: 640px) 236px, 380px" />
-                  <span className="test-number">{String(index + 1).padStart(2, "0")}</span>
-                  {test.featured ? <span className="popular-badge">Most popular</span> : null}
-                </div>
-                <div className="test-card-copy"><span>{test.kicker}</span><h3>{test.title}</h3><p>{test.description}</p><div><small>{test.questionCount || 4} questions{test.reportPriceCents > 0 ? <><br /><em className="test-report-price">Full report USD {(test.reportPriceCents / 100).toFixed(2)}</em></> : null}</small><strong className="test-card-start">{loadingTest === test.id ? "Opening…" : "Explore →"}</strong></div></div>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="how-it-works"><span>01 · Notice</span><p>Let your eyes land before your reasoning catches up.</p><span>02 · Choose</span><p>Pick the image that creates the strongest first response.</p><span>03 · Reveal</span><p>Read the interpretation behind each image you chose.</p></section>
+        </> : null}
         <footer className="site-footer site-footer-expanded"><div><strong>DeepPersona AI © 2026</strong><span>For self-reflection, not clinical diagnosis.</span></div><nav aria-label="Legal and support links"><Link href="/insights">Insights</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds & delivery</Link><Link href="/disclaimer">Disclaimer</Link><Link href="/contact">Contact</Link></nav></footer>
       </main>
     );
@@ -708,16 +705,19 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
           <div className="progress-track"><span style={{ width: `${progress}%`, background: selectedTest.accent }} /></div>
         </header>
         <section className="question-section">
-          <div className="question-heading"><span>{relationshipContext ? `Thinking of ${relationshipContext.nickname}` : activeQuestion.kicker}</span><h1>{activeQuestion.prompt}</h1><p>{relationshipContext ? `Keep ${relationshipContext.nickname} in mind. Notice the first response this relationship brings up.` : "There is no correct choice. Notice your first emotional response."}</p></div>
-          <div className="option-grid" role="radiogroup" aria-label={activeQuestion.prompt}>
+          <div className="question-heading"><span>{relationshipContext ? `Thinking of ${relationshipContext.nickname}` : activeQuestion.kicker}</span><h1>{activeQuestion.prompt}</h1><p>{relationshipContext ? `Keep ${relationshipContext.nickname} in mind. Notice the first response this relationship brings up.` : isVisualQuestion(activeQuestion) ? "There is no correct choice. Notice your first emotional response." : "There is no correct choice. Pick the response that is most like you."}</p></div>
+          <div className={`option-grid ${isVisualQuestion(activeQuestion) ? "" : "is-text"}`} role="radiogroup" aria-label={activeQuestion.prompt}>
             {activeQuestion.options.map((option, index) => {
               const selected = selectedOptionIndex === index;
               const letter = String.fromCharCode(65 + index);
+              const visual = isVisualQuestion(activeQuestion);
               return (
                 <article className={`option-card ${selected ? "selected" : ""} ${isAdvancing && selected ? "is-confirming" : ""}`} key={`${activeQuestion.id}-${index}`}>
-                  <button aria-label={`Choose ${letter}: ${option.label}`} className="option-image-trigger" disabled={isAdvancing} onClick={() => chooseAnswer(option.label, index)} type="button">
-                    <AtlasImage className="option-image" index={index} loading="eager" path={activeQuestion.atlasPath} priority={index === 0} />
-                  </button>
+                  {visual ? (
+                    <button aria-label={`Choose ${letter}: ${option.label}`} className="option-image-trigger" disabled={isAdvancing} onClick={() => chooseAnswer(option.label, index)} type="button">
+                      <AtlasImage className="option-image" index={index} loading="eager" path={activeQuestion.atlasPath} priority={index === 0} />
+                    </button>
+                  ) : null}
                   <button aria-checked={selected} className="option-select" disabled={isAdvancing} onClick={() => chooseAnswer(option.label, index)} role="radio" type="button">
                     <span className="option-meta"><span className="option-letter">{letter}</span><span><strong>{option.label}</strong><small>{option.microcopy}</small></span><span className="selection-mark" aria-hidden="true">✓</span></span>
                   </button>
@@ -739,9 +739,9 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
         <section className="email-gate">
           <div className="result-teaser"><span className="result-seal">Choices complete</span><div className="blurred-result"><span>{selectedTest.title}</span><h2>{preview.title}</h2><p>{preview.summary}</p></div></div>
           <form className="email-form" onSubmit={unlockResult}>
-            <span className="pill">Your visual choices are complete</span>
+            <span className="pill">Your choices are complete</span>
             <h1>See what every choice reveals.</h1>
-            <p>You have completed all of the visual choices. Enter your email to save your result and see your free summary. You can then choose to purchase the full reading at the displayed price.</p>
+            <p>You have completed all of the choices. Enter your email to save your result and see your free summary. You can then choose to purchase the full reading at the displayed price.</p>
             {profile.email ? <div className="saved-profile-email"><span>Saving this reflection to</span><strong>{profile.email}</strong></div> : <><label htmlFor="email">Email address</label><input aria-invalid={Boolean(error)} autoComplete="email" id="email" onBlur={(event) => { const validation = validateEmailAddress(event.target.value); if (!validation.valid) setError(validation.message); }} onChange={(event) => { setEmail(event.target.value); setError(""); }} placeholder="name@gmail.com" required type="email" value={email} /><small className="email-hint">Use an email you can access. Test, placeholder, and malformed addresses are not accepted.</small></>}            {error ? <p className="form-error" role="alert">{error}</p> : null}
             <button className="primary-button full-button" disabled={submitting} type="submit">{submitting ? "Saving your result…" : "See my result →"}</button>
             <small className="privacy-note">No password is needed on this device. By continuing, you acknowledge our <Link href="/privacy">Privacy Policy</Link> and <Link href="/terms">Terms</Link>.</small>
@@ -765,21 +765,22 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
       {result && selectedTest && deepResult ? (
         <article className="result-card result-card-expanded">
           <span className="result-test-name">{selectedTest.title}</span>
-          <span className="result-basis">Based on {answeredChoices.length} visual choices</span>
+          <span className="result-basis">Based on {answeredChoices.length} choices</span>
           <span className="result-eyebrow">{result.eyebrow}</span>
           <h1>{result.title}</h1>
           <p className="result-summary">{result.summary}</p>
 
+          <ResultAxes axes={result.axes ?? []} />
           <section className="choice-review" aria-labelledby="choice-review-title">
             <header>
               <span>Your choices, decoded</span>
-              <h2 id="choice-review-title">What each image may be reflecting back to you</h2>
-              <p>This is the part that shaped your result: the interpretation associated with each image you selected.</p>
+              <h2 id="choice-review-title">What each choice may be reflecting back to you</h2>
+              <p>This is the part that shaped your result: the interpretation associated with each image and situation you selected.</p>
             </header>
             <div className="choice-review-list">
               {answeredChoices.map(({ option, question, questionNumber, selectedIndex }) => (
-                <article className="choice-review-card" key={question.id}>
-                  <AtlasImage className="choice-review-image" index={selectedIndex} loading="eager" path={question.atlasPath} sizes="180px" />
+                <article className={`choice-review-card ${isVisualQuestion(question) ? "" : "is-text"}`} key={question.id}>
+                  {isVisualQuestion(question) ? <AtlasImage className="choice-review-image" index={selectedIndex} loading="eager" path={question.atlasPath} sizes="180px" /> : null}
                   <div className="choice-review-copy">
                     <div className="choice-review-meta"><span>Question {questionNumber}</span><strong>You chose {String.fromCharCode(65 + selectedIndex)}</strong></div>
                     <p className="choice-review-question">{question.prompt}</p>
@@ -805,7 +806,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
           </div> : null}
 
           <section className="reflection-card"><span>A question worth keeping</span><p>“{deepResult.lens.reflectionPrompt}”</p></section>
-          {initialReportId ? <p><Link href="/recover">Find my paid reports / Resend report email</Link></p> : null}<p className="result-disclaimer">This is a self-reflection tool based on four visual choices, not a clinical assessment or diagnosis.</p>          {relationshipContext ? <section className="relationship-saved"><span>Relationship map updated</span><h2>This reflection now belongs to your connection with {relationshipContext.nickname}.</h2><p>It records your experience in this relationship, not a conclusion about the other person. Return to your map to keep adding context over time.</p></section> : null}
+          {initialReportId ? <p><Link href="/recover">Find my paid reports / Resend report email</Link></p> : null}<p className="result-disclaimer">This is a self-reflection tool based on your {answeredChoices.length || 15} choices, not a clinical assessment or diagnosis.</p>          {relationshipContext ? <section className="relationship-saved"><span>Relationship map updated</span><h2>This reflection now belongs to your connection with {relationshipContext.nickname}.</h2><p>It records your experience in this relationship, not a conclusion about the other person. Return to your map to keep adding context over time.</p></section> : null}
 
           {RESULT_MAP_ENABLED ? <>
             <section className="map-unlock-copy"><span>New dimension added</span><h2>{TEST_DIMENSIONS[selectedTest.id] ? `${mapDimensions.find((dimension) => dimension.id === TEST_DIMENSIONS[selectedTest.id])?.label} is now part of your map.` : "Your Inner Map has started."}</h2><p>This is not a fixed label. Every future reflection adds context and can make the pattern more precise.</p></section>
@@ -813,7 +814,6 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
           </> : null}
           {result.affiliateProductId && affiliateProducts.find((product) => product.id === result.affiliateProductId && product.active) ? (() => { const product = affiliateProducts.find((item) => item.id === result.affiliateProductId && item.active)!; return <section className="affiliate-recommendation" aria-labelledby="affiliate-recommendation-title"><div className="affiliate-recommendation-copy"><span>Selected for your result</span><h2 id="affiliate-recommendation-title">A next step that may support you</h2><h3>{product.name}</h3><p>{product.description}</p><small>Affiliate disclosure: we may earn a commission if you choose to purchase through this link, at no extra cost to you.</small></div><a className="affiliate-recommendation-link" href={product.url} onClick={() => track("affiliate_link_clicked", questions.length + 4)} rel="sponsored nofollow noopener" target="_blank">{product.buttonLabel} <span aria-hidden="true">↗</span></a></section>; })() : null}
           {relatedInsights.length ? <section className="result-related-reading" aria-labelledby="result-related-reading-title"><div><span>Continue the reflection</span><h2 id="result-related-reading-title">Read what may sit behind this pattern</h2></div><div className="result-related-reading-links">{relatedInsights.map((article) => <Link href={`/insights/${article.slug}?utm_source=result&utm_medium=internal&utm_campaign=${selectedTest.id}`} key={article.slug}><strong>{article.title}</strong><span>{article.excerpt}</span><em>Read the insight →</em></Link>)}</div></section> : null}
-          {recommendedTest ? <section className="next-exploration" style={{ "--test-accent": recommendedTest.accent } as React.CSSProperties}><div><span>Recommended next</span><h2>{recommendedTest.title}</h2><p>{recommendedTest.description}</p></div><button className="primary-button" onClick={() => openDetail(recommendedTest)} type="button">Explore this dimension →</button></section> : null}
         </article>
       ) : null}
       {CROSS_TEST_REPORT_ENABLED ? <section className="premium-card"><div><span className="premium-label">Coming next · Cross-test report</span><h2>Connect your patterns across all eight tests.</h2><p>A combined projection map showing repeated choices, contradictions between profiles, and the situations that change your response.</p></div><button className="premium-button" onClick={() => { setShowUpgrade(true); track("upgrade_clicked", questions.length + 3); }}>Preview combined report <span>↗</span></button></section> : null}

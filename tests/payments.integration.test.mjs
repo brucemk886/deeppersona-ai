@@ -75,6 +75,7 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
     assert.equal((await call('/api/events',{body:{sessionId:crypto.randomUUID(),eventName:'session_started'}})).status,200,'test events work without an age checkbox');
     const testId = catalog.tests[0].id;
     const { data: { questions } } = await call(`/api/questions?test=${testId}`);
+    assert.equal(questions.length, 15);
     const save = async (price = 499) => {
       await db.prepare("UPDATE quiz_tests SET report_price_cents = ? WHERE id = ?").bind(price, testId).run();
       const body = { sessionId: crypto.randomUUID(), testId, email: "qa-payments@deeppersonaai.com",
@@ -357,9 +358,12 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       const fresh = await save(0);
       const state = (await reportState(fresh)).data;
       assert.equal(state.result.key,'choices');
-      assert.equal(state.deepResult.depth,undefined);
+      assert.ok(state.result.title);
+      assert.ok(state.result.axes?.length >= 2);
+      assert.ok(state.result.lockedModules?.length >= 4);
+      assert.ok(state.deepResult.depth?.coreDrive);
       assert.equal(state.questions[0].options[0].scoreKey,undefined);
-      assert.ok(state.result.summary.includes(questions[0].options[0].label));
+      assert.ok(state.questions.some((question) => question.options.some((option) => option.label === questions[0].options[0].label)));
       const saved = await db.prepare('SELECT answers_json,result_type FROM quiz_sessions WHERE id=?').bind(fresh.body.sessionId).first();
       assert.equal(saved.result_type,'choices');
       assert.equal(JSON.parse(saved.answers_json)[questions[0].id],0);

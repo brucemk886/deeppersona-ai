@@ -1,11 +1,14 @@
 import { listQuestions, listTests } from "@/db/quiz-store";
+import { PUBLIC_TEST_ID } from "@/lib/attachment-styles";
 import { publicTest, publicQuestion } from "@/lib/public-quiz";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { QuizApp } from "@/app/quiz-app";
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
+  if (id !== PUBLIC_TEST_ID) return {};
   const test = (await listTests()).find((item) => item.id === id);
   if (!test) return {};
 
@@ -35,6 +38,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function TestDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  if (id !== PUBLIC_TEST_ID) redirect("/");
   const [tests, questions] = await Promise.all([listTests(), listQuestions(id)]);
-  return <QuizApp initialTestId={id} initialTests={tests.map(publicTest)} initialQuestions={questions.map(publicQuestion)} />;
+  return <QuizApp initialTests={tests.map(publicTest)} initialQuestions={questions.map(publicQuestion)} />;
 }

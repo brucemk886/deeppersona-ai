@@ -10,7 +10,7 @@ export function InsightsHeader() {
       </Link>
       <nav aria-label="Insights navigation">
         <Link href="/insights">Insights</Link>
-        <Link href="/#tests">Visual tests</Link>
+        <Link href="/">Attachment test</Link>
       </nav>
     </header>
   );
@@ -25,7 +25,7 @@ export function InsightsFooter() {
       </div>
       <nav aria-label="Footer links">
         <Link href="/insights">Insights</Link>
-        <Link href="/#tests">Visual tests</Link>
+        <Link href="/">Attachment test</Link>
         <Link href="/disclaimer">Disclaimer</Link>
         <Link href="/privacy">Privacy</Link>
         <Link href="/contact">Contact</Link>
