@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { questionBank } from "../lib/quiz-question-bank.ts";
+import { scoreAttachment } from "../lib/attachment-styles.ts";
 
 test("each live test has 15 catalog questions", () => {
   const tests = Object.keys(questionBank);
@@ -39,4 +40,14 @@ test("typed results and locked modules are wired into the report", async () => {
   assert.match(profiles, /axisValue\(leftScore, answered\)/);
   assert.match(profiles, /Reach for closeness/);
   assert.match(profiles, /You chase the spark/);
+  assert.match(profiles, /PUBLIC_TEST_ID/);
+  assert.match(profiles, /Anxiety in closeness/);
+});
+
+test("attachment answers map onto the four public styles", () => {
+  assert.equal(scoreAttachment(Array(15).fill(0)).winner, "anxious");
+  assert.equal(scoreAttachment(Array(15).fill(1)).winner, "anxious");
+  assert.equal(scoreAttachment(Array(15).fill(2)).winner, "avoidant");
+  assert.equal(scoreAttachment(Array(15).fill(3)).winner, "fearful");
+  assert.equal(scoreAttachment([0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2]).winner, "secure");
 });

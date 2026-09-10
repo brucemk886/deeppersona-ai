@@ -17,24 +17,24 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     metadataBase,
-    title: "DeepPersona AI — Visual Self-Reflection Tests",
+    title: "Attachment Style Test | DeepPersona AI",
     description:
-      "Eight short visual tests for entertainment and self-reflection on connection, boundaries, and relationships. Not clinical assessments.",
+      "Take a free 5-minute attachment style test. See whether you show up as secure, anxious, avoidant, or fearful-avoidant in love. For entertainment and self-reflection, not diagnosis.",
     applicationName: "DeepPersona AI",
     icons: {
       icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
       shortcut: "/favicon.svg",
     },
     openGraph: {
-      title: "One image can say what words miss.",
-      description: "Explore eight visual and situational self-reflection tests from DeepPersona AI.",
+      title: "Attachment Style Test",
+      description: "Discover your attachment style in 5 minutes. Free to take, for self-reflection.",
       type: "website",
       images: metadataBase ? [{ url: new URL("/og-deep-persona.png", metadataBase) }] : undefined,
     },
     twitter: {
       card: "summary_large_image",
-      title: "One image can say what words miss.",
-      description: "Explore eight visual and situational self-reflection tests from DeepPersona AI.",
+      title: "Attachment Style Test",
+      description: "Discover your attachment style in 5 minutes. Free to take, for self-reflection.",
       images: metadataBase ? [new URL("/og-deep-persona.png", metadataBase)] : undefined,
     },
     robots: { index: true, follow: true },

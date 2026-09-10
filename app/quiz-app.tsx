@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { matchTestByQuery } from "@/lib/test-search";
+import { LANDING_STYLES, PUBLIC_TEST_ID } from "@/lib/attachment-styles";
 import { currentAttribution } from "@/lib/traffic";
 import { requestJson } from '@/lib/browser-request';
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -18,7 +18,6 @@ import { trackGoogleAnalyticsEvent, trackQuizGoogleAnalyticsEvent } from "@/lib/
 import { getInsightCardsForTest } from "@/lib/insights-index";
 import {
   getDimensionProgress,
-  recommendNextTest,
   TEST_DIMENSIONS,
   type InnerProfileSummary,
 } from "@/lib/inner-map";import {
@@ -209,7 +208,6 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
   const [isAdvancing, setIsAdvancing] = useState(false);
   const [loadingTest, setLoadingTest] = useState("");
   const [error, setError] = useState("");
-  const [testQuery, setTestQuery] = useState("");
   const [result, setResult] = useState<ResultProfile | null>(null);
   const [reportData, setReportData] = useState<ReportResponse | null>(null);
   const [reportLoading, setReportLoading] = useState(Boolean(initialReportId));
@@ -417,14 +415,13 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
     }
   }
 
-  const featuredTest = tests.find((test) => test.featured) ?? tests[0];
+  const featuredTest = tests.find((test) => test.id === PUBLIC_TEST_ID) ?? tests.find((test) => test.featured) ?? tests[0];
   const activeQuestion = questions[questionIndex];
   const progress = stage === "email" ? 100 : questions.length ? ((questionIndex + 1) / questions.length) * 100 : 0;
   const selectedOptionIndex = activeQuestion ? answerChoices[activeQuestion.id] : undefined;
   const completedTestIds = profile.completedTestIds;
   const mapDimensions = getDimensionProgress(completedTestIds);
   const unlockedDimensions = mapDimensions.filter((dimension) => dimension.unlocked).length;
-  const recommendedTest = recommendNextTest(tests, completedTestIds, selectedTest?.id);
 
   useEffect(() => {
     if (!featuredTest || stage !== "home") return;
@@ -444,33 +441,12 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
     if (nextQuestion) preloadAtlas(nextQuestion.atlasPath);
   }, [questionIndex, questions, stage]);
 
-  function detailHref(test: QuizTest, content?: string) {
-    const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
-    const source = currentAttribution();
-    if (!params.has('utm_source') && source.source !== 'direct') params.set('utm_source', source.source);
-    if (content && !params.get('utm_content')) params.set('utm_content', content.replace(/[^a-zA-Z0-9._ -]/g, '').slice(0, 120));
-    const query = params.size ? '?' + params.toString() : '';
-    return `/tests/${encodeURIComponent(test.id)}${query}`;
-  }
-
-  function prepareDetail(test: QuizTest) {
-    preloadAtlas(test.coverAtlasPath);
-    void loadQuestions(test.id).catch(() => undefined);
-  }
-
-  function openDetail(test: QuizTest, content?: string) {
-    prepareDetail(test);
-    window.location.assign(detailHref(test, content));
-  }
-
-  function submitTestSearch() {
-    const matched = matchTestByQuery(testQuery, tests);
-    if (!matched) {
-      setError("No matching test. Try 01–08 or a test name.");
+  function startPublicTest() {
+    if (!featuredTest) {
+      setError("This test is not available yet.");
       return;
     }
-    setError("");
-    openDetail(matched, testQuery.trim());
+    void startTest(featuredTest);
   }
   async function startTest(test: QuizTest, relationship?: RelationshipNode) {
     setLoadingTest(test.id);
@@ -602,7 +578,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
     ];
     return (
     <main className="result-shell">
-      <nav className="nav-bar"><Link className="brand" href="/">DeepPersona AI</Link><Link href="/#tests">All tests</Link></nav>
+      <nav className="nav-bar"><Link className="brand" href="/">DeepPersona AI</Link><Link href="/">Attachment test</Link></nav>
       <article className="result-card result-card-expanded">
         <span className="result-test-name">{reportData.test.title}</span><span className="result-eyebrow">{reportData.result.eyebrow || "Your free summary"}</span>
         <h1>{reportData.result.title}</h1><p className="result-summary">{reportData.result.summary}</p>
@@ -648,7 +624,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
     const detailPrompt = detailQuestion?.prompt ?? "Which image pulls you in before you can explain why?";
     return (
       <main className="test-detail-shell">
-        <nav className="nav-bar" aria-label="Main navigation"><Link className="brand" href="/"><span className="brand-mark">DP</span><span>DeepPersona AI</span></Link><div className="main-nav-links"><Link className="nav-note nav-link" href="/insights">Insights</Link><Link className="nav-note nav-link" href="/#tests">All visual tests ↓</Link></div></nav>
+        <nav className="nav-bar" aria-label="Main navigation"><Link className="brand" href="/"><span className="brand-mark">DP</span><span>DeepPersona AI</span></Link><div className="main-nav-links"><Link className="nav-note nav-link" href="/insights">Insights</Link></div></nav>
         <section className="detail-stage" style={{ "--test-accent": selectedTest.accent } as React.CSSProperties}>
           <div className="detail-gallery" aria-label="Four visual choices preview">
             {[0, 1, 2, 3].map((index) => <AtlasImage index={index} key={index} loading="eager" path={selectedTest.coverAtlasPath} priority={index === 0} sizes="(max-width: 640px) 50vw, 340px" />)}
@@ -672,38 +648,37 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
   }
   if (stage === "home") {
     return (
-      <main className="landing-shell">
+      <main className="landing-shell attachment-shell">
         <nav className="nav-bar" aria-label="Main navigation">
           <a className="brand" href="#top" aria-label="DeepPersona AI home"><span className="brand-mark">DP</span><span>DeepPersona AI</span></a>
-          <div className="main-nav-links"><Link className="nav-note nav-link" href="/insights">Insights</Link><a className="nav-note nav-link" href="#tests">Explore 8 visual tests ↓</a></div>
+          <div className="main-nav-links"><Link className="nav-note nav-link" href="/insights">Insights</Link></div>
         </nav>
 
-        <section className="hero hero-search-stage" id="top">
-          <form className="hero-search" onSubmit={(event) => { event.preventDefault(); submitTestSearch(); }} role="search">
-            <label className="hero-search-label" htmlFor="test-code">Enter the test number from the video</label>
-            <div className="hero-search-row">
-              <input
-                autoComplete="off"
-                autoFocus
-                id="test-code"
-                inputMode="search"
-                onChange={(event) => { setTestQuery(event.target.value); if (error) setError(""); }}
-                placeholder="01"
-                spellCheck={false}
-                value={testQuery}
-              />
-              <button className="primary-button" disabled={!testQuery.trim() || Boolean(loadingTest)} type="submit">
-                {loadingTest ? "Opening…" : "Go"}
-              </button>
-            </div>
-            <p className="hero-search-hint">Use 01–08, or search a test name.</p>
-            {error ? <p className="form-error" role="alert">{error}</p> : null}
-          </form>
+        <section className="attachment-landing" id="top">
+          <p className="attachment-landing-kicker">Discover your attachment style in 5 minutes</p>
+          <h1>Attachment Style Test</h1>
+          <ul className="attachment-styles">
+            {LANDING_STYLES.map((style) => (
+              <li className="attachment-style-item" key={style.key}>
+                <figure>
+                  <span className={`attachment-style-photo attachment-style-${style.key}`}>
+                    <AtlasImage className="attachment-style-atlas" index={style.atlasIndex} loading="eager" path="/quiz/doors.png" priority={style.atlasIndex === 0} sizes="168px" />
+                  </span>
+                  <figcaption>{style.label}</figcaption>
+                </figure>
+              </li>
+            ))}
+          </ul>
+          <button className="primary-button attachment-start" disabled={Boolean(loadingTest) || !featuredTest} onClick={startPublicTest} type="button">
+            {loadingTest ? "Opening…" : "Start the test"}
+          </button>
+          {error ? <p className="form-error" role="alert">{error}</p> : null}
+          <p className="attachment-landing-note">Free to take. For entertainment and self-reflection, not a diagnosis. <Link href="/disclaimer">How to use these results</Link></p>
         </section>
 
         {RETURNING_MAP_ENABLED && completedTestIds.length ? <>
           <section className="returning-profile">
-            <div className="returning-profile-copy"><span>Welcome back</span><h2>Your map remembers where you left off.</h2><p>{unlockedDimensions} of 6 dimensions discovered. One short reflection is enough to keep building.</p>{recommendedTest ? <button className="primary-button" onClick={() => openDetail(recommendedTest)} type="button">Continue with {recommendedTest.title} →</button> : null}</div>
+            <div className="returning-profile-copy"><span>Welcome back</span><h2>Your map remembers where you left off.</h2><p>{unlockedDimensions} of 6 dimensions discovered. One short reflection is enough to keep building.</p></div>
             <InnerMap compact completedTestIds={completedTestIds} />
           </section>
           {RELATIONSHIP_NETWORK_ENABLED ? <>
@@ -715,22 +690,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
             />
             {relationshipError ? <p className="relationship-error" role="alert">{relationshipError}</p> : null}
           </> : null}
-        </> : null}        <section className="test-library" id="tests" aria-label="Visual tests">
-          <div className="test-card-grid">
-            {tests.map((test, index) => (
-              <button aria-label={`View details for ${test.title}`} className={`test-card ${test.featured ? "featured" : ""}`} disabled={loadingTest === test.id} key={test.id} onClick={() => openDetail(test)} onFocus={() => prepareDetail(test)} onPointerEnter={() => prepareDetail(test)} style={{ "--test-accent": test.accent } as React.CSSProperties} type="button">
-                <div className="test-card-image">
-                  <AtlasImage index={0} path={test.coverAtlasPath} sizes="(max-width: 640px) 236px, 380px" />
-                  <span className="test-number">{String(index + 1).padStart(2, "0")}</span>
-                  {test.featured ? <span className="popular-badge">Most popular</span> : null}
-                </div>
-                <div className="test-card-copy"><span>{test.kicker}</span><h3>{test.title}</h3><p>{test.description}</p><div><small>{test.questionCount || 15} questions{test.reportPriceCents > 0 ? <><br /><em className="test-report-price">Full report USD {(test.reportPriceCents / 100).toFixed(2)}</em></> : null}</small><strong className="test-card-start">{loadingTest === test.id ? "Opening…" : "Explore →"}</strong></div></div>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="how-it-works"><span>01 · Notice</span><p>Let your first response land before your reasoning catches up.</p><span>02 · Choose</span><p>Pick the image or situation that feels most like you.</p><span>03 · Reveal</span><p>Read the pattern behind the choices you repeated.</p></section>
+        </> : null}
         <footer className="site-footer site-footer-expanded"><div><strong>DeepPersona AI © 2026</strong><span>For self-reflection, not clinical diagnosis.</span></div><nav aria-label="Legal and support links"><Link href="/insights">Insights</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds & delivery</Link><Link href="/disclaimer">Disclaimer</Link><Link href="/contact">Contact</Link></nav></footer>
       </main>
     );
@@ -854,7 +814,6 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
           </> : null}
           {result.affiliateProductId && affiliateProducts.find((product) => product.id === result.affiliateProductId && product.active) ? (() => { const product = affiliateProducts.find((item) => item.id === result.affiliateProductId && item.active)!; return <section className="affiliate-recommendation" aria-labelledby="affiliate-recommendation-title"><div className="affiliate-recommendation-copy"><span>Selected for your result</span><h2 id="affiliate-recommendation-title">A next step that may support you</h2><h3>{product.name}</h3><p>{product.description}</p><small>Affiliate disclosure: we may earn a commission if you choose to purchase through this link, at no extra cost to you.</small></div><a className="affiliate-recommendation-link" href={product.url} onClick={() => track("affiliate_link_clicked", questions.length + 4)} rel="sponsored nofollow noopener" target="_blank">{product.buttonLabel} <span aria-hidden="true">↗</span></a></section>; })() : null}
           {relatedInsights.length ? <section className="result-related-reading" aria-labelledby="result-related-reading-title"><div><span>Continue the reflection</span><h2 id="result-related-reading-title">Read what may sit behind this pattern</h2></div><div className="result-related-reading-links">{relatedInsights.map((article) => <Link href={`/insights/${article.slug}?utm_source=result&utm_medium=internal&utm_campaign=${selectedTest.id}`} key={article.slug}><strong>{article.title}</strong><span>{article.excerpt}</span><em>Read the insight →</em></Link>)}</div></section> : null}
-          {recommendedTest ? <section className="next-exploration" style={{ "--test-accent": recommendedTest.accent } as React.CSSProperties}><div><span>Recommended next</span><h2>{recommendedTest.title}</h2><p>{recommendedTest.description}</p></div><button className="primary-button" onClick={() => openDetail(recommendedTest)} type="button">Explore this dimension →</button></section> : null}
         </article>
       ) : null}
       {CROSS_TEST_REPORT_ENABLED ? <section className="premium-card"><div><span className="premium-label">Coming next · Cross-test report</span><h2>Connect your patterns across all eight tests.</h2><p>A combined projection map showing repeated choices, contradictions between profiles, and the situations that change your response.</p></div><button className="premium-button" onClick={() => { setShowUpgrade(true); track("upgrade_clicked", questions.length + 3); }}>Preview combined report <span>↗</span></button></section> : null}

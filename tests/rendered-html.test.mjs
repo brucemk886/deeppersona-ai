@@ -38,9 +38,12 @@ test("builds the complete DeepPersona AI experience", async () => {
   ]);
 
   assert.match(quiz, /DeepPersona AI/);
-  assert.match(quiz, /Enter the test number from the video/);
-  assert.match(quiz, /matchTestByQuery/);
-  assert.match(quiz, /hero-search/);
+  assert.match(quiz, /Discover your attachment style in 5 minutes/);
+  assert.match(quiz, /Start the test/);
+  assert.match(quiz, /attachment-landing/);
+  assert.doesNotMatch(quiz, /Enter the test number from the video/);
+  assert.doesNotMatch(quiz, /matchTestByQuery/);
+  assert.doesNotMatch(quiz, /hero-search/);
   assert.match(quiz, /email_submitted|\/api\/submit/);
   assert.match(quiz, /upgrade_clicked/);
   assert.match(quiz, /Choose \$\{letter\}/);
@@ -50,7 +53,8 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(quiz, /defaultQuestions/);
   assert.match(quiz, /AbortController/);
   assert.doesNotMatch(quiz, /className="hero-mosaic"/);
-  assert.match(quiz, /className={`test-card/);
+  assert.match(quiz, /attachment-styles/);
+  assert.doesNotMatch(quiz, /className=\{`test-card/);
   assert.match(quiz, /Your choices, decoded/);
   assert.match(quiz, /What each choice may be reflecting back to you/);
   assert.match(quiz, /What this choice represents/);
@@ -69,6 +73,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(quiz, /questionCount \|\| 15\} choices · about 5 minutes/);
   assert.match(quiz, /is-text/);
   assert.match(catalog, /questionBank/);
+  assert.match(catalog, /Attachment Style Test/);
   assert.match(catalog, /Love or a Spiral/);
   assert.match(catalog, /When They Pull Away/);
   assert.doesNotMatch(quiz, /4 visual choices · about 2 minutes/);
@@ -117,7 +122,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(adminStatsRange, /datetime\('now', '\+8 hours', '-29 days', 'start of day'\)/);
   assert.match(adminStatsRange, /today[\s\S]*yesterday[\s\S]*7d[\s\S]*30d/);
   assert.doesNotMatch(store, /COUNT\(DISTINCT session_id\) AS users FROM quiz_sessions/);
-  assert.match(layout, /DeepPersona AI — Visual Self-Reflection Tests/);
+  assert.match(layout, /Attachment Style Test \| DeepPersona AI/);
   assert.match(layout, /og-deep-persona\.png/);
   assert.match(layout, /favicon\.svg/);
   assert.match(layout, /width: "device-width"/);

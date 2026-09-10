@@ -5,11 +5,11 @@ import { TRAIT_KEYS, type QuizQuestion, type QuizTest } from "@/lib/quiz";
 export const defaultTests: QuizTest[] = [
   {
     id: "attachment-style",
-    title: "How You Attach in Love",
-    kicker: "Most popular · Relationships",
-    description: "See what you instinctively reach for when closeness feels uncertain.",
+    title: "Attachment Style Test",
+    kicker: "5 minutes · Relationships",
+    description: "Discover whether you show up as secure, anxious, avoidant, or fearful-avoidant in love.",
     coverAtlasPath: "/quiz/doors.png",
-    accent: "#9b4f5e",
+    accent: "#3c2d72",
     position: 1,
     active: true,
     featured: true,

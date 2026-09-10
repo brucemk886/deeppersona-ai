@@ -311,10 +311,10 @@ async function syncCatalogQuestions(): Promise<void> {
     const [count, marker, testMarker] = await Promise.all([
       db.prepare("SELECT COUNT(*) AS total FROM quiz_questions").first<{ total: number }>(),
       db.prepare("SELECT prompt FROM quiz_questions WHERE id = ?").bind("attachment-style-6").first<{ prompt: string }>(),
-      db.prepare("SELECT title FROM quiz_tests WHERE id = ?").bind("social-energy").first<{ title: string }>(),
+      db.prepare("SELECT title FROM quiz_tests WHERE id = ?").bind("attachment-style").first<{ title: string }>(),
     ]);
     const expectedPrompt = defaultQuestions.find((question) => question.id === "attachment-style-6")?.prompt;
-    const expectedTitle = defaultTests.find((test) => test.id === "social-energy")?.title;
+    const expectedTitle = defaultTests.find((test) => test.id === "attachment-style")?.title;
     const questionsStale = (count?.total ?? 0) < defaultQuestions.length || marker?.prompt !== expectedPrompt;
     const testsStale = Boolean(expectedTitle) && testMarker?.title !== expectedTitle;
     if (!questionsStale && !testsStale) return;

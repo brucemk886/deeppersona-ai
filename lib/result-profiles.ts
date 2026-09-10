@@ -1,3 +1,4 @@
+import { ATTACHMENT_COPY, PUBLIC_TEST_ID, scoreAttachment } from "./attachment-styles";
 import { TRAIT_KEYS, type LockedModule, type ResultAxis, type TraitKey } from "./quiz";
 
 type TypeCopy = {
@@ -367,7 +368,42 @@ function axisValue(part: number, total: number) {
   return Math.round((part / total) * 10 * 10) / 10;
 }
 
+function lockedModulesFor(copy: { inRelationships: string; trigger: string; superpower: string }, answered: number): LockedModule[] {
+  return [
+    { title: "Every choice decoded", teaser: `What each of your ${answered || 15} answers may be reflecting back to you.` },
+    { title: "In close relationships", teaser: copy.inRelationships },
+    { title: "Your trigger", teaser: copy.trigger },
+    { title: "Your superpower", teaser: copy.superpower },
+  ];
+}
+
+function buildAttachmentResult(choiceIndexes: number[]) {
+  const scored = scoreAttachment(choiceIndexes);
+  const copy = ATTACHMENT_COPY[scored.winner];
+  const resultAxes: ResultAxis[] = [
+    {
+      label: "Anxiety in closeness",
+      value: scored.anxietyScore,
+      caption: scored.anxietyScore >= scored.avoidanceScore ? "Stronger in this test" : "Present",
+    },
+    {
+      label: "Avoidance of closeness",
+      value: scored.avoidanceScore,
+      caption: scored.avoidanceScore > scored.anxietyScore ? "Stronger in this test" : "Present",
+    },
+  ];
+  return {
+    copy,
+    winner: scored.winner,
+    scores: scored.votes,
+    answered: scored.answered,
+    axes: resultAxes,
+    lockedModules: lockedModulesFor(copy, scored.answered),
+  };
+}
+
 export function buildTypedResult(testId: string, choiceIndexes: number[]) {
+  if (testId === PUBLIC_TEST_ID) return buildAttachmentResult(choiceIndexes);
   const { scores, winner, answered } = scoreTraitChoices(choiceIndexes);
   const copy = types[testId]?.[winner] ?? types["attachment-style"].explorer;
   const pair = axes[testId] ?? axes["attachment-style"];
@@ -377,13 +413,7 @@ export function buildTypedResult(testId: string, choiceIndexes: number[]) {
     { label: pair.left.label, value: axisValue(leftScore, answered), caption: leftScore >= rightScore ? "Stronger in this test" : "Present" },
     { label: pair.right.label, value: axisValue(rightScore, answered), caption: rightScore > leftScore ? "Stronger in this test" : "Present" },
   ];
-  const lockedModules: LockedModule[] = [
-    { title: "Every choice decoded", teaser: `What each of your ${answered || 15} answers may be reflecting back to you.` },
-    { title: "In close relationships", teaser: copy.inRelationships },
-    { title: "Your trigger", teaser: copy.trigger },
-    { title: "Your superpower", teaser: copy.superpower },
-  ];
-  return { copy, winner, scores, answered, axes: resultAxes, lockedModules };
+  return { copy, winner, scores, answered, axes: resultAxes, lockedModules: lockedModulesFor(copy, answered) };
 }
 
 export function resultCopyFor(testId: string, key: TraitKey) {
