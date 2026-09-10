@@ -1,2 +1,8 @@
 /quiz/*
   Cache-Control: public, max-age=3600
+
+/images/editorial/*
+  Cache-Control: public, max-age=86400
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

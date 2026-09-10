@@ -208,6 +208,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [sessionId, setSessionId] = useState("");
   const questionsCache = useRef(new Map<string, QuizQuestion[]>());
+  const profileRequested = useRef(false);
   const answerTransitionTimer = useRef<number | null>(null);
   const questionRequests = useRef(new Map<string, Promise<QuizQuestion[]>>());
   const [attribution] = useState(() =>
@@ -217,6 +218,15 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
   const loadQuestions = useCallback(async (testId: string) => {
     const cached = questionsCache.current.get(testId);
     if (cached?.length) return cached;
+    // These are the current, sanitized rows already read for this page by the server.
+    // Starting the quiz must not wait for a second network request on mobile.
+    const suppliedQuestions = defaultQuestions
+      .filter((question) => question.testId === testId && question.active && isPublicQuestion(question))
+      .sort((a, b) => a.position - b.position);
+    if (suppliedQuestions.length) {
+      questionsCache.current.set(testId, suppliedQuestions);
+      return suppliedQuestions;
+    }
     const pending = questionRequests.current.get(testId);
     if (pending) return pending;
     const request = (async () => {
@@ -294,15 +304,17 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
     return () => window.clearTimeout(refresh);
   }, [loadRelationships]);
   useEffect(() => {
+    if (stage === "home" || stage === "detail" || profileRequested.current) return;
+    profileRequested.current = true;
     void fetch("/api/profile", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
       .then((data: InnerProfileSummary | null) => {
         if (!data?.completedTestIds) return;
         setProfile(data);
-        if (data.email) setEmail(data.email);
+        if (data.email) setEmail((current) => current || data.email || "");
       })
       .catch(() => undefined);
-  }, []);
+  }, [stage]);
   useEffect(() => {
     if (stage !== 'result') return;
     void fetch("/api/affiliate-products", { cache: "no-store" })

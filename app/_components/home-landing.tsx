@@ -164,11 +164,11 @@ export function HomeLanding({
             mental-health condition. If you are in distress, talk with a licensed clinician or a trusted local resource.
           </p>
           <p>
-            <Link href="/disclaimer">Read the limitations</Link>
+            <Link prefetch={false} href="/disclaimer">Read the limitations</Link>
             {" · "}
-            <Link href="/insights">Learn more in Insights</Link>
+            <Link prefetch={false} href="/insights">Learn more in Insights</Link>
             {" · "}
-            <Link href="/blog">Read the blog</Link>
+            <Link prefetch={false} href="/blog">Read the blog</Link>
           </p>
         </div>
       </section>

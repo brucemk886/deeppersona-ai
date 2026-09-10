@@ -17,7 +17,7 @@ test("builds the complete DeepPersona AI experience", async () => {
     readFile(new URL("../lib/choice-insights.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/deep-results.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/admin-dashboard.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    Promise.all([readFile(new URL("../app/globals.css", import.meta.url), "utf8"), readFile(new URL("../public/styles/admin.css", import.meta.url), "utf8")]).then((styles) => styles.join("\n")),
     readFile(new URL("../db/quiz-store.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/google-analytics.ts", import.meta.url), "utf8"),
