@@ -3,8 +3,11 @@ import {
   ATTACHMENT_OVERVIEWS,
   ATTACHMENT_RESULTS,
   ATTACHMENT_STYLE_META,
+  dimensionScore,
   optionStyle,
   scoreAttachment,
+  scoreAttachmentSubset,
+  selfWorthSnapshot,
   type AttachmentStyle,
 } from "./attachment";
 import type { DeepResultContent } from "./deep-results";
@@ -15,14 +18,13 @@ export const SELF_ESTEEM_MODULE = "Self-esteem";
 export const CHILDHOOD_MODULE = "Childhood";
 
 export const REPORT_INCLUSIONS = [
-  "A longer type essay: dating, conflict, and what you need",
   "An interpretation of all 20 image choices",
-  "The full childhood / caregiver module",
-  "The full self-esteem module plus self-talk rewrites",
-  "Short pairing notes versus each of the four styles",
+  "Pairing notes versus each of the four styles",
   "Seven-day micro practices",
-  "This page unlocks now, plus an email backup link",
 ];
+
+export const BLUR_FILLER =
+  "This longer reading follows the pictures you chose and the first move they suggest in closeness, silence, repair, and self-talk. It stays behind the lock until you open the full report. The sentences here are only a visual tease, not the paid interpretation.";
 
 const ESSAYS: Record<AttachmentStyle, { dating: string; conflict: string; need: string }> = {
   anxious: {
@@ -157,22 +159,114 @@ function styleCounts(entries: ReturnType<typeof selectedEntries>) {
 }
 
 export function childhoodTeaser(questions: QuizQuestion[], choices: Record<string, number>, style: AttachmentStyle, locked = true) {
+  return caregiverIntro(questions, choices, style, locked);
+}
+
+export function caregiverIntro(
+  questions: QuizQuestion[],
+  choices: Record<string, number>,
+  style: AttachmentStyle,
+  includeEcho = true,
+) {
   const childhood = entriesFor(selectedEntries(questions, choices), CHILDHOOD_MODULE);
-  if (!childhood.length) {
-    return locked
-      ? "Some of this pattern may have started in how you reached for comfort, asked for help, or said goodbye as a kid. The full childhood reading stays in the paid report."
-      : "Some of this pattern may have started in how you reached for comfort, asked for help, or said goodbye as a kid.";
-  }
-  const lead = childhood[0];
-  const second = childhood[1] ?? childhood[0];
-  const sentences = [
-    `When you were upset or needed help as a kid, you chose scenes like “${lead.option.label}.” That is one place this adult pattern may have started.`,
-    `A later childhood moment — “${second.option.label}” — points to the same weather: how safe it felt to need someone, and what you did when you were not sure of the welcome.`,
-    locked
-      ? `The longer childhood reading stays locked. It follows this adult pattern: ${ATTACHMENT_STYLE_META[style].blurb}`
-      : `Those scenes still echo in this adult pattern: ${ATTACHMENT_STYLE_META[style].blurb}`,
-  ];
-  return sentences.join(" ");
+  const lead = childhood[0]?.option.label;
+  const second = childhood[1]?.option.label;
+  const specific = lead
+    ? ` When you were upset or needed help as a kid, scenes like “${lead}” felt familiar${second && second !== lead ? `, and later “${second}” pointed the same way` : ""}.`
+    : "";
+  const echo = includeEcho
+    ? ` Those scenes can still echo in this adult pattern: ${ATTACHMENT_STYLE_META[style].blurb}`
+    : "";
+  return `Your caregiver attachment patterns reflect the emotional expectations you learned in your first close relationships. These patterns can influence how you interpret closeness, distance, conflict, and reassurance in adulthood. They are not blame statements about caregivers — they describe the relational experience you internalized and how it may echo now.${specific}${echo}`;
+}
+
+export function sentenceCount(text: string): number {
+  return text
+    .split(/(?<=[.!?])\s+/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 1).length;
+}
+
+export function romanceEssay(questions: QuizQuestion[], choices: Record<string, number>, style: AttachmentStyle) {
+  const romance = entriesFor(selectedEntries(questions, choices), ROMANCE_MODULE);
+  const labels = romance.slice(0, 3).map((entry) => entry.option.label);
+  const [first, second, third] = labels;
+  const pick = (label: string | undefined, fallback: string) => (label ? `“${label}”` : fallback);
+  const essays: Record<AttachmentStyle, string> = {
+    anxious: [
+      "When a bond feels unclear, your attention often goes to the relationship first.",
+      "Silence, a cooler reply, or an unnamed status can pull the rest of the evening into the thread.",
+      `In one romance scene you chose ${pick(first, "a move that closes the gap")}.`,
+      second ? `In another, ${pick(second, "a second reach")} felt closer to your first move.` : "You look for a visible sign that you still matter before the rest of the night can settle.",
+      "That alertness is usually protecting a real wish to stay connected, not a wish to control the other person.",
+      "The cost is that your body may start working on a problem that has not been stated yet.",
+      "When conflict starts, you tend to close the gap quickly — more texts, more examples, another apology.",
+      third ? `When closeness or repair was on the table, you also picked ${pick(third, "a repair move")}.` : "An open rupture can feel like the relationship is already leaving the room.",
+      "What you often need is a visible thread: a return time, a plain sentence, a plan that makes the pause feel shared.",
+      "A calmer version of the same need is to ask for one concrete sign, then do one thing that belongs only to you.",
+    ].join(" "),
+    avoidant: [
+      "When a relationship speeds up, you often reach for space, tasks, or self-reliance.",
+      "More affection, a label, or three days in a row can make the air feel thinner.",
+      `In one romance scene you chose ${pick(first, "a move that protects pace")}.`,
+      second ? `In another, ${pick(second, "a quieter exit")} felt closer to your first move.` : "Distance can feel like the fastest way to get your mind back.",
+      "That move is often protecting a mind that still wants the person — just not the merger.",
+      "The cost is that the other person may only see the door, not the care on the other side of it.",
+      "When voices get sharp, you tend to leave the room, go quiet, or call it fine while staying distant inside.",
+      third ? `When closeness or repair was on the table, you also picked ${pick(third, "a space-keeping move")}.` : "Withdrawal protects both of you from the next sharp sentence, until the return never gets a time.",
+      "What you often need is room that does not have to be explained as rejection.",
+      "A sentence that keeps the connection visible — when you will be back — lets the space do its job without turning into a vanishing.",
+    ].join(" "),
+    secure: [
+      "You can want closeness and your own life in the same week.",
+      "A warmer stretch, a calmer ask for clarity, and a few hours apart can all feel like ordinary weather.",
+      `In one romance scene you chose ${pick(first, "a steady check-in")}.`,
+      second ? `In another, ${pick(second, "a paced return")} felt closer to your first move.` : "You tend to notice a shift, stay steady, and ask once.",
+      "That balance is protecting a bond that can survive ordinary weather.",
+      "The watch-out is under-asking: being “fine” can hide a preference that would help the other person.",
+      "When conflict starts, you tend to pause with a return time and name what is still missing once.",
+      third ? `When closeness or repair was on the table, you also picked ${pick(third, "a repair with a time")}.` : "You treat repair as words plus a next action.",
+      "What you often need is clarity without drama: the headline of a hard day, one concrete change, affection without a campaign.",
+      "Keep using that when the moment is still small, including on days you could coast.",
+    ].join(" "),
+    fearful: [
+      "You tend to want the closeness and the exit in the same stretch of time.",
+      "A good week can make you melt in tonight and go quiet tomorrow.",
+      `In one romance scene you chose ${pick(first, "a mixed reach-and-retreat")}.`,
+      second ? `In another, ${pick(second, "a second mixed move")} felt closer to your first move.` : "An unnamed bond can make you want the label and fear the trap.",
+      "Those mixed moves are protecting you from two losses at once: being left, and being locked in.",
+      "The cost is that neither you nor the other person knows which hour they are in.",
+      "When conflict starts, you tend to push away and then panic they will not come back.",
+      third ? `When closeness or repair was on the table, you also picked ${pick(third, "both a reach and a retreat")}.` : "The reach and the retreat can be two halves of one move.",
+      "What you often need is a smaller ask and a named return: you want them, and you also need twenty minutes.",
+      "When you say both parts, the pattern has less work to do in the dark.",
+    ].join(" "),
+  };
+  return essays[style];
+}
+
+export function selfWorthSentences(
+  questions: QuizQuestion[],
+  choices: Record<string, number>,
+  style: AttachmentStyle,
+) {
+  const self = entriesFor(selectedEntries(questions, choices), SELF_ESTEEM_MODULE);
+  const { sentence } = worthPattern(questions, choices, style);
+  const lead = self[0]?.option.label;
+  const { level } = selfWorthSnapshot(questions, choices);
+  const levelLine = {
+    Low: "On these items, self-worth showed up as something you still have to prove or protect.",
+    Medium: "On these items, self-worth held in some scenes and wobbled in others.",
+    High: "On these items, self-worth more often stayed with you even when a scene got tender.",
+  }[level];
+  return [
+    sentence,
+    lead ? `On a self-esteem scene you chose “${lead}.”` : "",
+    levelLine,
+    "This is a snapshot of how worth showed up in the pictures you picked, not a verdict on your value.",
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 export function worthPattern(questions: QuizQuestion[], choices: Record<string, number>, style: AttachmentStyle) {
@@ -194,7 +288,7 @@ export function worthPattern(questions: QuizQuestion[], choices: Record<string, 
   while (bullets.length < 2) {
     bullets.push(dominant === "avoidant"
       ? "Being loved can start to feel like a hassle when it asks to be felt."
-      : "The full self-talk rewrite sits in the paid reading.");
+      : "A compliment or a miss can still become a story about whether you are enough.");
   }
   return { sentence, bullets: bullets.slice(0, 2) };
 }
@@ -221,6 +315,8 @@ export function buildAttachmentReport(
   const childhood = entriesFor(entries, CHILDHOOD_MODULE);
   const loop = ATTACHMENT_LOOPS[scored.style];
   const essay = ESSAYS[scored.style];
+  const caregiverScored = scoreAttachmentSubset(questions, choices, CHILDHOOD_MODULE);
+  const worth = selfWorthSnapshot(questions, choices);
 
   return {
     result: {
@@ -233,6 +329,22 @@ export function buildAttachmentReport(
       avoidance: scored.avoidance,
     },
     deepResult: {
+      romanceEssay: romanceEssay(questions, choices, scored.style),
+      scores: dimensionScore(scored.anxiety, scored.avoidance),
+      caregiver: {
+        intro: caregiverIntro(questions, choices, scored.style),
+        ...dimensionScore(caregiverScored.anxiety, caregiverScored.avoidance),
+      },
+      selfWorth: {
+        ...worth,
+        sentences: selfWorthSentences(questions, choices, scored.style),
+      },
+      characteristics: [
+        ...ATTACHMENT_OVERVIEWS[scored.style].dating,
+        ...ATTACHMENT_OVERVIEWS[scored.style].withSelf,
+      ],
+      superpowers: profile.strengths ?? [profile.strength],
+      triggers: profile.stuckPoints ?? [profile.watchout],
       modules: [
         moduleFrom(
           ROMANCE_MODULE,

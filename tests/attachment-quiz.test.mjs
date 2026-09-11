@@ -6,8 +6,11 @@ import {
   buildAttachmentResult,
   chartAxisPercent,
   classifyAttachment,
+  intensityLabel,
   plotVisualQuadrant,
   scoreAttachment,
+  scoreAttachmentSubset,
+  scoreOnSeven,
   STYLE_DIMENSIONS,
 } from "../lib/attachment.ts";
 import { relationshipQuestions } from '../lib/relationship-content.ts';
@@ -79,7 +82,7 @@ test("relationship image choices map onto the four attachment styles", () => {
   const mixed = Object.fromEntries(relationshipQuestions.map((question, index) => [question.id, index % 2]));
   assert.equal(scoreAttachment(relationshipQuestions, mixed).style, "fearful");
   const reading = buildAttachmentResult(relationshipQuestions, pick(0));
-  assert.equal(reading.title, "Anxious");
+  assert.equal(reading.title, "Anxious-Preoccupied");
   assert.notEqual(reading.themeTitle, reading.title);
   assert.equal(reading.strengths?.length, 3);
   assert.deepEqual(STYLE_DIMENSIONS.fearful, { anxiety: 1, avoidance: 1 });
@@ -97,7 +100,7 @@ test("attachment scoring maps A/B/C/D onto the four styles", () => {
 
   const anxious = buildAttachmentResult(questions, pick(0));
   assert.equal(anxious.key, "anxious");
-  assert.equal(anxious.title, "Anxious");
+  assert.equal(anxious.title, "Anxious-Preoccupied");
   assert.ok((anxious.anxiety ?? 0) > (anxious.avoidance ?? 0));
 });
 
@@ -125,4 +128,42 @@ test("45 anxiety / 35 avoidance is anxious and plots in the top-left cell", () =
   assert.equal(plotVisualQuadrant(35, 45), "avoidant");
   assert.equal(plotVisualQuadrant(0, 0), "secure");
   assert.equal(plotVisualQuadrant(100, 100), "fearful");
+});
+
+test("how-you-scored uses a 0-7 scale with Low to Very High labels", () => {
+  assert.equal(scoreOnSeven(0), 0);
+  assert.equal(scoreOnSeven(50), 3.5);
+  assert.equal(scoreOnSeven(100), 7);
+  assert.equal(intensityLabel(20), "Low");
+  assert.equal(intensityLabel(45), "Medium");
+  assert.equal(intensityLabel(60), "High");
+  assert.equal(intensityLabel(80), "Very High");
+});
+
+test("caregiver scores come from childhood items only, not invented Mother/Father/Work dots", () => {
+  const anxious = Object.fromEntries(relationshipQuestions.map((question) => [question.id, 0]));
+  const childhoodAnxious = scoreAttachmentSubset(relationshipQuestions, anxious, "Childhood");
+  const overall = scoreAttachment(relationshipQuestions, anxious);
+  assert.equal(childhoodAnxious.answered, 4);
+  assert.equal(childhoodAnxious.style, "anxious");
+  assert.equal(overall.answered, 20);
+  const mixed = Object.fromEntries(relationshipQuestions.map((question, index) => [question.id, index < 16 ? 2 : 0]));
+  const caregiver = scoreAttachmentSubset(relationshipQuestions, mixed, "Childhood");
+  const romance = scoreAttachmentSubset(relationshipQuestions, mixed, "Romance");
+  assert.equal(caregiver.style, "anxious");
+  assert.equal(romance.style, "secure");
+  assert.notEqual(caregiver.anxiety, romance.anxiety);
+});
+
+test("paywall inclusions stay at three bullets without invented multi-context scores", async () => {
+  const report = await readFile(new URL("../lib/attachment-report.ts", import.meta.url), "utf8");
+  const preview = await readFile(new URL("../lib/report-preview.ts", import.meta.url), "utf8");
+  const quiz = await readFile(new URL("../app/_components/free-attachment-results.tsx", import.meta.url), "utf8");
+  assert.match(report, /An interpretation of all 20 image choices/);
+  assert.match(report, /Pairing notes versus each of the four styles/);
+  assert.match(report, /Seven-day micro practices/);
+  assert.match(report, /not blame statements about caregivers/);
+  assert.match(report, /In one romance scene you chose/);
+  assert.doesNotMatch(report + preview + quiz, /Mother \(CG|Father \(CG|AT WORK|millions of users/);
+  assert.doesNotMatch(report, /The full self-talk rewrite sits in the paid reading/);
 });

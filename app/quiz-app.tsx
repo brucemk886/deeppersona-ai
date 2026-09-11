@@ -4,7 +4,8 @@ import { BrandLogo, BrandMark } from "@/app/_components/brand";
 
 import Link from "next/link";
 import { HomeLanding } from "@/app/_components/home-landing";
-import { AttachmentResult, PatternLoop } from "@/app/_components/attachment-result";
+import { AttachmentResult, HowYouScored, PatternLoop, SelfWorthRing, StyleBanner } from "@/app/_components/attachment-result";
+import { FreeAttachmentResults } from "@/app/_components/free-attachment-results";
 import { SceneCard, sceneKeyFromPath } from "@/app/_components/scene-card";
 import { SiteFooter, SiteNav } from "@/app/_components/site-chrome";
 import { ATTACHMENT_TEST_ID, PUBLIC_QUESTION_IDS } from "@/lib/public-catalog";
@@ -595,79 +596,23 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
   if (initialReportId && !reportData) return <main className="detail-loading"><BrandMark /><p role={error ? "alert" : "status"}>{error || (reportLoading ? "Loading your saved report…" : "Report unavailable.")}</p>{error && <button className="primary-button" disabled={reportLoading} onClick={async () => { setReportLoading(true); setError(''); try { await refreshReport(new URLSearchParams(window.location.search).get('payment') === 'success'); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load your report. Please try again.'); } finally { setReportLoading(false); } }}>Try again</button>}<Link href="/">Back to tests</Link></main>;
 
     if (initialReportId && reportData && !reportData.unlocked) return (
-    <main className="result-shell">
+    <main className="result-shell ap-result-shell">
       <SiteNav active="quiz" />
-      <article className="result-card result-card-expanded">
-        <span className="result-test-name">{reportData.test.title}</span>
-        <span className="result-eyebrow">Your free summary</span>
-        <h1>{reportData.result.title}</h1>
-        {reportData.result.themeTitle ? <p className="result-theme">{reportData.result.themeTitle}</p> : null}
-        <p className="result-summary">{reportData.result.summary}</p>
-        <AttachmentResult result={reportData.result} />
-        {reportData.preview?.overview.length ? <section className="free-overview overview-columns" aria-labelledby="free-overview-title">
-          <h2 id="free-overview-title">Type overview</h2>
-          <div className="overview-grid">
-            {reportData.preview.overview.map((item) => (
-              <article key={item.title}>
-                <h3>{item.title}</h3>
-                {item.points?.length ? <ul>{item.points.map((point) => <li key={point}>{point}</li>)}</ul> : <p>{item.body}</p>}
-              </article>
-            ))}
-          </div>
-        </section> : null}
-        {reportData.preview?.loop ? <PatternLoop name={reportData.preview.loop.name} steps={reportData.preview.loop.steps} /> : null}
-        {reportData.preview?.childhoodTeaser ? <section className="free-teaser" aria-labelledby="childhood-teaser-title">
-          <span>Where this may have started</span>
-          <h2 id="childhood-teaser-title">Childhood trail</h2>
-          <p>{reportData.preview.childhoodTeaser}</p>
-          <p className="teaser-lock">Full childhood detail is locked in the paid reading.</p>
-        </section> : null}
-        {reportData.preview?.worthPattern ? <section className="free-teaser" aria-labelledby="worth-pattern-title">
-          <span>Your worth pattern</span>
-          <h2 id="worth-pattern-title">What happens to your worth</h2>
-          <p>{reportData.preview.worthPattern.sentence}</p>
-          <ul>{reportData.preview.worthPattern.bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}</ul>
-          <p className="teaser-lock">The full self-talk rewrite is locked in the paid reading.</p>
-        </section> : null}
-        {reportData.preview?.sample ? <section className="free-sample" aria-labelledby="free-sample-title">
-          <span>Free sample unlock</span>
-          <h2 id="free-sample-title">{reportData.preview.sample.moduleTitle}</h2>
-          <p>{reportData.preview.sample.explanation}</p>
-          <article className="free-sample-choice">
-            {sceneKeyFromPath(reportData.preview.sample.choice.atlasPath)
-              ? <SceneCard className="choice-review-image" index={reportData.preview.sample.choice.selectedIndex} scene={sceneKeyFromPath(reportData.preview.sample.choice.atlasPath) ?? "phone"} />
-              : <AtlasImage className="choice-review-image" index={reportData.preview.sample.choice.selectedIndex} loading="eager" path={reportData.preview.sample.choice.atlasPath} sizes="180px" />}
-            <div>
-              <span>Question {reportData.preview.sample.choice.questionNumber}</span>
-              <p className="choice-review-question">{reportData.preview.sample.choice.prompt}</p>
-              <h3>{reportData.preview.sample.choice.label}</h3>
-              <p>{reportData.preview.sample.choice.meaning}</p>
-            </div>
-          </article>
-          <p className="free-sample-prompt">{reportData.preview.sample.reflection}</p>
-        </section> : null}
-        <section className="report-paywall">
-          <h2>Unlock your full reading</h2>
-          <p>USD 9.99, one time. After payment, this page unlocks immediately. We also email a private backup link to the address you used with the test.</p>
-          {reportData.preview?.inclusions?.length ? <ul className="report-inclusions" aria-label="What the full reading includes">{reportData.preview.inclusions.map((item) => <li key={item}>{item}</li>)}</ul> : null}
-          {reportData.preview?.modules.length ? <ul className="report-preview-topics" aria-label="Theme sections in the full report">{reportData.preview.modules.map((title) => <li key={title}>{title}<span>{title === reportData.preview?.sample?.moduleTitle ? "Sample unlocked" : "Locked"}</span></li>)}</ul> : null}
-          <p className="service-context">For entertainment and self-reflection. This is not a clinical diagnosis, a validated psychological assessment, or professional advice. <Link href="/disclaimer">How to use these results</Link></p>
-          {reportData.sandbox ? <p className="sandbox-notice">Test checkout — no real money will be charged.</p> : null}
-          {reportData.status === "refunded" ? <p>This purchase has been refunded. Full report access has ended.</p> : <>
-            <p className="report-price">{reportData.amountCents === 0 ? "Free report" : `USD ${(reportData.amountCents / 100).toFixed(2)} · Optional full report`}</p>
-            <p>One-time payment for this test result only. No subscription or recurring charges.</p>
-            {reportData.amountCents > 0 && <p className="purchase-refund-notice">{reportData.refundPolicy === '14-day-2026-09-08' ? <>This order retains our original 14-day refund request policy. <Link href="/refunds/legacy-2026-09">Read your policy</Link></> : <>After successful delivery, no refunds for a change of mind or subjective dissatisfaction. Delivery failures, duplicate charges, material misdescription and legal rights are excepted. <Link href="/refunds">Read the refund policy</Link></>}</p>}
-            <button className="primary-button full-button" disabled={submitting || (!reportData.checkoutReady && reportData.amountCents > 0)} onClick={() => void beginCheckout()}>{submitting ? "Opening checkout…" : reportData.amountCents === 0 ? "Open my full reading" : "Unlock my full reading"}</button>
-            {!reportData.checkoutReady && reportData.amountCents > 0 ? <p>Checkout is being set up. Your result is saved; please come back later.</p> : null}
-          </>}
-          {typeof window !== "undefined" && new URLSearchParams(window.location.search).get("payment") === "cancelled" ? <p>Checkout was cancelled. Your result is still saved.</p> : null}
-          {typeof window !== "undefined" && new URLSearchParams(window.location.search).get("payment") === "success" ? <p role="status">Checking your payment. If your report has not opened yet, use the button below to check again.</p> : null}
-          {error ? <p className="form-error" role="alert">{error}</p> : null}
-          <button className="text-button" onClick={() => { setError(""); void refreshReport(true).catch((err: Error) => setError(err.message)); }}>Check payment status</button>
-          <p><Link href="/recover">Find my paid reports / Resend report email</Link></p><p className="checkout-legal">By purchasing, you agree to our <Link href="/terms">Terms</Link> and <Link href="/refunds">Refund & Delivery Policy</Link>. See our <Link href="/privacy">Privacy Policy</Link>.</p>
-          <p>After payment confirmation, we email a private report link to the address you provided with your test. You can use it on another browser. PDF downloads are not included. For help, contact <a href="mailto:bruce@deeppersonaai.com">bruce@deeppersonaai.com</a>.</p>
-        </section>
-      </article>
+      <FreeAttachmentResults
+        amountCents={reportData.amountCents}
+        checkoutReady={reportData.checkoutReady}
+        error={error}
+        onCheckout={() => void beginCheckout()}
+        onRefresh={() => { setError(""); void refreshReport(true).catch((err: Error) => setError(err.message)); }}
+        paymentQuery={typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("payment") : null}
+        preview={reportData.preview ?? { totalChoices: 0, modules: [] }}
+        refundPolicy={reportData.refundPolicy}
+        result={reportData.result}
+        sandbox={reportData.sandbox}
+        status={reportData.status}
+        submitting={submitting}
+        testTitle={reportData.test.title}
+      />
     </main>
   );
 
@@ -794,17 +739,42 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
   });
 
   return (
-    <main className="result-shell">
+    <main className="result-shell ap-result-shell">
       <nav className="nav-bar"><button className="brand brand-button" onClick={returnHome}><BrandLogo /></button><button className="text-button" onClick={() => window.print()}>Save report</button></nav>
       {result && selectedTest && deepResult ? (
-        <article className="result-card result-card-expanded">
-          <span className="result-test-name">{selectedTest.title}</span>
-          <span className="result-basis">Based on {answeredChoices.length} visual choices</span>
-          <span className="result-eyebrow">{result.eyebrow}</span>
-          <h1>{result.title}</h1>
-          {result.themeTitle ? <p className="result-theme">{result.themeTitle}</p> : null}
-          <p className="result-summary">{result.summary}</p>
+        <article className="result-card result-card-expanded ap-paid">
+          <header className="ap-hero">
+            <p className="ap-kicker">{selectedTest.title}</p>
+            <span className="result-basis">Based on {answeredChoices.length} visual choices</span>
+            <h1>{result.title}</h1>
+            {result.themeTitle ? <p className="ap-hero-sub">{result.themeTitle}</p> : null}
+            <p className="result-summary">{result.summary}</p>
+            <StyleBanner styleKey={result.key} />
+          </header>
           <AttachmentResult result={result} />
+          {deepResult.romanceEssay ? <section className="ap-section" aria-labelledby="paid-romance-title">
+            <h2 id="paid-romance-title">Your romantic patterns</h2>
+            <p className="ap-essay">{deepResult.romanceEssay}</p>
+            {deepResult.characteristics?.length ? <article className="ap-unlocked-block">
+              <h3>{result.title} (Romantic) Characteristics</h3>
+              <ul>{deepResult.characteristics.map((point) => <li key={point}>{point}</li>)}</ul>
+            </article> : null}
+            {deepResult.superpowers?.length || deepResult.triggers?.length ? <div className="ap-card-pair ap-card-pair-open">
+              {deepResult.superpowers?.length ? <article><h3>Your superpowers in romance</h3><ul>{deepResult.superpowers.map((item) => <li key={item}>{item}</li>)}</ul></article> : null}
+              {deepResult.triggers?.length ? <article><h3>Your triggers in romance</h3><ul>{deepResult.triggers.map((item) => <li key={item}>{item}</li>)}</ul></article> : null}
+            </div> : null}
+          </section> : null}
+          {deepResult.caregiver ? <section className="ap-section" aria-labelledby="paid-caregiver-title">
+            <StyleBanner styleKey={result.key} />
+            <h2 id="paid-caregiver-title">Your caregiver attachment patterns</h2>
+            <p className="ap-essay">{deepResult.caregiver.intro}</p>
+            <HowYouScored anxiety={deepResult.caregiver.anxiety} avoidance={deepResult.caregiver.avoidance} />
+          </section> : null}
+          {deepResult.selfWorth ? <section className="ap-section" aria-labelledby="paid-worth-title">
+            <h2 id="paid-worth-title">How you see yourself</h2>
+            <SelfWorthRing level={deepResult.selfWorth.level} percent={deepResult.selfWorth.percent} />
+            <p className="ap-essay">{deepResult.selfWorth.sentences}</p>
+          </section> : null}
           {deepResult.overview?.length ? <section className="free-overview overview-columns" aria-labelledby="paid-overview-title">
             <h2 id="paid-overview-title">Type overview</h2>
             <div className="overview-grid">

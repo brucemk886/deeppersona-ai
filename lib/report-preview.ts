@@ -1,22 +1,24 @@
 import {
-  ATTACHMENT_LOOPS,
-  ATTACHMENT_OVERVIEWS,
   ATTACHMENT_RESULTS,
   ATTACHMENT_STYLE_META,
+  dimensionScore,
   isAttachmentStyle,
   resolveAttachmentScores,
+  scoreAttachmentSubset,
+  selfWorthSnapshot,
 } from './attachment';
-import { childhoodTeaser, REPORT_INCLUSIONS, ROMANCE_MODULE, worthPattern } from './attachment-report';
-import type { ReportResponse, ReportSnapshot } from './payment-types';
+import {
+  caregiverIntro,
+  CHILDHOOD_MODULE,
+  REPORT_INCLUSIONS,
+  ROMANCE_MODULE,
+  romanceEssay,
+  selfWorthSentences,
+} from './attachment-report';
+import type { ReportPreview, ReportSnapshot } from './payment-types';
 import type { ResultProfile } from './quiz';
 
 export const FREE_SAMPLE_MODULE = ROMANCE_MODULE;
-
-function overviewItem(title: string, points: string[] | undefined, fallback: string) {
-  const list = (points ?? []).map((point) => point.trim()).filter(Boolean);
-  const body = list.join(' ') || fallback;
-  return list.length ? { title, body, points: list } : { title, body };
-}
 
 export function freeResultFromSnapshot(snapshot: ReportSnapshot): ResultProfile {
   const scored = resolveAttachmentScores(snapshot.questions, snapshot.answerChoices, snapshot.result);
@@ -52,7 +54,7 @@ export function freeResultFromSnapshot(snapshot: ReportSnapshot): ResultProfile 
 }
 
 // Overall reading plus one romance sample. Remaining choices and modules stay paid.
-export function reportPreview(snapshot: ReportSnapshot): NonNullable<ReportResponse['preview']> {
+export function reportPreview(snapshot: ReportSnapshot): ReportPreview {
   const answered = snapshot.questions.map((q, index) => ({ q, index, selectedIndex: snapshot.answerChoices[q.id] }))
     .filter((x) => Number.isInteger(x.selectedIndex) && x.q.options[x.selectedIndex]);
   const modules = snapshot.deepResult.modules ?? [];
@@ -60,22 +62,24 @@ export function reportPreview(snapshot: ReportSnapshot): NonNullable<ReportRespo
   const sampleEntry = answered.find((item) => item.q.kicker === (sampleModule?.title ?? FREE_SAMPLE_MODULE)) ?? answered[0];
   const selected = sampleEntry?.q.options[sampleEntry.selectedIndex];
   const scored = resolveAttachmentScores(snapshot.questions, snapshot.answerChoices, snapshot.result);
-  const copy = scored ? ATTACHMENT_RESULTS[scored.style] : snapshot.result;
-  const overviewCopy = scored ? ATTACHMENT_OVERVIEWS[scored.style] : null;
-  const loop = snapshot.deepResult.loop ?? (scored ? ATTACHMENT_LOOPS[scored.style] : undefined);
-  const worth = scored ? worthPattern(snapshot.questions, snapshot.answerChoices, scored.style) : undefined;
+  const caregiverScored = scoreAttachmentSubset(snapshot.questions, snapshot.answerChoices, CHILDHOOD_MODULE);
+  const worth = scored ? selfWorthSnapshot(snapshot.questions, snapshot.answerChoices) : undefined;
 
   return {
     totalChoices: answered.length,
     modules: modules.map((module) => module.title),
-    overview: [
-      overviewItem('In dating', overviewCopy?.dating, copy.strength),
-      overviewItem('With yourself', overviewCopy?.withSelf, copy.watchout),
-      overviewItem('Under stress', overviewCopy?.underStress, copy.nextStep),
-    ].filter((item) => Boolean(item.body)),
-    loop: loop ? { name: loop.name, kind: loop.kind, steps: loop.steps } : undefined,
-    childhoodTeaser: scored ? childhoodTeaser(snapshot.questions, snapshot.answerChoices, scored.style) : undefined,
-    worthPattern: worth,
+    romanceEssay: scored
+      ? (snapshot.deepResult.romanceEssay ?? romanceEssay(snapshot.questions, snapshot.answerChoices, scored.style))
+      : undefined,
+    scores: scored ? dimensionScore(scored.anxiety, scored.avoidance) : undefined,
+    caregiver: scored ? {
+      intro: snapshot.deepResult.caregiver?.intro ?? caregiverIntro(snapshot.questions, snapshot.answerChoices, scored.style),
+      ...dimensionScore(caregiverScored.anxiety, caregiverScored.avoidance),
+    } : undefined,
+    selfWorth: scored && worth ? {
+      ...worth,
+      sentences: snapshot.deepResult.selfWorth?.sentences ?? selfWorthSentences(snapshot.questions, snapshot.answerChoices, scored.style),
+    } : undefined,
     inclusions: REPORT_INCLUSIONS,
     sample: sampleModule && selected && sampleEntry ? {
       moduleTitle: sampleModule.title,

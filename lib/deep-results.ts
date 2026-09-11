@@ -1,4 +1,4 @@
-import { buildAttachmentResult } from "./attachment";
+import { buildAttachmentResult, type DimensionScore, type WorthLevel } from "./attachment";
 import { buildAttachmentReport } from "./attachment-report";
 import { ATTACHMENT_TEST_ID } from "./quiz-content";
 import type { QuizQuestion, QuizTest, ResultProfile } from "./quiz";
@@ -15,6 +15,13 @@ export type DeepResultContent = {
   practices?: { day: number; title: string; body: string }[];
   loop?: { name: string; kind: string; steps: string[] };
   overview?: { title: string; points: string[] }[];
+  romanceEssay?: string;
+  scores?: DimensionScore;
+  caregiver?: { intro: string } & DimensionScore;
+  selfWorth?: { level: WorthLevel; percent: number; sentences: string };
+  characteristics?: string[];
+  superpowers?: string[];
+  triggers?: string[];
 };
 
 export function buildChoiceReport(

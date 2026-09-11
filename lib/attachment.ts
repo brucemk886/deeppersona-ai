@@ -16,14 +16,14 @@ export const ATTACHMENT_STYLE_META: Record<
   { label: string; shortLabel: string; accent: string; blurb: string }
 > = {
   anxious: {
-    label: "Anxious",
-    shortLabel: "Anxious",
+    label: "Anxious-Preoccupied",
+    shortLabel: "Preoccupied",
     accent: "#9b4f5e",
     blurb: "You move toward closeness when something feels uncertain.",
   },
   avoidant: {
-    label: "Avoidant",
-    shortLabel: "Avoidant",
+    label: "Dismissing-Avoidant",
+    shortLabel: "Dismissing",
     accent: "#3d6b62",
     blurb: "You protect calm and independence when closeness intensifies.",
   },
@@ -40,6 +40,49 @@ export const ATTACHMENT_STYLE_META: Record<
     blurb: "You want closeness and also need a way out when it feels like too much.",
   },
 };
+
+export const SCORE_SCALE = 7;
+
+export type IntensityLabel = "Low" | "Medium" | "High" | "Very High";
+export type WorthLevel = "Low" | "Medium" | "High";
+
+export type DimensionScore = {
+  anxiety: number;
+  avoidance: number;
+  anxietySeven: number;
+  avoidanceSeven: number;
+  anxietyLabel: IntensityLabel;
+  avoidanceLabel: IntensityLabel;
+};
+
+export function scoreOnSeven(percent: number): number {
+  const value = Number.isFinite(percent) ? Math.max(0, Math.min(100, percent)) : 0;
+  return Math.round((value / 100) * SCORE_SCALE * 10) / 10;
+}
+
+export function intensityLabel(percent: number): IntensityLabel {
+  if (percent < 30) return "Low";
+  if (percent < 50) return "Medium";
+  if (percent < 70) return "High";
+  return "Very High";
+}
+
+export function worthLevel(percent: number): WorthLevel {
+  if (percent < 40) return "Low";
+  if (percent < 70) return "Medium";
+  return "High";
+}
+
+export function dimensionScore(anxiety: number, avoidance: number): DimensionScore {
+  return {
+    anxiety,
+    avoidance,
+    anxietySeven: scoreOnSeven(anxiety),
+    avoidanceSeven: scoreOnSeven(avoidance),
+    anxietyLabel: intensityLabel(anxiety),
+    avoidanceLabel: intensityLabel(avoidance),
+  };
+}
 
 export const ATTACHMENT_OVERVIEWS: Record<AttachmentStyle, { dating: string[]; withSelf: string[]; underStress: string[] }> = {
   anxious: {
@@ -152,7 +195,7 @@ export const THEME_DIMENSIONS: Record<string, { anxiety: number; avoidance: numb
 export const ATTACHMENT_RESULTS: Record<AttachmentStyle, Omit<ResultProfile, "key">> = {
   anxious: {
     eyebrow: "Your free attachment summary",
-    title: "Anxious",
+    title: "Anxious-Preoccupied",
     summary:
       "When a bond feels unclear, your attention often goes to the relationship first. You look for a signal that you still matter, and silence can feel louder than it is.",
     strength: "You notice small shifts in closeness and are willing to repair.",
@@ -176,7 +219,7 @@ export const ATTACHMENT_RESULTS: Record<AttachmentStyle, Omit<ResultProfile, "ke
   },
   avoidant: {
     eyebrow: "Your free attachment summary",
-    title: "Avoidant",
+    title: "Dismissing-Avoidant",
     summary:
       "When a relationship speeds up, you often reach for space, tasks, or self-reliance. Distance can feel like the fastest way to get your mind back.",
     strength: "You can stay steady when emotions run high.",
@@ -311,6 +354,27 @@ export function classifyAttachment(anxietyScore: number, avoidanceScore: number)
   if (highAnxiety) return "anxious";
   if (highAvoidance) return "avoidant";
   return "secure";
+}
+
+export function scoreAttachmentSubset(
+  questions: QuizQuestion[],
+  choices: Record<string, number>,
+  kicker: string,
+): { anxiety: number; avoidance: number; style: AttachmentStyle; answered: number } {
+  return scoreAttachment(
+    questions.filter((question) => question.kicker === kicker),
+    choices,
+  );
+}
+
+export function selfWorthSnapshot(
+  questions: QuizQuestion[],
+  choices: Record<string, number>,
+): { percent: number; level: WorthLevel } {
+  const scored = scoreAttachmentSubset(questions, choices, "Self-esteem");
+  const source = scored.answered ? scored : scoreAttachment(questions, choices);
+  const percent = Math.max(0, Math.min(100, Math.round(100 - source.anxiety * 0.65 - source.avoidance * 0.35)));
+  return { percent, level: worthLevel(percent) };
 }
 
 export function scoreAttachment(
