@@ -1277,13 +1277,17 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .score-track { grid-column: 1 / -1; height: 10px; overflow: hidden; border-radius: 999px; background: #ece7dc; }
 .score-track span { display: block; height: 100%; border-radius: inherit; background: var(--forest); }
 .quadrant-board {
-  position: relative; width: min(100%, 360px); aspect-ratio: 1; margin: 28px auto 0;
+  position: relative; width: min(100%, 360px); aspect-ratio: 1; margin: 40px auto 0;
   border: 1px solid var(--line); border-radius: 24px; background:
     linear-gradient(#efe7ef, #efe7ef) right top / 50% 50% no-repeat,
     linear-gradient(#f3e4e6, #f3e4e6) left top / 50% 50% no-repeat,
     linear-gradient(#e7efe6, #e7efe6) left bottom / 50% 50% no-repeat,
     linear-gradient(#e4eeeb, #e4eeeb) right bottom / 50% 50% no-repeat;
 }
+.quadrant-crosshair { position: absolute; inset: 0; pointer-events: none; }
+.quadrant-crosshair::before, .quadrant-crosshair::after { content: ""; position: absolute; background: rgba(23, 34, 29, .1); }
+.quadrant-crosshair::before { left: 50%; top: 10%; bottom: 10%; width: 1px; transform: translateX(-50%); }
+.quadrant-crosshair::after { top: 50%; left: 10%; right: 10%; height: 1px; transform: translateY(-50%); }
 .quadrant-label { position: absolute; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .quadrant-anxious { left: 12px; top: 12px; }
 .quadrant-fearful { right: 12px; top: 12px; }
@@ -1291,7 +1295,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .quadrant-avoidant { right: 12px; bottom: 12px; }
 .quadrant-axis-x, .quadrant-axis-y { position: absolute; color: var(--muted); font-size: 9px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
 .quadrant-axis-x { left: 50%; bottom: -22px; transform: translateX(-50%); }
-.quadrant-axis-y { left: -10px; top: 50%; transform: translate(-50%, -50%) rotate(-90deg); }
+.quadrant-axis-y { left: 50%; top: -22px; transform: translateX(-50%); }
 .quadrant-dot {
   position: absolute; width: 18px; height: 18px; border: 3px solid white; border-radius: 50%;
   background: var(--wine); box-shadow: 0 6px 16px rgba(111,41,59,.28); transform: translate(-50%, -50%);

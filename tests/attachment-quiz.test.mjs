@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { buildAttachmentResult, scoreAttachment, STYLE_DIMENSIONS } from "../lib/attachment.ts";
+import {
+  attachmentPlotPosition,
+  buildAttachmentResult,
+  chartAxisPercent,
+  classifyAttachment,
+  plotVisualQuadrant,
+  scoreAttachment,
+  STYLE_DIMENSIONS,
+} from "../lib/attachment.ts";
 import { relationshipQuestions } from '../lib/relationship-content.ts';
 import { PUBLIC_QUESTION_IDS } from '../lib/public-catalog.ts';
 
@@ -91,4 +99,30 @@ test("attachment scoring maps A/B/C/D onto the four styles", () => {
   assert.equal(anxious.key, "anxious");
   assert.equal(anxious.title, "Anxious");
   assert.ok((anxious.anxiety ?? 0) > (anxious.avoidance ?? 0));
+});
+
+test("a 7-anxious / 5-avoidant mix scores 45 / 35 and still plots anxious", () => {
+  const indexes = [...Array(7).fill(0), ...Array(5).fill(1), ...Array(4).fill(2), ...Array(4).fill(3)];
+  const choices = Object.fromEntries(relationshipQuestions.map((question, index) => [question.id, indexes[index]]));
+  const scored = scoreAttachment(relationshipQuestions, choices);
+  assert.equal(scored.anxiety, 45);
+  assert.equal(scored.avoidance, 35);
+  assert.equal(scored.style, "anxious");
+  assert.equal(plotVisualQuadrant(scored.anxiety, scored.avoidance), "anxious");
+});
+
+test("45 anxiety / 35 avoidance is anxious and plots in the top-left cell", () => {
+  assert.equal(classifyAttachment(45, 35), "anxious");
+  assert.equal(plotVisualQuadrant(45, 35), "anxious");
+  const plot = attachmentPlotPosition(45, 35);
+  assert.ok(plot.topPercent < 50, `anxiety 45 must sit above the midline, got top=${plot.topPercent}`);
+  assert.ok(plot.leftPercent < 50, `avoidance 35 must sit left of the midline, got left=${plot.leftPercent}`);
+  assert.equal(chartAxisPercent(44) < 50, true);
+  assert.equal(chartAxisPercent(45) > 50, true);
+  assert.equal(classifyAttachment(44, 35), "secure");
+  assert.equal(plotVisualQuadrant(44, 35), "secure");
+  assert.equal(plotVisualQuadrant(45, 45), "fearful");
+  assert.equal(plotVisualQuadrant(35, 45), "avoidant");
+  assert.equal(plotVisualQuadrant(0, 0), "secure");
+  assert.equal(plotVisualQuadrant(100, 100), "fearful");
 });

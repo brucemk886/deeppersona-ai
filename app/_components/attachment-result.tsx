@@ -1,4 +1,9 @@
-import { ATTACHMENT_STYLE_META, isAttachmentStyle } from "@/lib/attachment";
+import {
+  ATTACHMENT_STYLE_META,
+  attachmentPlotPosition,
+  isAttachmentStyle,
+  plotVisualQuadrant,
+} from "@/lib/attachment";
 import type { ResultProfile } from "@/lib/quiz";
 
 export function AttachmentResult({ result }: { result: ResultProfile }) {
@@ -11,8 +16,8 @@ export function AttachmentResult({ result }: { result: ResultProfile }) {
   const anxiety = Math.max(0, Math.min(100, result.anxiety ?? 0));
   const avoidance = Math.max(0, Math.min(100, result.avoidance ?? 0));
   const style = isAttachmentStyle(result.key) ? result.key : null;
-  const left = `${avoidance}%`;
-  const top = `${100 - anxiety}%`;
+  const { leftPercent, topPercent } = attachmentPlotPosition(anxiety, avoidance);
+  const visualQuadrant = plotVisualQuadrant(anxiety, avoidance);
 
   return (
     <section className="attach-result" aria-label="Anxiety and avoidance">
@@ -29,13 +34,20 @@ export function AttachmentResult({ result }: { result: ResultProfile }) {
         </div>
       </div>
       <div className="quadrant-board" aria-hidden="true">
+        <i className="quadrant-crosshair" />
         <span className="quadrant-label quadrant-anxious">Anxious</span>
         <span className="quadrant-label quadrant-fearful">Fearful-Avoidant</span>
         <span className="quadrant-label quadrant-secure">Secure</span>
         <span className="quadrant-label quadrant-avoidant">Avoidant</span>
-        <span className="quadrant-axis-y">Anxiety</span>
-        <span className="quadrant-axis-x">Avoidance</span>
-        <i className="quadrant-dot" style={{ left, top }} />
+        <span className="quadrant-axis-y">↑ Anxiety</span>
+        <span className="quadrant-axis-x">Avoidance →</span>
+        <i
+          className="quadrant-dot"
+          data-anxiety={anxiety}
+          data-avoidance={avoidance}
+          data-visual-quadrant={visualQuadrant}
+          style={{ left: `${leftPercent}%`, top: `${topPercent}%` }}
+        />
       </div>
       <p className="quadrant-legend">Higher anxiety leans toward reaching when the bond feels uncertain. Higher avoidance leans toward space when closeness intensifies. Both high is the push-pull middle. Both low is steadier ground.</p>
       {style ? <p className="attach-result-blurb">{ATTACHMENT_STYLE_META[style].blurb}</p> : null}
