@@ -108,6 +108,19 @@ export const relationshipReflections = sqliteTable("relationship_reflections", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const blogPosts = sqliteTable("blog_posts", {
+  slug: text("slug").primaryKey(),
+  title: text("title").notNull(),
+  excerpt: text("excerpt").notNull(),
+  body: text("body").notNull(),
+  publishedAt: text("published_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+  readMinutes: integer("read_minutes").notNull().default(5),
+  primaryTestId: text("primary_test_id").notNull().default("attachment-style"),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const quizEvents = sqliteTable("quiz_events", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   sessionId: text("session_id").notNull(),

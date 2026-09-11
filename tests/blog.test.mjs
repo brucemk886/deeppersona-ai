@@ -52,6 +52,24 @@ test("blog routes, nav links, and quiz CTAs are wired through the app", async ()
   assert.match(chrome, /href="\/blog"/);
   assert.match(legal, /href="\/blog"/);
   assert.match(sitemap, /path: "\/blog"/);
-  assert.match(sitemap, /blogPosts/);
+  assert.match(sitemap, /listBlogPosts/);
   assert.match(analytics, /pathname === '\/blog' \|\| pathname.startsWith\('\/blog\/'\)/);
+});
+
+test("admin can create, edit, and delete blog posts", async () => {
+  const [admin, panel, api, store] = await Promise.all([
+    readFile(new URL("../app/admin/admin-dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/admin/blog-panel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/blog/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../db/blog-store.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(admin, /博客管理/);
+  assert.match(admin, /addBlogPost/);
+  assert.match(admin, /removeBlogPost/);
+  assert.match(panel, /新增文章/);
+  assert.match(panel, /删除文章/);
+  assert.match(panel, /保存文章/);
+  assert.match(api, /export async function DELETE/);
+  assert.match(store, /export async function deleteBlogPost/);
+  assert.match(store, /seed_defaults/);
 });

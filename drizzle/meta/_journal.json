@@ -50,6 +50,13 @@
       "when": 1788838379626,
       "tag": "0006_absurd_agent_zero",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1789110000000,
+      "tag": "0007_blog_posts",
+      "breakpoints": true
     }
   ]
 }

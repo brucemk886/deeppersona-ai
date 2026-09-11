@@ -98,6 +98,9 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.equal((catalog.match(/id: ATTACHMENT_TEST_ID|id: "[a-z-]+",\r?\n    title:/g) ?? []).length, 8);
   assert.match(admin, /测试管理/);
   assert.match(admin, /题目管理/);
+  assert.match(admin, /博客管理/);
+  assert.match(admin, /addBlogPost/);
+  assert.match(admin, /removeBlogPost/);
   assert.match(admin, /邮箱用户/);
   assert.match(admin, /DeepPersona AI/);
   assert.match(admin, /用户测试记录/);
@@ -178,7 +181,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(sitemap, /defaultTests/);
   assert.match(sitemap, /insightClusters/);
   assert.match(sitemap, /insightArticleCards/);
-  assert.match(sitemap, /blogPosts/);
+  assert.match(sitemap, /listBlogPosts/);
   assert.match(sitemap, /path: "\/blog"/);
   assert.match(sitemap, /https:\/\/deeppersonaai\.com/);
   assert.match(quiz + siteChrome + legalPage, /href="\/blog"/);

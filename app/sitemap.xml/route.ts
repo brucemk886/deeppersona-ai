@@ -1,4 +1,4 @@
-import { blogPosts } from "@/lib/blog";
+import { listBlogPosts } from "@/db/blog-store";
 import { insightArticleCards, insightClusters } from "@/lib/insights-index";
 import { defaultTests } from "@/lib/quiz-content";
 
@@ -17,6 +17,7 @@ function renderEntry(entry: SitemapEntry) {
 }
 
 export async function GET() {
+  const blogPosts = await listBlogPosts();
   const entries: SitemapEntry[] = [
     { path: "", changeFrequency: "weekly", priority: 1 },
     { path: "/insights", changeFrequency: "weekly", priority: 0.9 },

@@ -7,6 +7,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import Link from "next/link";
 import TrafficReport, { type TrafficData } from "./traffic-panel";
 import ReportEmailPanel from './report-email-panel';
+import { BlogManager, type AdminBlogPost } from "./blog-panel";
+import { type BlogPost } from "@/lib/blog";
 import { type AffiliateProduct, type QuizQuestion, type QuizTest } from "@/lib/quiz";
 import {
   ADMIN_STATS_RANGE_LABELS,
@@ -15,7 +17,7 @@ import {
   type AdminStatsRange,
 } from "@/lib/admin-stats-range";
 
-type AdminSection = "overview" | "tests" | "questions" | "traffic" | "emails" | "email-records" | "payments" | "affiliates";
+type AdminSection = "overview" | "tests" | "questions" | "blog" | "traffic" | "emails" | "email-records" | "payments" | "affiliates";
 
 type Stats = {
   traffic: TrafficData;
@@ -53,6 +55,7 @@ const navigation: { id: AdminSection; icon: string; label: string }[] = [
   { id: "payments", icon: "单", label: "订单" },
   { id: "tests", icon: "测", label: "测试管理" },
   { id: "questions", icon: "题", label: "题目管理" },
+  { id: "blog", icon: "博", label: "博客管理" },
   { id: "traffic", icon: "流", label: "流量分析" },
   { id: "emails", icon: "邮", label: "邮箱用户" },
   { id: "email-records", icon: "信", label: "邮件记录" },
@@ -133,6 +136,7 @@ export function AdminDashboard({
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [tests, setTests] = useState<QuizTest[]>([]);
   const [affiliateProducts, setAffiliateProducts] = useState<AffiliateProduct[]>([]);
+  const [blogPosts, setBlogPosts] = useState<AdminBlogPost[]>([]);
   const [selectedTestId, setSelectedTestId] = useState("");
   const [savingId, setSavingId] = useState("");
   const [deletingId, setDeletingId] = useState("");
@@ -163,11 +167,12 @@ export function AdminDashboard({
     }
     if (!quiet) setLoading(true);
     try {
-      const [statsResult, questionsResult, testsResult, productsResult] = await Promise.allSettled([
+      const [statsResult, questionsResult, testsResult, productsResult, blogResult] = await Promise.allSettled([
         fetchAdminJson<Stats>(`/api/admin/stats?range=${encodeURIComponent(statsRange)}`),
         fetchAdminJson<{ questions: QuizQuestion[] }>("/api/questions?all=1"),
         fetchAdminJson<{ tests: QuizTest[] }>("/api/tests?all=1"),
         fetchAdminJson<{ products: AffiliateProduct[] }>("/api/affiliate-products?all=1"),
+        fetchAdminJson<{ posts: BlogPost[] }>("/api/blog?all=1"),
       ]);
       let loadedModules = 0;
       if (statsResult.status === "fulfilled") {
@@ -186,6 +191,16 @@ export function AdminDashboard({
         const nextTests = testsResult.value.tests ?? [];
         setTests(nextTests);
         setSelectedTestId((current) => nextTests.some((item) => item.id === current) ? current : nextTests[0]?.id || "");
+        loadedModules += 1;
+      }
+      if (blogResult.status === "fulfilled") {
+        setBlogPosts((current) => {
+          const unsaved = current.filter((post) => post.key.startsWith("new-post-") && !blogResult.value.posts.some((item) => item.slug === post.slug));
+          return [
+            ...unsaved,
+            ...(blogResult.value.posts ?? []).map((post) => ({ ...post, key: post.slug })),
+          ];
+        });
         loadedModules += 1;
       }
       if (!loadedModules) throw new Error("后台数据读取失败");
@@ -420,6 +435,73 @@ export function AdminDashboard({
     setAffiliateProducts((current) => current.filter((item) => item.id !== product.id));
     showNotice("联盟产品已删除");
   }
+
+  function todayStamp() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function updateBlogPost(key: string, next: Partial<BlogPost>) {
+    setBlogPosts((current) => current.map((post) => (post.key === key ? { ...post, ...next } : post)));
+  }
+
+  function addBlogPost() {
+    const key = `new-post-${Date.now()}`;
+    const today = todayStamp();
+    setBlogPosts((current) => [
+      {
+        key,
+        slug: key,
+        title: "",
+        excerpt: "",
+        body: "Write the article first.\n\n<!-- CTA -->\n\nThen add any closing note.",
+        publishedAt: today,
+        updatedAt: today,
+        readMinutes: 5,
+        primaryTestId: selectedTestId || tests[0]?.id || "attachment-style",
+        active: false,
+        wordCount: 0,
+      },
+      ...current,
+    ]);
+    setActiveSection("blog");
+    showNotice("已创建草稿，请填写后保存");
+    window.setTimeout(() => document.getElementById(`blog-${key}`)?.scrollIntoView({ behavior: "smooth" }), 80);
+  }
+
+  async function saveBlogPost(post: AdminBlogPost) {
+    setSavingId(post.key);
+    try {
+      const response = await fetch("/api/blog", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...post, previousSlug: post.key }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string; post?: BlogPost };
+      if (!response.ok) throw new Error(payload.error || "保存失败");
+      const saved = payload.post ?? post;
+      setBlogPosts((current) => current.map((item) => (item.key === post.key ? { ...saved, key: saved.slug } : item)));
+      showNotice(saved.active ? "文章已保存并上线" : "文章草稿已保存，前台不展示");
+    } catch (error) {
+      showNotice(error instanceof Error ? error.message : "保存失败");
+    } finally {
+      setSavingId("");
+    }
+  }
+
+  async function removeBlogPost(post: AdminBlogPost) {
+    if (deletingId || savingId) return;
+    if (!window.confirm(`确定删除文章“${post.title || post.slug}”吗？删除后无法恢复，前台对应网址会失效。`)) return;
+    setDeletingId(post.key);
+    try {
+      await fetchAdminJson(`/api/blog?slug=${encodeURIComponent(post.key)}`, { method: "DELETE" });
+      setBlogPosts((current) => current.filter((item) => item.key !== post.key));
+      showNotice("文章已删除");
+    } catch {
+      showNotice("删除文章失败，请重试");
+    } finally {
+      setDeletingId("");
+    }
+  }
   return (
     <main className="admin-shell admin-cn">
       <aside className="admin-sidebar">
@@ -429,7 +511,7 @@ export function AdminDashboard({
         </Link>
         <nav className="admin-side-nav" aria-label="后台导航">
           <span className="admin-nav-label">工作台</span>
-          {navigation.slice(0, 5).map((item) => (
+          {navigation.slice(0, 6).map((item) => (
             <button
               className={activeSection === item.id ? "active" : ""}
               key={item.id}
@@ -440,7 +522,7 @@ export function AdminDashboard({
             </button>
           ))}
           <span className="admin-nav-label second">系统</span>
-          {navigation.slice(5).map((item) => (
+          {navigation.slice(6).map((item) => (
             <button
               className={activeSection === item.id ? "active" : ""}
               key={item.id}
@@ -542,6 +624,18 @@ export function AdminDashboard({
 
           {activeSection === "payments" ? <PaymentPanel /> : null}
           {activeSection === "email-records" ? <ReportEmailPanel /> : null}
+          {activeSection === "blog" ? (
+            <BlogManager
+              addPost={addBlogPost}
+              deletingId={deletingId}
+              posts={blogPosts}
+              removePost={removeBlogPost}
+              savePost={saveBlogPost}
+              savingId={savingId}
+              tests={tests}
+              updatePost={updateBlogPost}
+            />
+          ) : null}
           {activeSection === "affiliates" ? (
             <AffiliateProductsPanel addProduct={addAffiliateProduct} products={affiliateProducts} removeProduct={removeAffiliateProduct} saveProduct={saveAffiliateProduct} savingId={savingId} updateProduct={updateAffiliateProduct} />
           ) : null}

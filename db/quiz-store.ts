@@ -108,6 +108,22 @@ async function createSchema(): Promise<void> {
       id INTEGER PRIMARY KEY CHECK (id = 1),
       seed_defaults INTEGER NOT NULL DEFAULT 0
     )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS blog_catalog_state (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      seed_defaults INTEGER NOT NULL DEFAULT 0
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS blog_posts (
+      slug TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      excerpt TEXT NOT NULL,
+      body TEXT NOT NULL,
+      published_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      read_minutes INTEGER NOT NULL DEFAULT 5,
+      primary_test_id TEXT NOT NULL DEFAULT 'attachment-style',
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
     db.prepare("CREATE TABLE IF NOT EXISTS admin_deleted_leads (session_id TEXT PRIMARY KEY, deleted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"),
     db.prepare(`CREATE TABLE IF NOT EXISTS affiliate_products (
       id TEXT PRIMARY KEY,
@@ -203,6 +219,7 @@ async function createSchema(): Promise<void> {
 
   await db.batch([
     db.prepare("CREATE INDEX IF NOT EXISTS affiliate_products_active_idx ON affiliate_products(active, position)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS blog_posts_published_idx ON blog_posts(active, published_at)"),
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_questions_test_idx ON quiz_questions(test_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_events_session_idx ON quiz_events(session_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS quiz_events_name_idx ON quiz_events(event_name)"),

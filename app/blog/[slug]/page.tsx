@@ -2,19 +2,19 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ContentCard, InsightsFooter, InsightsHeader } from "@/app/insights/_components/insights-chrome";
-import { blogQuizHref, blogPosts, BLOG_CTA_COPY, getBlogPost, getRelatedBlogPosts } from "@/lib/blog";
+import { getBlogPost, listBlogPosts } from "@/db/blog-store";
+import { listTests } from "@/db/quiz-store";
+import { BLOG_CTA_COPY, blogQuizHref, relatedBlogPosts } from "@/lib/blog";
 import { renderMarkdown } from "@/lib/markdown";
-import { defaultTests } from "@/lib/quiz-content";
+import { ATTACHMENT_TEST_ID, defaultTests } from "@/lib/quiz-content";
 
 const SITE_URL = "https://deeppersonaai.com";
 
-export function generateStaticParams() {
-  return blogPosts.map((post) => ({ slug: post.slug }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const post = getBlogPost(slug);
+  const post = await getBlogPost(slug);
   if (!post) return {};
   return {
     title: `${post.title} — DeepPersona AI`,
@@ -40,13 +40,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const post = getBlogPost(slug);
+  const [post, posts, tests] = await Promise.all([getBlogPost(slug), listBlogPosts(), listTests()]);
   if (!post) notFound();
-  const test = defaultTests.find((item) => item.id === post.primaryTestId);
-  if (!test) notFound();
-  const related = getRelatedBlogPosts(post.slug);
-  const quizHref = blogQuizHref(post.slug);
-  const testImage = test.coverAtlasPath.replace(".png", "-768.webp");
+  const test = tests.find((item) => item.id === post.primaryTestId)
+    ?? tests.find((item) => item.id === ATTACHMENT_TEST_ID)
+    ?? defaultTests.find((item) => item.id === ATTACHMENT_TEST_ID);
+  const related = relatedBlogPosts(posts, post.slug);
+  const quizHref = test ? `/tests/${test.id}?utm_source=organic_content&utm_medium=blog&utm_campaign=${encodeURIComponent(post.slug)}` : blogQuizHref(post.slug);
+  const testImage = (test?.coverAtlasPath ?? "/quiz/doors.png").replace(".png", "-768.webp");
   const articleUrl = `${SITE_URL}/blog/${post.slug}`;
   const structuredData = {
     "@context": "https://schema.org",
@@ -63,7 +64,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   const inlineCta = (
     <aside className="inline-reflection-cta">
       <span>Notice your first response</span>
-      <h3>{test.title}</h3>
+      <h3>{test?.title ?? "Attachment Style Quiz"}</h3>
       <p>{BLOG_CTA_COPY}</p>
       <Link href={quizHref}>Take the short visual reflection →</Link>
     </aside>
@@ -74,7 +75,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
       <script dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} type="application/ld+json" />
       <InsightsHeader />
       <article className="insight-article">
-        <header className="article-hero" style={{ "--cluster-accent": test.accent } as React.CSSProperties}>
+        <header className="article-hero" style={{ "--cluster-accent": test?.accent ?? "#9b4f5e" } as React.CSSProperties}>
           <nav aria-label="Breadcrumb">
             <Link href="/blog">Blog</Link>
             <span>/</span>
@@ -100,10 +101,10 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           </div>
           <aside className="article-test-card">
             <div className="article-test-image">
-              <img alt={`Visual choices from ${test.title}`} decoding="async" loading="lazy" src={testImage} />
+              <img alt={`Visual choices from ${test?.title ?? "the attachment quiz"}`} decoding="async" loading="lazy" src={testImage} />
             </div>
             <span>Continue with images</span>
-            <h2>{test.title}</h2>
+            <h2>{test?.title ?? "Attachment Style Quiz"}</h2>
             <p>{BLOG_CTA_COPY}</p>
             <Link href={quizHref}>Start the free visual quiz <span aria-hidden="true">→</span></Link>
             <small>Image-based self-reflection · not a diagnosis</small>
