@@ -1,7 +1,6 @@
 import { publicQuestion } from "@/lib/public-quiz";
 import { isAdminRequest } from "@/app/admin-auth";
 import { deleteQuestion, listQuestions, saveQuestion } from "@/db/quiz-store";
-import { localizeRelationshipQuestion, quizLocaleFromAcceptLanguage } from "@/lib/relationship-zh";
 import { type QuizQuestion } from "@/lib/quiz";
 import { paymentError, requireSameOrigin } from "@/lib/payment-http";
 
@@ -19,9 +18,8 @@ export async function GET(request: Request) {
 
   try {
     const items = await listQuestions(testId, includeInactive);
-    const locale = includeInactive ? "en" : quizLocaleFromAcceptLanguage(request.headers.get("accept-language"));
-    return Response.json({ questions: includeInactive ? items : items.map((question) => publicQuestion(localizeRelationshipQuestion(question, locale))) }, {
-      headers: { "Cache-Control": "no-store", Vary: "Accept-Language, Cookie" },
+    return Response.json({ questions: includeInactive ? items : items.map(publicQuestion) }, {
+      headers: { "Cache-Control": "no-store", Vary: "Cookie" },
     });
   } catch (error) {
     return Response.json(

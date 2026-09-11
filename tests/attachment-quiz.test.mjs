@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { buildSync } from "esbuild";
 import {
   attachmentPlotPosition,
   buildAttachmentResult,
@@ -16,10 +15,6 @@ import {
 } from "../lib/attachment.ts";
 import { relationshipQuestions } from '../lib/relationship-content.ts';
 import { PUBLIC_QUESTION_IDS } from '../lib/public-catalog.ts';
-const localization = buildSync({ entryPoints: ['lib/relationship-zh.ts'], bundle: true, write: false, format: 'esm' });
-const { RELATIONSHIP_ZH, localizeRelationshipQuestion, quizLocaleFromAcceptLanguage } = await import(
-  'data:text/javascript;base64,' + Buffer.from(localization.outputFiles[0].text).toString('base64')
-);
 
 const questions = [1, 2, 3, 4].map((position) => ({
   id: `q${position}`,
@@ -72,19 +67,6 @@ test("public catalog uses the short v7 prompts and option labels", () => {
   assert.match(relationshipQuestions[0].prompt, /text shows Read/);
   assert.doesNotMatch(relationshipQuestions[0].prompt, /email|Left on read|left you on read/i);
   assert.doesNotMatch(relationshipQuestions.map((question) => question.prompt).join("\n"), /weekend together|new town|cinema/i);
-});
-
-test("Chinese quiz copy uses 短信/消息已读 and never 邮件 for left-on-read", () => {
-  assert.equal(quizLocaleFromAcceptLanguage("zh-CN,zh;q=0.9,en;q=0.8"), "zh");
-  assert.equal(quizLocaleFromAcceptLanguage("en-US,en;q=0.9"), "en");
-  const q1 = localizeRelationshipQuestion(relationshipQuestions[0], "zh");
-  assert.match(q1.prompt, /短信/);
-  assert.match(q1.prompt, /已读/);
-  assert.doesNotMatch(q1.prompt, /邮件/);
-  assert.deepEqual(Object.keys(RELATIONSHIP_ZH).sort(), relationshipQuestions.map((question) => question.id));
-  const zhCopy = Object.values(RELATIONSHIP_ZH).map((entry) => `${entry.prompt}\n${entry.labels.join("\n")}`).join("\n");
-  assert.doesNotMatch(zhCopy, /邮件/);
-  assert.equal(RELATIONSHIP_ZH["attachment-style-v3-q01"].labels[2], "先等着，再发一条");
 });
 
 test("public catalog contains twenty distinct image scenarios and eighty interpretations", async () => {

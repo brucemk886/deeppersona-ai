@@ -9,7 +9,7 @@ import { FreeAttachmentResults } from "@/app/_components/free-attachment-results
 import { SceneCard, sceneKeyFromPath } from "@/app/_components/scene-card";
 import { SiteFooter, SiteNav } from "@/app/_components/site-chrome";
 import { ATTACHMENT_TEST_ID } from "@/lib/public-catalog";
-import { QUIZ_HELPER_EN, QUIZ_HELPER_ZH } from "@/lib/quiz-copy";
+import { QUIZ_HELPER_EN } from "@/lib/quiz-copy";
 import { currentAttribution } from "@/lib/traffic";
 import { requestJson } from '@/lib/browser-request';
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -186,7 +186,7 @@ function RelationshipNetwork({
     </section>
   );
 }
-export function QuizApp({ initialTests, initialTestId, initialQuestions, initialReportId, initialLocale = "en" }: { initialTests: QuizTest[]; initialTestId?: string; initialQuestions: QuizQuestion[]; initialReportId?: string; initialLocale?: "zh" | "en" }) {
+export function QuizApp({ initialTests, initialTestId, initialQuestions, initialReportId }: { initialTests: QuizTest[]; initialTestId?: string; initialQuestions: QuizQuestion[]; initialReportId?: string }) {
   const [tests, setTests] = useState(initialTests);
   const [affiliateProducts, setAffiliateProducts] = useState<AffiliateProduct[]>([]);
   const [selectedTest, setSelectedTest] = useState<QuizTest | null>(() => initialTestId ? initialTests.find((test) => test.id === initialTestId) ?? null : null);
@@ -685,7 +685,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
           <div className="progress-track"><span style={{ width: `${progress}%`, background: selectedTest.accent }} /></div>
         </header>
         <section className="question-section">
-          <div className="question-heading"><span>{relationshipContext ? `Thinking of ${relationshipContext.nickname}` : activeQuestion.kicker}</span><h1>{activeQuestion.prompt}</h1><p>{relationshipContext ? `Keep ${relationshipContext.nickname} in mind. Notice the first response this relationship brings up.` : initialLocale === "zh" ? QUIZ_HELPER_ZH : QUIZ_HELPER_EN}</p></div>
+          <div className="question-heading"><span>{relationshipContext ? `Thinking of ${relationshipContext.nickname}` : activeQuestion.kicker}</span><h1>{activeQuestion.prompt}</h1><p>{relationshipContext ? `Keep ${relationshipContext.nickname} in mind. Notice the first response this relationship brings up.` : QUIZ_HELPER_EN}</p></div>
           <div className="option-grid" role="radiogroup" aria-label={activeQuestion.prompt}>
             {activeQuestion.options.map((option, index) => {
               const selected = selectedOptionIndex === index;

@@ -1,7 +1,5 @@
 import { listQuestions, listTests } from "@/db/quiz-store";
-import { headers } from "next/headers";
 import { publicTest, publicQuestion } from "@/lib/public-quiz";
-import { localizeRelationshipQuestions, quizLocaleFromAcceptLanguage } from "@/lib/relationship-zh";
 import type { Metadata } from "next";
 import { QuizApp } from "@/app/quiz-app";
 export const dynamic = "force-dynamic";
@@ -37,7 +35,6 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function TestDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const locale = quizLocaleFromAcceptLanguage((await headers()).get("accept-language"));
   const [tests, questions] = await Promise.all([listTests(), listQuestions(id)]);
-  return <QuizApp initialLocale={locale} initialTestId={id} initialTests={tests.map(publicTest)} initialQuestions={localizeRelationshipQuestions(questions, locale).map(publicQuestion)} />;
+  return <QuizApp initialTestId={id} initialTests={tests.map(publicTest)} initialQuestions={questions.map(publicQuestion)} />;
 }

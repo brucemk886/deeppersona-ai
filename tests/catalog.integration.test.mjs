@@ -41,6 +41,28 @@ test("admin catalog edits persist across public reads and fresh Worker isolates"
     Object.assign(edited, { prompt: "ADMIN: Which scene would you choose?", atlasPath: first[1].atlasPath, position: 7 });
     Object.assign(edited.options[0], { label: "A freshly edited image", microcopy: "Edited caption", meaning: "PRIVATE_ADMIN_MEANING", projection: "PRIVATE_ADMIN_PROJECTION", readingFocus: "repair", styleKey: "secure", cardTone: "warm" });
 
+    await t.test("public questions and server-rendered entries keep admin text in Chinese-language browsers", async () => {
+      const english = await questions({ locale: "en-US,en;q=0.9" });
+      for (const [index, question] of english.entries()) {
+        assert.equal(question.prompt, first[index].prompt);
+        assert.equal(question.kicker, first[index].kicker);
+        assert.deepEqual(question.options.map(o => [o.label, o.microcopy]), first[index].options.map(o => [o.label, o.microcopy]));
+      }
+      for (const locale of ["zh-CN,zh;q=0.9,en;q=0.8", "en-US,zh;q=0.5", "zh-TW", "fr-FR"]) {
+        assert.deepEqual(await questions({ locale }), english, `all question fields must be independent of ${locale}`);
+      }
+      const editor = await mf.getWorker("editor");
+      for (const path of ["/", "/?test=attachment-style", "/tests/attachment-style"]) {
+        const response = await editor.fetch(base + path, { headers: { "accept-language": "zh-CN,zh;q=0.9" } });
+        assert.equal(response.status, 200);
+        const html = await response.text();
+        assert.ok(html.includes(first[0].prompt), `${path} must initialize with the saved English prompt`);
+        assert.ok(html.includes(first[0].options[0].label));
+        assert.ok(!html.includes("短信显示"), `${path} must not inject the old Chinese question`);
+        assert.ok(!html.includes(first[0].options[0].meaning), "SSR must still hide paid interpretations");
+      }
+    });
+
     await t.test("admin saves every editable field; public English/Chinese reads use it", async () => {
       assert.equal((await request("/api/questions?all=1")).status, 401);
       assert.equal((await request("/api/questions", { method: "PUT", body: edited })).status, 401);
@@ -61,7 +83,7 @@ test("admin catalog edits persist across public reads and fresh Worker isolates"
       const response = await request("/api/questions");
       assert.equal(response.headers.get("cache-control"), "no-store");
       for (const bundle of readdirSync("dist/client", { recursive: true }).filter(p => p.endsWith(".js"))) {
-        assert.ok(!readFileSync(resolve("dist/client", bundle), "utf8").includes(first[0].options[0].meaning), "localization must not bundle paid meanings");
+        assert.ok(!readFileSync(resolve("dist/client", bundle), "utf8").includes(first[0].options[0].meaning), "client bundles must not include paid meanings");
       }
     });
 
