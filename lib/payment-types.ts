@@ -14,6 +14,10 @@ export type ReportResponse = {
     totalChoices: number;
     modules: string[];
     overview: { title: string; body: string; points?: string[] }[];
+    loop?: { name: string; kind: string; steps: string[] };
+    childhoodTeaser?: string;
+    worthPattern?: { sentence: string; bullets: string[] };
+    inclusions?: string[];
     sample?: {
       moduleTitle: string;
       explanation: string;

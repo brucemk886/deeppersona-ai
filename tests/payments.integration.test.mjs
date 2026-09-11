@@ -205,10 +205,14 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       assert.equal(state.data.questions, undefined);
       assert.equal(state.data.preview.totalChoices,20);
       assert.equal(state.data.preview.overview.length,3);
-      assert.equal(state.data.preview.modules.length,5);
+      assert.equal(state.data.preview.modules.length,3);
       assert.equal(state.data.preview.choices,undefined);
       assert.ok(state.data.preview.sample?.moduleTitle);
-      assert.ok(state.data.preview.overview.every(item=>item.body.length>20 && item.points?.length === 3));
+      assert.ok(state.data.preview.loop?.steps.length >= 4);
+      assert.ok(state.data.preview.childhoodTeaser);
+      assert.equal(state.data.preview.worthPattern.bullets.length, 2);
+      assert.ok(state.data.preview.inclusions?.length >= 6);
+      assert.ok(state.data.preview.overview.every(item=>item.body.length>20 && item.points?.length >= 3 && item.points.length <= 4));
       const stored=JSON.parse((await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(report.id).first()).snapshot_json);
       const leaked = stored.questions.flatMap((q) => q.options.map((option) => option.meaning)).filter((meaning) => JSON.stringify(state.data).includes(meaning));
       assert.equal(leaked.length, 1, 'Unpaid response may unlock one sample interpretation only');
@@ -374,7 +378,7 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       assert.ok(state.result.title.length > 0);
       assert.ok(state.result.themeTitle);
       assert.equal(typeof state.result.anxiety, "number");
-      assert.equal(state.deepResult.modules.length,5);
+      assert.equal(state.deepResult.modules.length,3);
       assert.ok(state.deepResult.modules[0].explanation.includes(state.questions[0].options[0].label));
       const saved = await db.prepare('SELECT answers_json,result_type FROM quiz_sessions WHERE id=?').bind(fresh.body.sessionId).first();
       assert.equal(saved.result_type,'choices');

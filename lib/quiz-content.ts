@@ -105,7 +105,10 @@ export const defaultTests: QuizTest[] = [
 ];
 
 export const defaultQuestions: QuizQuestion[] = relationshipQuestions.map(question => ({
-  ...question, options: question.options.map(option => ({ ...option, projection: [readingThemes[option.readingFocus ?? '']?.watch, readingThemes[option.readingFocus ?? '']?.ask].filter(Boolean).join(' ') }))
+  ...question, options: question.options.map(option => ({
+    ...option,
+    projection: option.projection || [readingThemes[option.readingFocus ?? '']?.watch, readingThemes[option.readingFocus ?? '']?.ask].filter(Boolean).join(' '),
+  })),
 }));
 
 export const PUBLIC_QUESTION_IDS = new Set(defaultQuestions.map((question) => question.id));

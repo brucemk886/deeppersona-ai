@@ -37,13 +37,25 @@ export function AttachmentResult({ result }: { result: ResultProfile }) {
         <span className="quadrant-axis-x">Avoidance</span>
         <i className="quadrant-dot" style={{ left, top }} />
       </div>
+      <p className="quadrant-legend">Higher anxiety leans toward reaching when the bond feels uncertain. Higher avoidance leans toward space when closeness intensifies. Both high is the push-pull middle. Both low is steadier ground.</p>
       {style ? <p className="attach-result-blurb">{ATTACHMENT_STYLE_META[style].blurb}</p> : null}
-      {result.strength ? (
-        <div className="attach-result-reads">
-          <article><span>A short read</span><p>{result.strength}</p></article>
-          <article><span>Watch for</span><p>{result.watchout}</p></article>
-        </div>
-      ) : null}
+    </section>
+  );
+}
+
+export function PatternLoop({ name, steps }: { name: string; steps: string[] }) {
+  return (
+    <section className="pattern-loop" aria-labelledby="pattern-loop-title">
+      <span>Your common loop</span>
+      <h2 id="pattern-loop-title">{name}</h2>
+      <ol>
+        {steps.map((step, index) => (
+          <li key={step}>
+            <i>{String(index + 1).padStart(2, "0")}</i>
+            <p>{step}</p>
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }

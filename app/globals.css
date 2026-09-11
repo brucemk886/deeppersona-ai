@@ -1383,6 +1383,31 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .free-sample-choice h3 { margin: 8px 0; font: 500 22px/1.2 Georgia, serif; }
 .free-sample-choice p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
 .free-sample-prompt { padding: 14px 16px; border-radius: 12px; background: #f7f4e9; }
+.quadrant-legend { margin: 28px auto 0; max-width: 520px; color: var(--muted); font-size: 13px; line-height: 1.6; text-align: center; }
+.overview-columns .overview-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
+.overview-columns .overview-grid article { padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: #fffdf8; }
+.overview-columns .overview-grid h3 { margin: 0 0 10px; }
+.pattern-loop { margin: 36px 0; text-align: left; }
+.pattern-loop > span, .free-teaser > span, .type-essay > span, .paid-module > span { color: var(--wine); font-size: 11px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+.pattern-loop h2, .free-teaser h2, .type-essay h2, .paid-module h2 { margin: 10px 0 16px; font: 500 28px/1.2 Georgia, serif; }
+.pattern-loop ol { list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 0; margin: 0; }
+.pattern-loop li { padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: #fffdf8; }
+.pattern-loop i { display: block; color: var(--wine); font-size: 11px; font-weight: 800; font-style: normal; letter-spacing: .08em; }
+.pattern-loop p { margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
+.free-teaser { margin: 28px 0; padding: 8px 0 4px; border-top: 1px solid var(--line); text-align: left; }
+.free-teaser p, .free-teaser li, .type-essay p, .paid-module p { color: var(--muted); font-size: 15px; line-height: 1.7; }
+.teaser-lock { font-size: 13px; font-style: italic; }
+.report-inclusions { margin: 18px 0; padding-left: 20px; text-align: left; }
+.report-inclusions li { margin: 8px 0; color: var(--muted); line-height: 1.6; }
+.type-essay, .paid-module { margin: 36px 0; text-align: left; }
+.type-essay article, .paid-module article { margin: 16px 0; }
+.self-talk-rewrites article { padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: #fffdf8; }
+.self-talk-rewrites span { display: block; color: var(--wine); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+.seven-day ol { padding-left: 20px; }
+.seven-day li { margin: 12px 0; }
+@media (max-width: 800px) {
+  .overview-columns .overview-grid, .pattern-loop ol { grid-template-columns: 1fr; }
+}
 @media (max-width: 640px) {
   .free-sample-choice { grid-template-columns: 1fr; }
 }

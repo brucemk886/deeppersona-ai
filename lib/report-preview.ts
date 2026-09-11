@@ -1,13 +1,16 @@
 import {
+  ATTACHMENT_LOOPS,
+  ATTACHMENT_OVERVIEWS,
   ATTACHMENT_RESULTS,
   ATTACHMENT_STYLE_META,
   isAttachmentStyle,
   resolveAttachmentScores,
 } from './attachment';
+import { childhoodTeaser, REPORT_INCLUSIONS, ROMANCE_MODULE, worthPattern } from './attachment-report';
 import type { ReportResponse, ReportSnapshot } from './payment-types';
 import type { ResultProfile } from './quiz';
 
-export const FREE_SAMPLE_MODULE = 'Getting closer';
+export const FREE_SAMPLE_MODULE = ROMANCE_MODULE;
 
 function overviewItem(title: string, points: string[] | undefined, fallback: string) {
   const list = (points ?? []).map((point) => point.trim()).filter(Boolean);
@@ -17,8 +20,10 @@ function overviewItem(title: string, points: string[] | undefined, fallback: str
 
 export function freeResultFromSnapshot(snapshot: ReportSnapshot): ResultProfile {
   const scored = resolveAttachmentScores(snapshot.questions, snapshot.answerChoices, snapshot.result);
-  const themeTitle = snapshot.result.themeTitle
-    || (snapshot.result.key === 'choices' ? snapshot.result.title : undefined);
+  const themeTitle = scored
+    ? ATTACHMENT_STYLE_META[scored.style].blurb
+    : snapshot.result.themeTitle
+      || (snapshot.result.key === 'choices' ? snapshot.result.title : undefined);
   if (!scored) {
     return {
       key: snapshot.result.key,
@@ -46,7 +51,7 @@ export function freeResultFromSnapshot(snapshot: ReportSnapshot): ResultProfile 
   };
 }
 
-// Overall reading plus one sample theme. Remaining choices and modules stay paid.
+// Overall reading plus one romance sample. Remaining choices and modules stay paid.
 export function reportPreview(snapshot: ReportSnapshot): NonNullable<ReportResponse['preview']> {
   const answered = snapshot.questions.map((q, index) => ({ q, index, selectedIndex: snapshot.answerChoices[q.id] }))
     .filter((x) => Number.isInteger(x.selectedIndex) && x.q.options[x.selectedIndex]);
@@ -56,15 +61,22 @@ export function reportPreview(snapshot: ReportSnapshot): NonNullable<ReportRespo
   const selected = sampleEntry?.q.options[sampleEntry.selectedIndex];
   const scored = resolveAttachmentScores(snapshot.questions, snapshot.answerChoices, snapshot.result);
   const copy = scored ? ATTACHMENT_RESULTS[scored.style] : snapshot.result;
+  const overviewCopy = scored ? ATTACHMENT_OVERVIEWS[scored.style] : null;
+  const loop = snapshot.deepResult.loop ?? (scored ? ATTACHMENT_LOOPS[scored.style] : undefined);
+  const worth = scored ? worthPattern(snapshot.questions, snapshot.answerChoices, scored.style) : undefined;
 
   return {
     totalChoices: answered.length,
     modules: modules.map((module) => module.title),
     overview: [
-      overviewItem('Your relationship strengths', copy.strengths, copy.strength),
-      overviewItem('Where you may get stuck', copy.stuckPoints, copy.watchout),
-      overviewItem('A starting point for you', copy.startingPoints, copy.nextStep),
+      overviewItem('In dating', overviewCopy?.dating, copy.strength),
+      overviewItem('With yourself', overviewCopy?.withSelf, copy.watchout),
+      overviewItem('Under stress', overviewCopy?.underStress, copy.nextStep),
     ].filter((item) => Boolean(item.body)),
+    loop: loop ? { name: loop.name, kind: loop.kind, steps: loop.steps } : undefined,
+    childhoodTeaser: scored ? childhoodTeaser(snapshot.questions, snapshot.answerChoices, scored.style) : undefined,
+    worthPattern: worth,
+    inclusions: REPORT_INCLUSIONS,
     sample: sampleModule && selected && sampleEntry ? {
       moduleTitle: sampleModule.title,
       explanation: sampleModule.explanation.split('\n\n')[0] ?? sampleModule.explanation,

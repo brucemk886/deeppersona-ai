@@ -1,784 +1,323 @@
-import type { QuizQuestion } from './quiz';
-// Reviewed image-choice edition. Interpretations are editorial, not clinical scores.
+import type { AttachmentStyle } from "./attachment";
+import type { QuizQuestion } from "./quiz";
+
+const FOCUS: Record<AttachmentStyle, string> = {
+  anxious: "reassurance",
+  avoidant: "space",
+  secure: "planning",
+  fearful: "reflection",
+};
+
+function option(style: AttachmentStyle, text: string, meaning: string, projection: string) {
+  return {
+    label: text,
+    microcopy: text,
+    meaning,
+    projection,
+    styleKey: style,
+    readingFocus: FOCUS[style],
+  };
+}
+
 export const relationshipQuestions: QuizQuestion[] = [
   {
-    "id": "attachment-style-v3-q01",
-    "testId": "attachment-style",
-    "kicker": "Getting closer",
-    "prompt": "Where would you most like to meet someone you are beginning to like?",
-    "atlasPath": "/quiz/relationship-v3/q01.webp",
-    "position": 1,
-    "active": true,
-    "options": [
-      {
-        "label": "Conversation",
-        "microcopy": "",
-        "meaning": "Face-to-face conversation gives attention a clear place to land. Being heard may make an unfamiliar connection easier to explore.",
-        "projection": "",
-        "readingFocus": "voice"
-      },
-      {
-        "label": "Shared pace",
-        "microcopy": "",
-        "meaning": "Walking beside someone offers contact without continuous eye contact. A little movement and less pressure may help you open up.",
-        "projection": "",
-        "readingFocus": "space"
-      },
-      {
-        "label": "Making something",
-        "microcopy": "",
-        "meaning": "Making a cup creates a shared task before deep conversation is required. You may get to know someone through cooperation and small mistakes.",
-        "projection": "",
-        "readingFocus": "action"
-      },
-      {
-        "label": "Exploring together",
-        "microcopy": "",
-        "meaning": "A night market gives the two of you things to discover together. Shared curiosity may feel more inviting than putting the whole focus on the relationship.",
-        "projection": "",
-        "readingFocus": "novelty"
-      }
-    ]
+    id: "attachment-style-v3-q01",
+    testId: "attachment-style",
+    kicker: "Romance",
+    prompt: "Your partner left you on read for 2 hours — something they almost never do. Which feels most like you?",
+    atlasPath: "/quiz/relationship-v3/q01.webp",
+    position: 1,
+    active: true,
+    options: [
+      option("anxious", "Refresh the chat / check last seen", "When a usually reliable person goes quiet, you tend to refresh the chat and scan last seen. The checking is an attempt to get a fact that can settle the spike before your mind writes a story.", "The refresh loop is protecting you from sitting in an unanswered question. Name one thing you actually know, then put the phone in another room for twenty minutes."),
+      option("avoidant", "Phone face-down, keep working or gym", "When the thread goes quiet, you tend to flip the phone over and stay inside work or a workout. Occupying your hands keeps the pause from taking over the evening.", "Staying busy protects your focus when you cannot control their timing. A short “I will check later” note to yourself can keep the distance from turning into a disappearing act."),
+      option("secure", "Continue your evening; check in calmly later if still quiet", "When they are quieter than usual, you tend to keep your evening and check in once if the silence lasts. You treat the gap as information, not an emergency.", "Continuing your evening protects both the connection and your own night. If it is still quiet later, one calm question is enough."),
+      option("fearful", "Type a message, delete it, type again", "When they leave you on read, you tend to draft, delete, and draft again. You want contact and you also fear sending the wrong thing.", "The draft-and-delete loop is protecting you from both being ignored and being “too much.” Pick one sentence you could actually send, or decide to wait until morning."),
+    ],
   },
   {
-    "id": "attachment-style-v3-q02",
-    "testId": "attachment-style",
-    "kicker": "Getting closer",
-    "prompt": "They invite you to spend a weekend together. Which scene draws you in?",
-    "atlasPath": "/quiz/relationship-v3/q02.webp",
-    "position": 2,
-    "active": true,
-    "options": [
-      {
-        "label": "An ordinary morning",
-        "microcopy": "",
-        "meaning": "Preparing breakfast brings a new bond into ordinary life. You may be curious about how it feels to share routines rather than only special occasions.",
-        "projection": "",
-        "readingFocus": "presence"
-      },
-      {
-        "label": "A picnic with friends",
-        "microcopy": "",
-        "meaning": "A picnic lets closeness develop within a wider social world. You may enjoy discovering how someone relates to other people, without the pressure of being alone together.",
-        "projection": "",
-        "readingFocus": "community"
-      },
-      {
-        "label": "A new town",
-        "microcopy": "",
-        "meaning": "Exploring a town gives the connection a sense of momentum. New experiences may help you discover how your preferences and decisions fit together.",
-        "projection": "",
-        "readingFocus": "novelty"
-      },
-      {
-        "label": "Meeting at the cinema",
-        "microcopy": "",
-        "meaning": "Meeting for an evening film creates a shared moment within otherwise separate days. You may welcome closeness more easily when your own plans still have a place.",
-        "projection": "",
-        "readingFocus": "space"
-      }
-    ]
+    id: "attachment-style-v3-q02",
+    testId: "attachment-style",
+    kicker: "Romance",
+    prompt: "Their replies turn short — \"k\", \"busy\", \"later.\" No fight, just cooler. Which feels most like you?",
+    atlasPath: "/quiz/relationship-v3/q02.webp",
+    position: 2,
+    active: true,
+    options: [
+      option("anxious", "Spiral and replay old chats — did I do something?", "When replies get clipped, you tend to replay older chats looking for the moment you caused it. The cooler tone becomes a puzzle you try to solve alone.", "Replaying old threads is protecting you from the feeling that you missed a warning. Ask one present-tense question when they are free, instead of prosecuting the archive."),
+      option("avoidant", "Match the chill; reply less yourself", "When they go brief, you tend to match the temperature and write less. Matching the chill keeps you from chasing a warmth that is not on offer right now.", "Matching the chill protects your dignity when the energy drops. If you still care, one clear check-in later can keep the freeze from becoming the new normal."),
+      option("secure", "Notice it, stay steady, ask once when they are free", "When the tone cools, you tend to notice it, stay steady, and ask once when they have room. You treat the change as something to name, not something to catch.", "Noticing and asking once is protecting the bond from both panic and pretence. Wait until they are free, then use one sentence."),
+      option("fearful", "Double-text, then go cold", "When they go cooler, you tend to send a second message and then shut down. The reach and the freeze can happen in the same hour.", "Double-texting then going cold is protecting you from waiting in an open loop. Choose one move — ask or pause — and give it until the next day."),
+    ],
   },
   {
-    "id": "attachment-style-v3-q03",
-    "testId": "attachment-style",
-    "kicker": "Getting closer",
-    "prompt": "After a long day, how would you most like to spend time together?",
-    "atlasPath": "/quiz/relationship-v3/q03.webp",
-    "position": 3,
-    "active": true,
-    "options": [
-      {
-        "label": "Resting in an embrace",
-        "microcopy": "",
-        "meaning": "An embrace offers contact before explanation. After a demanding day, being physically welcomed may feel more useful than immediately finding the right words.",
-        "projection": "",
-        "readingFocus": "presence"
-      },
-      {
-        "label": "Talking over dinner",
-        "microcopy": "",
-        "meaning": "Dinner conversation gives the day somewhere to go. You may feel close through someone taking an interest in ordinary details, not only solving a problem.",
-        "projection": "",
-        "readingFocus": "voice"
-      },
-      {
-        "label": "Cycling at sunset",
-        "microcopy": "",
-        "meaning": "Cycling changes the rhythm of the day through movement. Shared activity may help you reconnect when sitting down to talk would still feel effortful.",
-        "projection": "",
-        "readingFocus": "action"
-      },
-      {
-        "label": "Sharing quiet space",
-        "microcopy": "",
-        "meaning": "Painting and reading leave room for two separate interests in one space. Quiet coexistence may feel connected without requiring constant attention.",
-        "projection": "",
-        "readingFocus": "space"
-      }
-    ]
+    id: "attachment-style-v3-q03",
+    testId: "attachment-style",
+    kicker: "Romance",
+    prompt: "They say, \"I need tonight to myself.\" Which feels most like you?",
+    atlasPath: "/quiz/relationship-v3/q03.webp",
+    position: 3,
+    active: true,
+    options: [
+      option("anxious", "Hear rejection — push to call or come over \"just for a bit\"", "When they ask for a night alone, you tend to hear rejection and push for a call or a short visit. Closeness in the same evening can feel like the only proof you are still wanted.", "Pushing for a bit of contact is protecting you from the sting of being set aside. Try believing the request is about their battery, then name a time to reconnect tomorrow."),
+      option("avoidant", "Feel relief — take the space; maybe reply tomorrow", "When they want the night to themselves, you tend to feel relief and take the space. A break from contact can feel like getting your mind back.", "Taking the space is protecting your quiet. A one-line “enjoy — talk tomorrow” keeps the relief from looking like disappearance."),
+      option("secure", "\"Got it — enjoy. Talk tomorrow?\"", "When they ask for a night alone, you tend to agree and set a simple next touchpoint. You can honor the space without treating it as a verdict.", "Agreeing out loud protects both people’s evenings. The optional “talk tomorrow” makes the pause feel like a plan, not a fade."),
+      option("fearful", "Agree out loud, then check if they are still online later", "When they ask for space, you tend to agree and then watch whether they stay online. You give the room with your words and keep scanning with your eyes.", "Checking later is protecting you from agreeing to a distance you do not trust yet. If you said yes, let the night be theirs unless something urgent appears."),
+    ],
   },
   {
-    "id": "attachment-style-v3-q04",
-    "testId": "attachment-style",
-    "kicker": "Getting closer",
-    "prompt": "When it is time to say goodbye, which scene feels most familiar?",
-    "atlasPath": "/quiz/relationship-v3/q04.webp",
-    "position": 4,
-    "active": true,
-    "options": [
-      {
-        "label": "A goodbye embrace",
-        "microcopy": "",
-        "meaning": "The embrace gives the ending a clear moment of contact. A tangible goodbye may help you carry the sense of connection into time apart.",
-        "projection": "",
-        "readingFocus": "presence"
-      },
-      {
-        "label": "Turning back to wave",
-        "microcopy": "",
-        "meaning": "A wave preserves a small thread of connection after separation has begun. You may appreciate affection that remains visible without extending the whole goodbye.",
-        "projection": "",
-        "readingFocus": "presence"
-      },
-      {
-        "label": "A longer walk",
-        "microcopy": "",
-        "meaning": "Continuing to walk stretches the shared moment. You may enjoy a gradual transition from togetherness to being on your own.",
-        "projection": "",
-        "readingFocus": "presence"
-      },
-      {
-        "label": "Going your own way",
-        "microcopy": "",
-        "meaning": "A warm goodbye followed by separate plans gives both experiences a place. Moving on with your day does not, by itself, say how deeply you care.",
-        "projection": "",
-        "readingFocus": "space"
-      }
-    ]
+    id: "attachment-style-v3-q04",
+    testId: "attachment-style",
+    kicker: "Romance",
+    prompt: "You are exclusive in practice, but you have not named what you are. A friend asks if you are official. Which feels most like you?",
+    atlasPath: "/quiz/relationship-v3/q04.webp",
+    position: 4,
+    active: true,
+    options: [
+      option("anxious", "Bring it up tonight — you need the label", "When the relationship is unnamed, you tend to bring the label up tonight. A word for what you are can feel like the only way to stand on solid ground.", "Needing the label is protecting you from investing without a map. You can still ask clearly without turning tonight into a pass-or-fail exam."),
+      option("avoidant", "Dodge — labels feel like a trap", "When someone asks if you are official, you tend to dodge. A name can feel like it will lock a door you are not ready to close.", "Dodging the label is protecting your sense of an exit. If the bond is already exclusive in practice, naming one piece of that can be smaller than it feels."),
+      option("secure", "Want clarity; pick a calm time to ask", "When the status is fuzzy, you tend to want clarity and pick a calmer moment to ask. You treat the conversation as useful, not as a test you have to pass tonight.", "Waiting for a calm time is protecting the talk from panic. Write the one sentence you want to ask so the moment does not swallow you."),
+      option("fearful", "Want the label and fear feeling trapped", "When a friend asks if you are official, you tend to want the word and fear the cage in the same breath. Both the hunger for certainty and the fear of being stuck are real.", "Wanting the label and fearing the trap is protecting you from two losses at once. Ask for the definition you need, and also name the freedom you do not want to give up."),
+    ],
   },
   {
-    "id": "attachment-style-v3-q05",
-    "testId": "attachment-style",
-    "kicker": "Waiting and uncertainty",
-    "prompt": "Your message has not received a reply. Which scene would you choose now?",
-    "atlasPath": "/quiz/relationship-v3/q05.webp",
-    "position": 5,
-    "active": true,
-    "options": [
-      {
-        "label": "Waiting by the window",
-        "microcopy": "",
-        "meaning": "Holding the phone keeps a possible reply close to your attention. You may be looking for a concrete signal that interrupts the uncertainty; the image does not tell us whether the delay is unusual.",
-        "projection": "",
-        "readingFocus": "reassurance"
-      },
-      {
-        "label": "Swimming",
-        "microcopy": "",
-        "meaning": "Swimming gives attention a physical task and a different rhythm. Movement may help you spend the waiting period somewhere other than inside the unanswered message.",
-        "projection": "",
-        "readingFocus": "action"
-      },
-      {
-        "label": "Dinner with friends",
-        "microcopy": "",
-        "meaning": "Friends keep another source of connection available. You may find perspective through a social world that does not depend on one person's availability.",
-        "projection": "",
-        "readingFocus": "community"
-      },
-      {
-        "label": "Writing your thoughts",
-        "microcopy": "",
-        "meaning": "Writing creates a place for thoughts before they become another message. You may want to understand what you feel and what you actually want to ask.",
-        "projection": "",
-        "readingFocus": "reflection"
-      }
-    ]
+    id: "attachment-style-v3-q05",
+    testId: "attachment-style",
+    kicker: "Romance",
+    prompt: "After a good week, they get more affectionate and talk future. Your first move?",
+    atlasPath: "/quiz/relationship-v3/q05.webp",
+    position: 5,
+    active: true,
+    options: [
+      option("anxious", "Lean in hard — more texts, more plans, hold tight", "When they get more affectionate, you tend to lean in with more texts, more plans, and a tighter hold. A good week can feel like a window you need to keep open.", "Leaning in hard is protecting a warmth that finally arrived. Keep one plan that is only yours so the good week does not erase you."),
+      option("avoidant", "Pull back a notch — suddenly too close", "When they talk future after a good week, you tend to pull back a notch. Sudden closeness can feel like the air got thinner.", "Pulling back is protecting your pace when the bond speeds up. A sentence about needing a slower tempo can keep the step-back from looking like rejection."),
+      option("secure", "Enjoy it and keep your own pace", "When affection and future-talk increase, you tend to enjoy it and keep your own pace. You can receive the warmth without dropping the rest of your life.", "Keeping your pace is protecting the good week from becoming a merger. Say what you like about the closeness, then keep the Tuesday that was already yours."),
+      option("fearful", "Melt in tonight; go quiet or pick a fight tomorrow", "When they get more affectionate, you tend to melt in tonight and then go quiet or pick a fight tomorrow. The same closeness can feel like relief and risk in two different hours.", "Melting in and then cooling off is protecting you from staying in a warmth you do not trust yet. Notice the turn before you start the fight, and name the fear instead."),
+    ],
   },
   {
-    "id": "attachment-style-v3-q06",
-    "testId": "attachment-style",
-    "kicker": "Waiting and uncertainty",
-    "prompt": "Your date is cancelled. How would you most like to spend the evening?",
-    "atlasPath": "/quiz/relationship-v3/q06.webp",
-    "position": 6,
-    "active": true,
-    "options": [
-      {
-        "label": "Going for a run",
-        "microcopy": "",
-        "meaning": "Running turns an unexpected gap into movement you can choose. It may help you regain a sense of agency without needing the cancelled plan to be restored immediately.",
-        "projection": "",
-        "readingFocus": "action"
-      },
-      {
-        "label": "A film on your own",
-        "microcopy": "",
-        "meaning": "A blanket and a film ask little of you. Rest may be the form of care you want when disappointment has already used up some of your energy.",
-        "projection": "",
-        "readingFocus": "rest"
-      },
-      {
-        "label": "A meal with a friend",
-        "microcopy": "",
-        "meaning": "Dinner with a friend keeps the evening connected. You may want warmth and company without making one cancelled meeting the whole story of your day.",
-        "projection": "",
-        "readingFocus": "community"
-      },
-      {
-        "label": "Visiting an exhibition",
-        "microcopy": "",
-        "meaning": "Visiting an exhibition preserves a part of the plan for yourself. You may enjoy continuing an experience even when the original companion cannot join.",
-        "projection": "",
-        "readingFocus": "novelty"
-      }
-    ]
+    id: "attachment-style-v3-q06",
+    testId: "attachment-style",
+    kicker: "Romance",
+    prompt: "You had a rough day at work. They ask what is wrong. Which feels most like you?",
+    atlasPath: "/quiz/relationship-v3/q06.webp",
+    position: 6,
+    active: true,
+    options: [
+      option("anxious", "Spill everything; need comfort now", "When they ask what is wrong, you tend to spill the whole day and need comfort in the same conversation. Being held in the feeling can matter more than editing the story.", "Spilling everything is protecting you from carrying the day alone. You can still say what kind of comfort would help — listening, a hug, or a plan."),
+      option("avoidant", "Say you are fine; handle it alone", "When they ask what is wrong, you tend to say you are fine and handle it alone. Keeping the hard day private can feel like the fastest way to get through it.", "Saying you are fine is protecting your privacy while you are still raw. One headline — “work was rough; I need an hour” — can keep the wall from looking like “you do not matter.”"),
+      option("secure", "Share the headline and what would help", "When they ask, you tend to share the headline and what would actually help. You let them in without handing over the entire day at once.", "Sharing the headline is protecting both honesty and capacity. If you do not know what would help yet, saying that is still a complete answer."),
+      option("fearful", "Start to open, then shut down mid-story", "When they ask what is wrong, you tend to start opening and then shut down mid-story. The wish to be known and the fear of being seen can collide halfway through a sentence.", "Shutting down mid-story is protecting you from being met badly once you are already open. Tell them you hit a wall, and ask to finish later rather than vanishing mid-sentence."),
+    ],
   },
   {
-    "id": "attachment-style-v3-q07",
-    "testId": "attachment-style",
-    "kicker": "Waiting and uncertainty",
-    "prompt": "You have felt less connected lately. Which scene draws you in?",
-    "atlasPath": "/quiz/relationship-v3/q07.webp",
-    "position": 7,
-    "active": true,
-    "options": [
-      {
-        "label": "Talking at the table",
-        "microcopy": "",
-        "meaning": "A direct conversation brings uncertainty into the shared space. You may prefer hearing the other person's account to continuing to interpret small signs on your own.",
-        "projection": "",
-        "readingFocus": "voice"
-      },
-      {
-        "label": "Preparing a meal",
-        "microcopy": "",
-        "meaning": "Preparing a meal offers care through an action. You may find it easier to create a welcoming moment than to begin with a difficult question.",
-        "projection": "",
-        "readingFocus": "action"
-      },
-      {
-        "label": "Taking your camera out",
-        "microcopy": "",
-        "meaning": "Going out with a camera returns attention to your own interests. It can give perspective, while leaving open the question of what you still want to discuss.",
-        "projection": "",
-        "readingFocus": "space"
-      },
-      {
-        "label": "Looking through photos",
-        "microcopy": "",
-        "meaning": "Shared photographs bring earlier connection into the present. Familiar memories may reassure you, although they cannot tell you what the other person currently feels.",
-        "projection": "",
-        "readingFocus": "reassurance"
-      }
-    ]
+    id: "attachment-style-v3-q07",
+    testId: "attachment-style",
+    kicker: "Romance",
+    prompt: "You have been together three days straight. Sunday afternoon hits. You want…",
+    atlasPath: "/quiz/relationship-v3/q07.webp",
+    position: 7,
+    active: true,
+    options: [
+      option("anxious", "Keep them close — suggest one more plan", "After three days together, you tend to suggest one more plan. Ending the stretch can feel like losing a warmth you just got used to.", "Suggesting one more plan is protecting you from the drop after closeness. You can also name the goodbye and pick a next time, so the ending has a shape."),
+      option("avoidant", "Real alone time — headphones or solo errands", "After three days together, you tend to want real alone time — headphones or a solo errand. Your system may need a hallway back to yourself.", "Wanting headphones or errands is protecting your restored mind. Say when you will be back so the alone time does not read as a sudden exit."),
+      option("secure", "A few hours apart, reconnect for dinner", "After a long stretch together, you tend to want a few hours apart and a planned reconnect. Space and return can sit in the same afternoon.", "A few hours apart is protecting the next good evening. Naming dinner makes the pause feel shared instead of unexplained."),
+      option("fearful", "Ask for space, then feel guilty and clingy", "After three days together, you tend to ask for space and then feel guilty and clingy. The need for air and the fear of losing them can arrive together.", "Asking for space and then clinging is protecting two needs that have not been introduced to each other. Keep the space you asked for, and send one kind, time-bounded check-in."),
+    ],
   },
   {
-    "id": "attachment-style-v3-q08",
-    "testId": "attachment-style",
-    "kicker": "Waiting and uncertainty",
-    "prompt": "Before some time apart, which moment would you most like to share?",
-    "atlasPath": "/quiz/relationship-v3/q08.webp",
-    "position": 8,
-    "active": true,
-    "options": [
-      {
-        "label": "Cooking together",
-        "microcopy": "",
-        "meaning": "Cooking makes an ordinary shared routine the thing worth keeping. You may value the feeling of everyday belonging more than making the farewell exceptional.",
-        "projection": "",
-        "readingFocus": "presence"
-      },
-      {
-        "label": "A train journey",
-        "microcopy": "",
-        "meaning": "A small journey creates a distinct memory before separation. You may want something fresh and shared to carry into the time apart.",
-        "projection": "",
-        "readingFocus": "novelty"
-      },
-      {
-        "label": "Packing a small gift",
-        "microcopy": "",
-        "meaning": "Helping pack and adding a gift turns affection into practical care. You may express connection through something that will remain useful or meaningful after you leave.",
-        "projection": "",
-        "readingFocus": "action"
-      },
-      {
-        "label": "A late conversation",
-        "microcopy": "",
-        "meaning": "A late conversation gives room to say what the separation means. Being understood may help you more than filling the remaining hours with activity.",
-        "projection": "",
-        "readingFocus": "voice"
-      }
-    ]
+    id: "attachment-style-v3-q08",
+    testId: "attachment-style",
+    kicker: "Romance",
+    prompt: "Voices got sharp. You both go quiet. First move?",
+    atlasPath: "/quiz/relationship-v3/q08.webp",
+    position: 8,
+    active: true,
+    options: [
+      option("anxious", "Chase — text or call to fix it now", "Right after a sharp fight, you tend to text or call to fix it now. An open rupture can feel unbearable until there is a repair in the same hour.", "Chasing the repair is protecting you from sitting in a ruptured bond. A pause with a return time can still be a repair, even if the full talk waits."),
+      option("avoidant", "Withdraw — leave the room or house", "After voices get sharp, you tend to leave the room or the house. Distance can feel like the only way to stop making it worse.", "Leaving the room is protecting both of you from the next sharp sentence. Tell them you are stepping out and when you will come back, so the exit is not the last word."),
+      option("secure", "Pause with a return time: \"I need 20 minutes, then let us talk\"", "After a sharp exchange, you tend to pause with a return time. You can feel the heat and still keep the conversation on the calendar.", "Naming twenty minutes is protecting the talk from happening at the worst temperature. Come back when you said you would, even if you only start with one sentence."),
+      option("fearful", "Push away, then panic they will not come back", "After the quiet lands, you tend to push away and then panic they will not come back. The same fight can send you toward the door and toward the phone.", "Pushing away then panicking is protecting you from staying in the heat and from being left in it. Pick the pause or the reach, and finish that move before switching."),
+    ],
   },
   {
-    "id": "attachment-style-v3-q09",
-    "testId": "attachment-style",
-    "kicker": "Receiving care",
-    "prompt": "You have had a difficult day. What kind of company feels comforting?",
-    "atlasPath": "/quiz/relationship-v3/q09.webp",
-    "position": 9,
-    "active": true,
-    "options": [
-      {
-        "label": "Leaning on a shoulder",
-        "microcopy": "",
-        "meaning": "Leaning on someone offers support without requiring a polished explanation. You may need emotional contact before you are ready to make sense of the day.",
-        "projection": "",
-        "readingFocus": "presence"
-      },
-      {
-        "label": "Being listened to",
-        "microcopy": "",
-        "meaning": "Attentive listening gives your experience room without immediately redirecting it. You may want someone to understand before suggesting what to do.",
-        "projection": "",
-        "readingFocus": "voice"
-      },
-      {
-        "label": "Handling things together",
-        "microcopy": "",
-        "meaning": "Working through the pile together reduces what you are carrying. Practical help may feel caring because it changes the conditions that are overwhelming you.",
-        "projection": "",
-        "readingFocus": "action"
-      },
-      {
-        "label": "A meal and time alone",
-        "microcopy": "",
-        "meaning": "Food near the door combines care with fewer demands. You may want support that remains available while you recover privately.",
-        "projection": "",
-        "readingFocus": "rest"
-      }
-    ]
+    id: "attachment-style-v3-q09",
+    testId: "attachment-style",
+    kicker: "Romance",
+    prompt: "They apologize, but not with every detail you wanted. Which feels most like you?",
+    atlasPath: "/quiz/relationship-v3/q09.webp",
+    position: 9,
+    active: true,
+    options: [
+      option("anxious", "Keep pressing until it feels fully resolved", "When an apology is incomplete, you tend to keep pressing until every detail feels resolved. Half-repair can feel like the fight is still happening under the floor.", "Pressing for a full resolution is protecting you from forgiving too soon. You can name the missing piece once, then watch whether the next week matches the words."),
+      option("avoidant", "Say it is fine; stay distant inside", "When the apology is thin, you tend to say it is fine and stay distant inside. Closing the topic can feel safer than staying in the tender part.", "Saying it is fine is protecting you from another round. If a piece still matters, you can keep the peace now and name that piece at a calmer time."),
+      option("secure", "Name what is still missing once, then watch actions", "When the apology is incomplete, you tend to name what is still missing once and then watch what they do. You treat repair as words plus a next move.", "Naming the missing piece once is protecting the relationship from both silence and a cross-examination. Let the next days show you whether to reopen it."),
+      option("fearful", "Accept now; bring it up days later in a new fight", "When they apologize incompletely, you tend to accept now and bring it up days later in a new fight. The unsaid piece waits until there is fresh heat.", "Accepting now and exploding later is protecting you from conflict in the moment. Write the leftover sentence tonight so it does not have to hitch a ride on the next argument."),
+    ],
   },
   {
-    "id": "attachment-style-v3-q10",
-    "testId": "attachment-style",
-    "kicker": "Receiving care",
-    "prompt": "You are feeling unwell. Which kind of care draws you in?",
-    "atlasPath": "/quiz/relationship-v3/q10.webp",
-    "position": 10,
-    "active": true,
-    "options": [
-      {
-        "label": "Quiet bedside company",
-        "microcopy": "",
-        "meaning": "Bedside company makes another person available while little is expected of you. Presence may feel reassuring even when it cannot change the discomfort.",
-        "projection": "",
-        "readingFocus": "presence"
-      },
-      {
-        "label": "Something warm to eat",
-        "microcopy": "",
-        "meaning": "Preparing food makes care concrete. You may feel supported when someone notices and handles a basic need before you have to organize it yourself.",
-        "projection": "",
-        "readingFocus": "action"
-      },
-      {
-        "label": "Company at the clinic",
-        "microcopy": "",
-        "meaning": "Company at a clinic adds practical and emotional support to an unfamiliar task. You may appreciate not having to manage every step alone.",
-        "projection": "",
-        "readingFocus": "action"
-      },
-      {
-        "label": "Uninterrupted sleep",
-        "microcopy": "",
-        "meaning": "Prepared supplies and quiet sleep leave you cared for without continued interaction. You may recover best when help protects rest rather than adding conversation.",
-        "projection": "",
-        "readingFocus": "rest"
-      }
-    ]
+    id: "attachment-style-v3-q10",
+    testId: "attachment-style",
+    kicker: "Romance",
+    prompt: "Same argument for the third time (texts, tone, or promises). You tend to…",
+    atlasPath: "/quiz/relationship-v3/q10.webp",
+    position: 10,
+    active: true,
+    options: [
+      option("anxious", "Protest harder — more emotion, more examples", "When the same fight returns, you tend to protest harder with more emotion and more examples. Volume can feel like the only way to be taken seriously.", "Protesting harder is protecting a need that has not landed yet. One concrete change, asked once, may travel farther than a larger pile of evidence."),
+      option("avoidant", "Shut down / stonewall", "When the argument repeats, you tend to shut down or stonewall. Silence can feel like the only remaining way not to make it worse.", "Stonewalling is protecting you from a loop that already feels hopeless. A short “I cannot do this well tonight; here is one change I can try” still keeps a door cracked."),
+      option("secure", "Own your part and ask for one concrete change", "When the same fight comes back, you tend to own your part and ask for one concrete change. You treat the pattern as something you can edit, not only endure.", "Asking for one change is protecting the third round from becoming a trial. Write the change in a sentence you could both recognize next week."),
+      option("fearful", "Explode, then ghost for a day", "When the same argument returns, you tend to explode and then ghost for a day. The protest and the disappearance can be two halves of one move.", "Exploding then ghosting is protecting you from staying in a fight that never ends. After the heat, send a return time instead of a blank day."),
+    ],
   },
   {
-    "id": "attachment-style-v3-q11",
-    "testId": "attachment-style",
-    "kicker": "Receiving care",
-    "prompt": "Something feels difficult to handle. Which scene would you choose?",
-    "atlasPath": "/quiz/relationship-v3/q11.webp",
-    "position": 11,
-    "active": true,
-    "options": [
-      {
-        "label": "Working through it together",
-        "microcopy": "",
-        "meaning": "Working together at a computer shares the load of finding a solution. You may welcome support that participates in the task while leaving you involved.",
-        "projection": "",
-        "readingFocus": "action"
-      },
-      {
-        "label": "Talking on a walk",
-        "microcopy": "",
-        "meaning": "Walking and talking give the problem a listener before it needs an answer. Naming what is difficult may be part of how you work out the next step.",
-        "projection": "",
-        "readingFocus": "voice"
-      },
-      {
-        "label": "Mapping it out alone",
-        "microcopy": "",
-        "meaning": "A whiteboard places the problem outside your head. You may want a first pass at organizing it yourself before deciding what assistance would help.",
-        "projection": "",
-        "readingFocus": "reflection"
-      },
-      {
-        "label": "Ideas from friends",
-        "microcopy": "",
-        "meaning": "Several friends bring more than one perspective. You may feel less stuck when the problem is held within a wider network of support.",
-        "projection": "",
-        "readingFocus": "community"
-      }
-    ]
+    id: "attachment-style-v3-q11",
+    testId: "attachment-style",
+    kicker: "Romance",
+    prompt: "They tear up telling you something hard. Which feels most like you?",
+    atlasPath: "/quiz/relationship-v3/q11.webp",
+    position: 11,
+    active: true,
+    options: [
+      option("anxious", "Jump in with your feelings or rush to fix them", "When they tear up, you tend to jump in with your own feelings or rush to fix them. Their pain can pull you into action before you have finished listening.", "Rushing to fix it is protecting you from sitting in someone else’s hurt. Try one question — “do you want comfort or ideas?” — before you add your story."),
+      option("avoidant", "Feel awkward — joke or intellectualize", "When they get vulnerable, you tend to feel awkward and joke or intellectualize. Humor or analysis can put a floor under a moment that feels too raw.", "Joking or analyzing is protecting you from a feeling you do not have a map for. You can still say “this matters” before you reach for the lighter tone."),
+      option("secure", "Stay present, listen, ask what they need", "When they tear up, you tend to stay present, listen, and ask what they need. You can be close without taking over the feeling.", "Staying present is protecting the moment from being turned into your project. If you get flooded, you can still say you are here and need a minute."),
+      option("fearful", "Feel close, then suddenly overwhelmed and need air", "When they get vulnerable, you tend to feel close and then suddenly overwhelmed and need air. Intimacy can warm you and then flood you in the same scene.", "Needing air after closeness is protecting you from drowning in a feeling that is not only yours. Name the closeness you felt, then take a timed pause."),
+    ],
   },
   {
-    "id": "attachment-style-v3-q12",
-    "testId": "attachment-style",
-    "kicker": "Receiving care",
-    "prompt": "You have accomplished something important. How would you celebrate?",
-    "atlasPath": "/quiz/relationship-v3/q12.webp",
-    "position": 12,
-    "active": true,
-    "options": [
-      {
-        "label": "A celebratory hug",
-        "microcopy": "",
-        "meaning": "An immediate hug makes joy something you share physically. Being received by a close person may be an important part of an achievement feeling real.",
-        "projection": "",
-        "readingFocus": "presence"
-      },
-      {
-        "label": "Dinner for two",
-        "microcopy": "",
-        "meaning": "A dinner for two creates focused time to mark what happened. You may want a close person to recognize the work behind the result.",
-        "projection": "",
-        "readingFocus": "presence"
-      },
-      {
-        "label": "A gathering with friends",
-        "microcopy": "",
-        "meaning": "A gathering lets success become part of your wider social life. Shared excitement and being witnessed by several people may add meaning to the milestone.",
-        "projection": "",
-        "readingFocus": "community"
-      },
-      {
-        "label": "A solo visit",
-        "microcopy": "",
-        "meaning": "A solo visit gives you room to experience the achievement on your own terms. Private satisfaction can matter alongside, rather than instead of, recognition from others.",
-        "projection": "",
-        "readingFocus": "space"
-      }
-    ]
+    id: "attachment-style-v3-q12",
+    testId: "attachment-style",
+    kicker: "Romance",
+    prompt: "You had a really close night. Morning after, you usually…",
+    atlasPath: "/quiz/relationship-v3/q12.webp",
+    position: 12,
+    active: true,
+    options: [
+      option("anxious", "Need contact — texts, plans, reassurance", "The morning after closeness, you tend to need contact — a text, a plan, a sign it still counts in daylight. Nighttime warmth can feel unfinished until morning confirms it.", "Needing contact by noon is protecting last night from turning into a one-off. One warm message is enough; you do not have to rebuild the whole bond before lunch."),
+      option("avoidant", "Need space — quiet alone time, less mush", "The morning after a close night, you tend to need space and less mush. Daylight can make the intensity feel like too much fabric against the skin.", "Wanting quiet in the morning is protecting your return to yourself. A kind “I had a good night; I need a slow morning” can keep the space from feeling like regret."),
+      option("secure", "Warm and normal — affection without urgency", "The morning after closeness, you tend to be warm and normal. Affection can continue without a campaign to lock the feeling in.", "Warm-and-normal is protecting the night from being overworked. A simple good morning plus your regular day is already a continuation."),
+      option("fearful", "Pull them close at night, pull away by noon", "After a close night, you tend to pull them close in the dark and pull away by noon. The same bond can feel safe at night and exposing in daylight.", "Pulling close then pulling away is protecting you from being seen before you are ready. Tell them mornings are slower for you, so the noon distance has a reason."),
+    ],
   },
   {
-    "id": "attachment-style-v3-q13",
-    "testId": "attachment-style",
-    "kicker": "Togetherness and personal space",
-    "prompt": "You want different things this weekend. Which scene appeals to you?",
-    "atlasPath": "/quiz/relationship-v3/q13.webp",
-    "position": 13,
-    "active": true,
-    "options": [
-      {
-        "label": "Joining their hobby",
-        "microcopy": "",
-        "meaning": "Joining a partner's hobby is a way of entering their world. Curiosity can communicate care, especially when there is also room for your interests at other times.",
-        "projection": "",
-        "readingFocus": "action"
-      },
-      {
-        "label": "Making room for both plans",
-        "microcopy": "",
-        "meaning": "A day containing both interests makes compromise visible. You may prefer a practical arrangement that gives each person's preference an actual place.",
-        "projection": "",
-        "readingFocus": "planning"
-      },
-      {
-        "label": "Reuniting for dinner",
-        "microcopy": "",
-        "meaning": "Reuniting after separate activities makes independence compatible with a shared ending. You may not need identical plans to feel that you are a couple.",
-        "projection": "",
-        "readingFocus": "space"
-      },
-      {
-        "label": "Trying climbing together",
-        "microcopy": "",
-        "meaning": "Trying something new avoids making either existing preference the default. You may enjoy discovering a shared option through experience rather than negotiation alone.",
-        "projection": "",
-        "readingFocus": "novelty"
-      }
-    ]
+    id: "attachment-style-v3-q13",
+    testId: "attachment-style",
+    kicker: "Self-esteem",
+    prompt: "A partner or friend sincerely compliments you. Which feels most like you?",
+    atlasPath: "/quiz/relationship-v3/q13.webp",
+    position: 13,
+    active: true,
+    options: [
+      option("anxious", "Ask if they really mean it", "When someone compliments you, you tend to ask if they really mean it. Praise can feel unstable until they prove it was not politeness.", "Checking if they mean it is protecting you from swallowing a kindness that might be taken back. Try receiving the sentence once before you cross-examine it."),
+      option("avoidant", "Deflect — change the subject", "When a compliment lands, you tend to deflect and change the subject. Being seen in a good light can feel more exposing than being left alone.", "Deflecting is protecting you from being placed on a pedestal you did not ask for. A short thank-you still lets the kindness exist."),
+      option("secure", "Take it in and say thank you", "When the compliment is sincere, you tend to take it in and say thank you. You can let a good sentence be true for a moment without arguing with it.", "Taking it in is protecting the relationship from having to work so hard to reach you. You can believe them today and still be modest tomorrow."),
+      option("fearful", "Feel good, then later feel undeserving", "When they compliment you, you tend to feel good and later feel undeserving. The warmth can sour once you are alone with it.", "Feeling good then undeserving is protecting you from settling into a version of yourself you do not trust. Write the compliment down before the later voice edits it."),
+    ],
   },
   {
-    "id": "attachment-style-v3-q14",
-    "testId": "attachment-style",
-    "kicker": "Togetherness and personal space",
-    "prompt": "After several days together, which afternoon would you choose?",
-    "atlasPath": "/quiz/relationship-v3/q14.webp",
-    "position": 14,
-    "active": true,
-    "options": [
-      {
-        "label": "Walking with headphones",
-        "microcopy": "",
-        "meaning": "Headphones and a solo walk return attention to your own pace. A period with fewer demands may help you notice what you want after sustained togetherness.",
-        "projection": "",
-        "readingFocus": "space"
-      },
-      {
-        "label": "Separate activities in one room",
-        "microcopy": "",
-        "meaning": "Separate activities allow shared presence without continuous exchange. You may want a change in the intensity of contact rather than physical separation.",
-        "projection": "",
-        "readingFocus": "space"
-      },
-      {
-        "label": "Seeing friends",
-        "microcopy": "",
-        "meaning": "Seeing friends reconnects you with relationships beyond the couple. You may value keeping several sources of belonging active.",
-        "projection": "",
-        "readingFocus": "community"
-      },
-      {
-        "label": "Exploring a garden together",
-        "microcopy": "",
-        "meaning": "A new place changes the setting while preserving companionship. What you want may be variety within togetherness rather than time apart.",
-        "projection": "",
-        "readingFocus": "novelty"
-      }
-    ]
+    id: "attachment-style-v3-q14",
+    testId: "attachment-style",
+    kicker: "Self-esteem",
+    prompt: "You replied late or said the wrong thing. Afterward you…",
+    atlasPath: "/quiz/relationship-v3/q14.webp",
+    position: 14,
+    active: true,
+    options: [
+      option("anxious", "Over-apologize — fear they will leave", "After a small miss, you tend to over-apologize because a late reply can feel like it might make them leave. The repair gets larger than the mistake.", "Over-apologizing is protecting you from being abandoned over a small miss. Own it once, then let them show you they are still here."),
+      option("avoidant", "Act like nothing happened; push it down", "After a late reply or a wrong sentence, you tend to act like nothing happened. Pushing it down can feel cleaner than staying in the awkwardness.", "Acting like nothing happened is protecting you from a shame spike. If it mattered, one clean ownership line is smaller than the silence."),
+      option("secure", "Own it once if needed, then move on", "After a small mistake, you tend to own it once if needed and then move on. You treat the miss as editable, not as a verdict on your worth.", "Owning it once is protecting both accountability and proportion. If they need more, they can ask; you do not have to pre-pay with a speech."),
+      option("fearful", "Want to explain and want to disappear", "After a small miss, you tend to want to explain and want to disappear. The same moment asks for a defense and an exit.", "Wanting to explain and disappear is protecting you from being misread and from being seen. Send the one-sentence repair, then step away from the thread."),
+    ],
   },
   {
-    "id": "attachment-style-v3-q15",
-    "testId": "attachment-style",
-    "kicker": "Togetherness and personal space",
-    "prompt": "Which part of your world would you most like to share?",
-    "atlasPath": "/quiz/relationship-v3/q15.webp",
-    "position": 15,
-    "active": true,
-    "options": [
-      {
-        "label": "A familiar childhood street",
-        "microcopy": "",
-        "meaning": "A familiar street gives personal history a setting. You may find it easier to share memories when you can show where they belong; the choice cannot establish what your childhood was like.",
-        "projection": "",
-        "readingFocus": "reflection"
-      },
-      {
-        "label": "Your creative interests",
-        "microcopy": "",
-        "meaning": "Showing your interests invites someone to know a part of you that exists independently of the relationship. Being understood may include having this world respected.",
-        "projection": "",
-        "readingFocus": "space"
-      },
-      {
-        "label": "Your closest friends",
-        "microcopy": "",
-        "meaning": "Introducing close friends shares your social context. You may want a partner to understand who you are across more than one relationship.",
-        "projection": "",
-        "readingFocus": "community"
-      },
-      {
-        "label": "An important photo album",
-        "microcopy": "",
-        "meaning": "Looking through an album creates an opening for personal stories. You may welcome intimacy through choosing what to explain and how much to reveal.",
-        "projection": "",
-        "readingFocus": "voice"
-      }
-    ]
+    id: "attachment-style-v3-q15",
+    testId: "attachment-style",
+    kicker: "Self-esteem",
+    prompt: "You notice someone in their world who seems richer, hotter, or more successful. You…",
+    atlasPath: "/quiz/relationship-v3/q15.webp",
+    position: 15,
+    active: true,
+    options: [
+      option("anxious", "Worry you are not enough; seek reassurance you are still chosen", "When someone in their world looks like more, you tend to worry you are not enough and seek reassurance you are still chosen. Comparison becomes a test of the bond.", "Seeking reassurance is protecting you from the fear of being replaced. Ask for one specific kind of care, not a ranking against a stranger."),
+      option("avoidant", "Tell yourself you do not care; cool off a bit", "When comparison shows up, you tend to tell yourself you do not care and cool off a bit. Pulling heat out of the bond can feel safer than competing.", "Cooling off is protecting you from a comparison you did not consent to. You can still admit the flicker without leaving the room emotionally."),
+      option("secure", "Feel a flicker, without writing yourself off", "When you notice someone who seems ahead, you tend to feel a flicker without writing yourself off. The comparison can register and still not become a verdict.", "Letting the flicker pass is protecting your worth from a highlight reel. If it stays loud, say so without asking them to dethrone the other person."),
+      option("fearful", "Look fine outwardly; spiral privately later", "When comparison hits, you tend to look fine outwardly and spiral privately later. The polished face and the night thoughts can belong to the same hour.", "Looking fine and spiraling later is protecting you from being the insecure one in the room. Bring one honest sentence to someone safe before the spiral writes the ending."),
+    ],
   },
   {
-    "id": "attachment-style-v3-q16",
-    "testId": "attachment-style",
-    "kicker": "Togetherness and personal space",
-    "prompt": "If you lived together, which everyday scene would appeal to you?",
-    "atlasPath": "/quiz/relationship-v3/q16.webp",
-    "position": 16,
-    "active": true,
-    "options": [
-      {
-        "label": "Breakfast together",
-        "microcopy": "",
-        "meaning": "Breakfast makes connection a repeated part of daily life. Predictable shared time may matter more to you than occasional elaborate gestures.",
-        "projection": "",
-        "readingFocus": "presence"
-      },
-      {
-        "label": "Your own work spaces",
-        "microcopy": "",
-        "meaning": "Personal work spaces preserve concentration and autonomy within a shared home. Rejoining later can make contact deliberate instead of constant.",
-        "projection": "",
-        "readingFocus": "space"
-      },
-      {
-        "label": "Friends cooking at home",
-        "microcopy": "",
-        "meaning": "A home open to friends places the couple within a broader community. You may imagine belonging as something shared with more people than just a partner.",
-        "projection": "",
-        "readingFocus": "community"
-      },
-      {
-        "label": "A weekend away",
-        "microcopy": "",
-        "meaning": "Trips give the shared life room to keep changing. You may want novelty and discovery to remain available even after the relationship becomes familiar.",
-        "projection": "",
-        "readingFocus": "novelty"
-      }
-    ]
+    id: "attachment-style-v3-q16",
+    testId: "attachment-style",
+    kicker: "Self-esteem",
+    prompt: "Late at night, the question \"Do I deserve steady love?\" lands where for you?",
+    atlasPath: "/quiz/relationship-v3/q16.webp",
+    position: 16,
+    active: true,
+    options: [
+      option("anxious", "Fear the answer is no — need constant proof", "Late at night, you tend to fear the answer is no and look for constant proof. Worth can feel like something other people have to keep confirming.", "Needing proof at night is protecting you from a lonely verdict. The morning version of you can answer with one fact from this week, not a lifetime trial."),
+      option("avoidant", "Prefer self-reliance; being loved can feel like a hassle", "Late at night, you tend to prefer self-reliance, and being loved can feel like a hassle. Needing no one can feel cleaner than being needed.", "Preferring self-reliance is protecting you from a love that might make demands. Notice whether “hassle” is really about effort, or about being seen."),
+      option("secure", "Mostly believe you are worthy, even when things wobble", "Late at night, you tend to mostly believe you are worthy even when things wobble. The question can visit without taking the house.", "Believing you are worthy while things wobble is protecting you from making one hard night the whole story. You can still want comfort without putting your value on trial."),
+      option("fearful", "Sometimes worthy, sometimes sure you will ruin it", "Late at night, you tend to feel sometimes worthy and sometimes sure you will ruin it. The verdict can flip without a new fact arriving.", "The flip between worthy and ruin is protecting you from settling into either story. Write both sentences down; neither one has to drive a 2 a.m. text."),
+    ],
   },
   {
-    "id": "attachment-style-v3-q17",
-    "testId": "attachment-style",
-    "kicker": "Conflict and reconnection",
-    "prompt": "Just after a disagreement, which scene would you choose first?",
-    "atlasPath": "/quiz/relationship-v3/q17.webp",
-    "position": 17,
-    "active": true,
-    "options": [
-      {
-        "label": "Taking a walk alone",
-        "microcopy": "",
-        "meaning": "A walk lowers the immediate intensity and creates physical space. It may help you return with more capacity, especially when you make the intention to return clear.",
-        "projection": "",
-        "readingFocus": "rest"
-      },
-      {
-        "label": "Staying at the table",
-        "microcopy": "",
-        "meaning": "Remaining at the table keeps the issue in contact. You may prefer working toward understanding while both of you are still present, provided neither person is too overwhelmed to listen.",
-        "projection": "",
-        "readingFocus": "voice"
-      },
-      {
-        "label": "Reaching for a hand",
-        "microcopy": "",
-        "meaning": "A gentle touch asks whether connection can remain during disagreement. You may need a signal that the bond is still there before discussing the details.",
-        "projection": "",
-        "readingFocus": "presence"
-      },
-      {
-        "label": "Writing first",
-        "microcopy": "",
-        "meaning": "Writing slows down the response and gives unfinished thoughts a place. It may help separate what you want to say from what you said in the heat of the moment.",
-        "projection": "",
-        "readingFocus": "reflection"
-      }
-    ]
+    id: "attachment-style-v3-q17",
+    testId: "attachment-style",
+    kicker: "Childhood",
+    prompt: "Growing up, when you were scared or upset, which was most common?",
+    atlasPath: "/quiz/relationship-v3/q17.webp",
+    position: 17,
+    active: true,
+    options: [
+      option("anxious", "Cling for hugs and promises they would not leave", "As a kid, when you were upset, you tend to remember clinging for hugs and promises they would not leave. Comfort may have arrived through contact that had to be secured.", "Clinging for a promise is protecting a child who needed the adult to stay. In adult love, you can ask for contact without making it a vow about forever."),
+      option("avoidant", "Hide in your room; say you were fine", "As a kid, when you were scared, you tend to remember hiding in your room and saying you were fine. Privacy may have been the safest available regulation.", "Hiding and saying you were fine is protecting a child who learned not to add to the load. In adult love, “I need an hour” can replace “I am fine.”"),
+      option("secure", "Tell a trusted adult, and also take space when you needed it", "As a kid, when you were upset, you tend to remember telling a trusted adult and also taking space when you needed it. Both reaching and recovering had a place.", "Having both a person and a room is protecting a child who was allowed two tools. You can still use both as an adult without calling either one a failure."),
+      option("fearful", "Want to go to them, but freeze at the door afraid of rejection", "As a kid, when you were upset, you tend to remember wanting to go to them and freezing at the door. The need and the fear of the reception arrived together.", "Freezing at the door is protecting a child who could not predict the welcome. In adult love, you can knock with a smaller ask and still leave yourself a way back to your room."),
+    ],
   },
   {
-    "id": "attachment-style-v3-q18",
-    "testId": "attachment-style",
-    "kicker": "Conflict and reconnection",
-    "prompt": "When things feel calmer, where would you start talking again?",
-    "atlasPath": "/quiz/relationship-v3/q18.webp",
-    "position": 18,
-    "active": true,
-    "options": [
-      {
-        "label": "A conversation at the table",
-        "microcopy": "",
-        "meaning": "A clear table creates an intentional return to conversation. You may want repair to have a recognizable time and place rather than emerge through hints.",
-        "projection": "",
-        "readingFocus": "voice"
-      },
-      {
-        "label": "Talking while walking",
-        "microcopy": "",
-        "meaning": "Walking side by side can reduce the pressure of sustained eye contact. Movement may help you remain engaged with a conversation that still feels difficult.",
-        "projection": "",
-        "readingFocus": "action"
-      },
-      {
-        "label": "Cooking and talking",
-        "microcopy": "",
-        "meaning": "Cooking provides a shared task while words find their pace. Cooperation may help reopen contact, as long as the difficult point also gets heard.",
-        "projection": "",
-        "readingFocus": "action"
-      },
-      {
-        "label": "Messages from separate rooms",
-        "microcopy": "",
-        "meaning": "Writing from separate rooms offers more control over timing and wording. It can make expression easier, while tone and intent may still need clarification.",
-        "projection": "",
-        "readingFocus": "reflection"
-      }
-    ]
+    id: "attachment-style-v3-q18",
+    testId: "attachment-style",
+    kicker: "Childhood",
+    prompt: "When you cried or got angry as a kid, which scene was most familiar?",
+    atlasPath: "/quiz/relationship-v3/q18.webp",
+    position: 18,
+    active: true,
+    options: [
+      option("anxious", "Adults rushed to soothe — and you still feared they would get annoyed next", "When you showed emotion as a kid, you tend to remember adults rushing to soothe — and still fearing they would get annoyed next. Comfort and walking on eggshells could live in the same house.", "Remembering rushed soothing plus the next annoyance is protecting a child who learned love could flip. You can receive comfort now without scanning for the mood change."),
+      option("avoidant", "\"Do not be dramatic\" — emotions were meant to be hidden", "When you cried or got angry, you tend to remember being told not to be dramatic. Emotion may have been treated as something to put away.", "Putting emotion away is protecting a child who was taught feelings made trouble. In adult love, a small named feeling is not the same as a scene."),
+      option("secure", "Someone listened, helped you cool down, without shaming you", "When you showed emotion as a kid, you tend to remember someone listening and helping you cool down without shame. The feeling could exist and still be shepherded.", "Being helped to cool down is protecting a child who was allowed to have weather. You can offer yourself the same sequence: feel, name, then choose the next step."),
+      option("fearful", "Sometimes held tightly; sometimes suddenly ignored or yelled at", "When you showed emotion, you tend to remember sometimes being held tightly and sometimes being ignored or yelled at. The same tears could get opposite weather.", "Remembering both the tight hold and the sudden yell is protecting a child who could not forecast the room. In adult love, you can ask which kind of hour this is before you open the whole story."),
+    ],
   },
   {
-    "id": "attachment-style-v3-q19",
-    "testId": "attachment-style",
-    "kicker": "Conflict and reconnection",
-    "prompt": "After a disappointment, which gesture would you most appreciate?",
-    "atlasPath": "/quiz/relationship-v3/q19.webp",
-    "position": 19,
-    "active": true,
-    "options": [
-      {
-        "label": "Hearing you out",
-        "microcopy": "",
-        "meaning": "Being heard without interruption may be the change you need first. You may want acknowledgment of the impact before moving to solutions or reassurance.",
-        "projection": "",
-        "readingFocus": "voice"
-      },
-      {
-        "label": "Sharing the work",
-        "microcopy": "",
-        "meaning": "Shared work makes a change observable. You may trust repair more when it alters a repeated burden, rather than only changing the conversation.",
-        "projection": "",
-        "readingFocus": "action"
-      },
-      {
-        "label": "Remembering a small need",
-        "microcopy": "",
-        "meaning": "Remembering a practical detail makes care feel specific to you. Small evidence of attention may matter because it shows that an earlier need was noticed.",
-        "projection": "",
-        "readingFocus": "action"
-      },
-      {
-        "label": "Showing up as agreed",
-        "microcopy": "",
-        "meaning": "Arriving as agreed makes reliability visible through follow-through. You may want consistency you can experience, rather than a larger promise about the future.",
-        "projection": "",
-        "readingFocus": "planning"
-      }
-    ]
+    id: "attachment-style-v3-q19",
+    testId: "attachment-style",
+    kicker: "Childhood",
+    prompt: "When you needed help as a kid (school, sick, bullied), you usually…",
+    atlasPath: "/quiz/relationship-v3/q19.webp",
+    position: 19,
+    active: true,
+    options: [
+      option("anxious", "Kept calling until someone came right away", "When you needed help as a kid, you tend to remember keeping on calling until someone came right away. Persistence may have been how help became real.", "Calling until someone came is protecting a child who learned that the first ask might not be enough. As an adult, you can ask once clearly, then name a follow-up time."),
+      option("avoidant", "Avoided bothering anyone; tough it out alone", "When you needed help as a kid, you tend to remember avoiding bothering anyone and toughing it out. Self-sufficiency may have felt like good manners.", "Toughing it out is protecting a child who did not want to be a problem. In adult love, a small specific ask is not the same as being a burden."),
+      option("secure", "Asked clearly for what you needed when someone was available", "When you needed help as a kid, you tend to remember asking clearly when someone was available. Need could wait for a real pair of hands without disappearing.", "Asking when someone was available is protecting a child who trusted that a person would show up. You can still time the ask and keep the need."),
+      option("fearful", "Called out, then regretted it — or said \"never mind\" when they came", "When you needed help as a kid, you tend to remember calling out and then regretting it, or saying never mind when they came. The ask and the retraction lived close together.", "Saying never mind is protecting a child who feared the cost of being helped. As an adult, you can let the person stay once they have already walked over."),
+    ],
   },
   {
-    "id": "attachment-style-v3-q20",
-    "testId": "attachment-style",
-    "kicker": "Conflict and reconnection",
-    "prompt": "After a difficult moment, which scene feels like reconnecting?",
-    "atlasPath": "/quiz/relationship-v3/q20.webp",
-    "position": 20,
-    "active": true,
-    "options": [
-      {
-        "label": "Laughing together again",
-        "microcopy": "",
-        "meaning": "Laughter returns ease to an ordinary shared task. You may recognize reconnection through a change in how it feels to be together, while still needing to address what caused the tension.",
-        "projection": "",
-        "readingFocus": "presence"
-      },
-      {
-        "label": "Discussing the next steps",
-        "microcopy": "",
-        "meaning": "Discussing plans turns repair toward concrete next steps. You may feel more able to move forward when the future contains something specific you have both agreed to.",
-        "projection": "",
-        "readingFocus": "planning"
-      },
-      {
-        "label": "Dinner after separate activities",
-        "microcopy": "",
-        "meaning": "Dinner after separate activities restores a rhythm with room for both people. You may want reconnection that does not require giving up the space that helps you feel like yourself.",
-        "projection": "",
-        "readingFocus": "space"
-      },
-      {
-        "label": "A new shared experience",
-        "microcopy": "",
-        "meaning": "A new experience gives the relationship a memory beyond the difficult moment. Shared discovery may restore possibility, without by itself resolving the original disagreement.",
-        "projection": "",
-        "readingFocus": "novelty"
-      }
-    ]
-  }
+    id: "attachment-style-v3-q20",
+    testId: "attachment-style",
+    kicker: "Childhood",
+    prompt: "When a parent left or you left for school, you were most like…",
+    atlasPath: "/quiz/relationship-v3/q20.webp",
+    position: 20,
+    active: true,
+    options: [
+      option("anxious", "Hard to separate — cry, cling, ask when they would return", "At goodbyes, you tend to remember it being hard to separate — crying, clinging, asking when they would return. The leaving may have needed a clock attached to it.", "Asking when they would return is protecting a child who needed the ending to have a time. In adult love, a return time is still a kindness, not a demand for proof."),
+      option("avoidant", "Leave quickly; look like you did not care", "At goodbyes, you tend to remember leaving quickly and looking like you did not care. A fast exit can hide how much the leaving registered.", "Looking like you did not care is protecting a child who did not want the goodbye to become a scene. You can feel it and still leave without performing indifference."),
+      option("secure", "Feel the goodbye, then trust you would see them again", "At goodbyes, you tend to remember feeling it and then trusting you would see them again. The feeling could exist without having to stop the leaving.", "Trusting you would see them again is protecting a child who had a reliable return. You can still feel a modern goodbye and keep the next meeting on the calendar."),
+      option("fearful", "Say \"just go,\" feel panic inside, then feel angry they left", "At goodbyes, you tend to remember saying just go, feeling panic inside, and then feeling angry they left. The send-off and the protest could be the same moment.", "Saying just go while panicking is protecting a child who wanted control over a leaving they could not stop. In adult love, you can say “this is hard, and I will see you at X” instead of both dismissing and accusing."),
+    ],
+  },
 ];

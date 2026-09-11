@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { applyAttachmentStyle, buildAttachmentResult, scoreAttachment, THEME_DIMENSIONS } from "../lib/attachment.ts";
+import { buildAttachmentResult, scoreAttachment, STYLE_DIMENSIONS } from "../lib/attachment.ts";
 import { relationshipQuestions } from '../lib/relationship-content.ts';
-import { buildRelationshipReading } from '../lib/relationship-reading.ts';
 import { PUBLIC_QUESTION_IDS } from '../lib/public-catalog.ts';
 
 const questions = [1, 2, 3, 4].map((position) => ({
@@ -29,9 +28,14 @@ test("public catalog contains twenty distinct image scenarios and eighty interpr
   assert.equal(new Set(relationshipQuestions.map(q => q.id)).size, 20);
   assert.deepEqual(new Set(relationshipQuestions.map(q => q.id)), PUBLIC_QUESTION_IDS);
   assert.equal(new Set(relationshipQuestions.flatMap(q => q.options.map(o => o.meaning))).size, 80);
+  const kickers = relationshipQuestions.map(q => q.kicker);
+  assert.deepEqual(kickers.slice(0, 12), Array(12).fill("Romance"));
+  assert.deepEqual(kickers.slice(12, 16), Array(4).fill("Self-esteem"));
+  assert.deepEqual(kickers.slice(16), Array(4).fill("Childhood"));
   for (const q of relationshipQuestions) {
     assert.equal(q.options.length, 4);
-    assert.ok(q.options.every(o=>o.meaning.length>80 && o.readingFocus));
+    assert.ok(q.options.every(o=>o.meaning.length>80 && o.readingFocus && o.styleKey && o.microcopy === o.label));
+    assert.deepEqual(q.options.map(o => o.styleKey), ["anxious", "avoidant", "secure", "fearful"]);
     await readFile(new URL('../public'+q.atlasPath, import.meta.url));
   }
   assert.doesNotMatch(live, /They suddenly go quiet/);
@@ -42,52 +46,38 @@ test("public catalog contains twenty distinct image scenarios and eighty interpr
   assert.doesNotMatch(live, /scene:/);
 });
 
-test('new reading follows selected content rather than A/B/C/D position', () => {
-  const choices=Object.fromEntries(relationshipQuestions.map((q,i)=>[q.id,i%4]));
-  const reading=buildRelationshipReading(relationshipQuestions,choices);
-  const reversed=relationshipQuestions.map(q=>({...q, options:[...q.options].reverse()}));
-  const remapped=Object.fromEntries(relationshipQuestions.map(q=>[q.id,3-choices[q.id]]));
-  assert.deepEqual(buildRelationshipReading(reversed,remapped),reading);
-  assert.equal(reading.result.key,'choices');
-  assert.ok(reading.result.themeTitle);
-  assert.equal(reading.deepResult.modules.length,5);
-  for (const q of relationshipQuestions) assert.ok(reading.deepResult.modules.some(m=>m.explanation.includes(q.options[choices[q.id]].label)));
+test("selected option labels and style keys travel with the option, not the slot", () => {
+  const choices = Object.fromEntries(relationshipQuestions.map((q, i) => [q.id, i % 4]));
+  const selected = relationshipQuestions.map((q) => q.options[choices[q.id]]);
+  const reversed = relationshipQuestions.map((q) => ({ ...q, options: [...q.options].reverse() }));
+  const remapped = Object.fromEntries(relationshipQuestions.map((q) => [q.id, 3 - choices[q.id]]));
+  const again = reversed.map((q) => q.options[remapped[q.id]]);
+  assert.deepEqual(again.map((option) => option.label), selected.map((option) => option.label));
+  assert.deepEqual(again.map((option) => option.styleKey), selected.map((option) => option.styleKey));
+  assert.equal(scoreAttachment(relationshipQuestions, choices).style, scoreAttachment(reversed, remapped).style);
+  assert.deepEqual(relationshipQuestions.map((q) => q.kicker), [
+    ...Array(12).fill("Romance"),
+    ...Array(4).fill("Self-esteem"),
+    ...Array(4).fill("Childhood"),
+  ]);
 });
 
-function pickFocus(focus) {
-  return Object.fromEntries(relationshipQuestions.map((question) => {
-    const index = question.options.findIndex((option) => option.readingFocus === focus);
-    return [question.id, index >= 0 ? index : 0];
-  }));
-}
-
 test("relationship image choices map onto the four attachment styles", () => {
-  assert.equal(scoreAttachment(relationshipQuestions, pickFocus("reassurance")).style, "anxious");
-  assert.equal(scoreAttachment(relationshipQuestions, pickFocus("space")).style, "avoidant");
-  const secureChoices = Object.fromEntries(relationshipQuestions.map((question) => {
-    let best = 0;
-    let bestScore = Number.POSITIVE_INFINITY;
-    question.options.forEach((option, optionIndex) => {
-      const dim = THEME_DIMENSIONS[option.readingFocus ?? ""] ?? { anxiety: 2, avoidance: 2 };
-      const score = dim.anxiety + dim.avoidance;
-      if (score < bestScore) {
-        bestScore = score;
-        best = optionIndex;
-      }
-    });
-    return [question.id, best];
-  }));
-  assert.equal(scoreAttachment(relationshipQuestions, secureChoices).style, "secure");
-  const mixed = Object.fromEntries(relationshipQuestions.map((question, index) => {
-    const focus = index % 2 === 0 ? "presence" : "space";
-    const found = question.options.findIndex((option) => option.readingFocus === focus);
-    return [question.id, found >= 0 ? found : question.options.findIndex((option) => THEME_DIMENSIONS[option.readingFocus ?? ""]?.[index % 2 === 0 ? "anxiety" : "avoidance"]) || 0];
-  }));
+  const pick = (index) => Object.fromEntries(relationshipQuestions.map((question) => [question.id, index]));
+  assert.equal(scoreAttachment(relationshipQuestions, pick(0)).style, "anxious");
+  assert.equal(scoreAttachment(relationshipQuestions, pick(1)).style, "avoidant");
+  assert.equal(scoreAttachment(relationshipQuestions, pick(2)).style, "secure");
+  assert.equal(scoreAttachment(relationshipQuestions, pick(3)).style, "fearful");
+  const mixed = Object.fromEntries(relationshipQuestions.map((question, index) => [question.id, index % 2]));
   assert.equal(scoreAttachment(relationshipQuestions, mixed).style, "fearful");
-  const reading = applyAttachmentStyle(buildRelationshipReading(relationshipQuestions, pickFocus("reassurance")), relationshipQuestions, pickFocus("reassurance"));
-  assert.equal(reading.result.title, "Anxious");
-  assert.notEqual(reading.result.themeTitle, reading.result.title);
-  assert.equal(reading.result.strengths?.length, 3);
+  const reading = buildAttachmentResult(relationshipQuestions, pick(0));
+  assert.equal(reading.title, "Anxious");
+  assert.notEqual(reading.themeTitle, reading.title);
+  assert.equal(reading.strengths?.length, 3);
+  assert.deepEqual(STYLE_DIMENSIONS.fearful, { anxiety: 1, avoidance: 1 });
+  const fearful = scoreAttachment(relationshipQuestions, pick(3));
+  assert.equal(fearful.anxiety, 50);
+  assert.equal(fearful.avoidance, 50);
 });
 
 test("attachment scoring maps A/B/C/D onto the four styles", () => {

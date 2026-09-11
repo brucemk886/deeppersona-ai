@@ -4,6 +4,13 @@ export const ATTACHMENT_STYLES = ["anxious", "avoidant", "secure", "fearful"] as
 
 export type AttachmentStyle = (typeof ATTACHMENT_STYLES)[number];
 
+export const STYLE_DIMENSIONS: Record<AttachmentStyle, { anxiety: number; avoidance: number }> = {
+  anxious: { anxiety: 2, avoidance: 0 },
+  avoidant: { anxiety: 0, avoidance: 2 },
+  secure: { anxiety: 0, avoidance: 0 },
+  fearful: { anxiety: 1, avoidance: 1 },
+};
+
 export const ATTACHMENT_STYLE_META: Record<
   AttachmentStyle,
   { label: string; shortLabel: string; accent: string; blurb: string }
@@ -31,6 +38,100 @@ export const ATTACHMENT_STYLE_META: Record<
     shortLabel: "Fearful-Avoidant",
     accent: "#6c5a91",
     blurb: "You want closeness and also need a way out when it feels like too much.",
+  },
+};
+
+export const ATTACHMENT_OVERVIEWS: Record<AttachmentStyle, { dating: string[]; withSelf: string[]; underStress: string[] }> = {
+  anxious: {
+    dating: [
+      "When a reply is late or cooler than usual, you tend to move closer.",
+      "You look for a label, a plan, or a sign that you still matter.",
+      "You may replay old chats to find what you did wrong.",
+    ],
+    withSelf: [
+      "Uncertainty in the bond can take over the rest of your day.",
+      "You may need proof before you can believe you are still chosen.",
+      "A small mistake can feel larger than the moment that caused it.",
+    ],
+    underStress: [
+      "You tend to chase: text, call, or press until it feels resolved.",
+      "Silence can feel louder than the facts you actually have.",
+      "Comfort now can matter more than giving the moment room.",
+    ],
+  },
+  avoidant: {
+    dating: [
+      "When closeness speeds up, you tend to protect space.",
+      "Labels and big future talk can feel like a trap.",
+      "You may match a cooler tone and handle hard days alone.",
+    ],
+    withSelf: [
+      "Self-reliance can feel safer than being needed.",
+      "Being loved can start to feel like a hassle when it asks too much.",
+      "You may tell yourself you do not care, then go quiet.",
+    ],
+    underStress: [
+      "You tend to withdraw: phone face-down, leave the room, go silent.",
+      "You keep working or training instead of opening the feeling.",
+      "People close to you may read your pause as a closed door.",
+    ],
+  },
+  secure: {
+    dating: [
+      "When the tone shifts, you tend to notice it, stay steady, and ask once.",
+      "You want clarity and pick a calm time to talk.",
+      "You can enjoy more affection without dropping your own pace.",
+    ],
+    withSelf: [
+      "You mostly believe you are worthy even when things wobble.",
+      "You can take a compliment in and own a small mistake once.",
+      "You make room for both contact and a few hours apart.",
+    ],
+    underStress: [
+      "You pause with a return time, then come back to the talk.",
+      "You name what is still missing once and watch actions.",
+      "You share the headline of a hard day and what would help.",
+    ],
+  },
+  fearful: {
+    dating: [
+      "You tend to want the label and also fear feeling trapped.",
+      "You may melt in tonight and go quiet or pick a fight tomorrow.",
+      "Double-texting, then going cold, can happen in the same evening.",
+    ],
+    withSelf: [
+      "You can feel good, then later feel undeserving.",
+      "Worthiness may swing: sometimes sure, sometimes sure you will ruin it.",
+      "You may look fine outwardly and spiral privately later.",
+    ],
+    underStress: [
+      "You push away, then panic they will not come back.",
+      "You start to open, then shut down mid-story.",
+      "The mix of reaching and retreating can confuse you and the other person.",
+    ],
+  },
+};
+
+export const ATTACHMENT_LOOPS: Record<AttachmentStyle, { name: string; kind: "chase" | "withdraw" | "push-pull" | "notice-name-repair"; steps: string[] }> = {
+  anxious: {
+    name: "Chase",
+    kind: "chase",
+    steps: ["A pause or cooler tone lands", "You scan and reach", "A reply brings brief relief", "The next quiet restarts the chase"],
+  },
+  avoidant: {
+    name: "Withdraw",
+    kind: "withdraw",
+    steps: ["Closeness or emotion rises", "Your body wants out", "You take distance or a task", "Calm returns — until closeness asks again"],
+  },
+  fearful: {
+    name: "Push-pull",
+    kind: "push-pull",
+    steps: ["You reach for contact", "It suddenly feels too close", "You pull away", "Fear of loss sends you back"],
+  },
+  secure: {
+    name: "Notice, name, repair",
+    kind: "notice-name-repair",
+    steps: ["You notice the shift", "You name it once", "You take the space or contact you need", "You return and repair"],
   },
 };
 
@@ -155,21 +256,18 @@ export function styleFromOptionIndex(index: number): AttachmentStyle {
   return ATTACHMENT_STYLES[Math.max(0, Math.min(3, index))] ?? "secure";
 }
 
+export function optionStyle(option: QuizQuestion["options"][number], index: number): AttachmentStyle {
+  return isAttachmentStyle(option.styleKey) ? option.styleKey : styleFromOptionIndex(index);
+}
+
 function optionDimension(option: QuizQuestion["options"][number], index: number): { anxiety: number; avoidance: number } {
   if (isAttachmentStyle(option.styleKey)) {
-    return {
-      anxiety: option.styleKey === "anxious" || option.styleKey === "fearful" ? 2 : 0,
-      avoidance: option.styleKey === "avoidant" || option.styleKey === "fearful" ? 2 : 0,
-    };
+    return STYLE_DIMENSIONS[option.styleKey];
   }
   if (option.readingFocus && THEME_DIMENSIONS[option.readingFocus]) {
     return THEME_DIMENSIONS[option.readingFocus];
   }
-  const style = styleFromOptionIndex(index);
-  return {
-    anxiety: style === "anxious" || style === "fearful" ? 2 : 0,
-    avoidance: style === "avoidant" || style === "fearful" ? 2 : 0,
-  };
+  return STYLE_DIMENSIONS[styleFromOptionIndex(index)];
 }
 
 export function classifyAttachment(anxietyScore: number, avoidanceScore: number): AttachmentStyle {
@@ -188,12 +286,16 @@ export function scoreAttachment(
   let anxiety = 0;
   let avoidance = 0;
   let answered = 0;
+  const tally: Record<AttachmentStyle, number> = { anxious: 0, avoidant: 0, secure: 0, fearful: 0 };
 
   for (const question of questions) {
     const index = choices[question.id];
     if (!Number.isInteger(index) || !question.options[index]) continue;
     answered += 1;
-    const points = optionDimension(question.options[index], index);
+    const option = question.options[index];
+    const style = optionStyle(option, index);
+    tally[style] += 2;
+    const points = optionDimension(option, index);
     anxiety += points.anxiety;
     avoidance += points.avoidance;
   }
@@ -201,11 +303,14 @@ export function scoreAttachment(
   const max = Math.max(answered * 2, 1);
   const anxietyScore = Math.round((anxiety / max) * 100);
   const avoidanceScore = Math.round((avoidance / max) * 100);
+  const top = Math.max(...ATTACHMENT_STYLES.map((key) => tally[key]));
+  const tied = ATTACHMENT_STYLES.filter((key) => tally[key] === top && top > 0);
+  const style = tied.length === 1 ? tied[0] : classifyAttachment(anxietyScore, avoidanceScore);
 
   return {
     anxiety: anxietyScore,
     avoidance: avoidanceScore,
-    style: classifyAttachment(anxietyScore, avoidanceScore),
+    style,
     answered,
   };
 }
@@ -219,27 +324,27 @@ export function buildAttachmentResult(
   return {
     key: style,
     ...profile,
+    themeTitle: ATTACHMENT_STYLE_META[style].blurb,
     anxiety,
     avoidance,
   };
 }
 
 export function applyAttachmentStyle(
-  reading: { result: ResultProfile; deepResult: { modules?: { title: string; explanation: string; reflection: string }[]; lens: { title: string; explanation: string; reflectionPrompt: string } } },
+  _reading: { result: ResultProfile; deepResult: { modules?: { title: string; explanation: string; reflection: string }[]; lens: { title: string; explanation: string; reflectionPrompt: string } } },
   questions: QuizQuestion[],
   choices: Record<string, number>,
 ) {
   const scored = scoreAttachment(questions, choices);
   const profile = ATTACHMENT_RESULTS[scored.style];
   const styleLabel = ATTACHMENT_STYLE_META[scored.style].label;
-  const themeTitle = reading.result.themeTitle || reading.result.title;
   return {
     result: {
       ...profile,
       key: scored.style,
       title: styleLabel,
-      themeTitle,
-      summary: `Your image choices land closest to ${styleLabel}. ${reading.result.summary}`,
+      themeTitle: ATTACHMENT_STYLE_META[scored.style].blurb,
+      summary: `Your image choices land closest to ${styleLabel}. ${profile.summary}`,
       anxiety: scored.anxiety,
       avoidance: scored.avoidance,
     } satisfies ResultProfile,

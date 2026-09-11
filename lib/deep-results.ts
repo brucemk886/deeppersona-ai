@@ -1,5 +1,5 @@
-import { applyAttachmentStyle, buildAttachmentResult } from "./attachment";
-import { buildRelationshipReading } from './relationship-reading';
+import { buildAttachmentResult } from "./attachment";
+import { buildAttachmentReport } from "./attachment-report";
 import { ATTACHMENT_TEST_ID } from "./quiz-content";
 import type { QuizQuestion, QuizTest, ResultProfile } from "./quiz";
 
@@ -8,6 +8,13 @@ export type DeepResultContent = {
   lens: { title: string; explanation: string; reflectionPrompt: string };
   // Present only in historical report snapshots.
   depth?: { coreDrive: string; inRelationships: string; underPressure: string };
+  essay?: { dating: string; conflict: string; need: string };
+  childhood?: { title: string; paragraphs: string[]; reflection: string };
+  selfEsteem?: { title: string; paragraphs: string[]; rewrites: { from: string; to: string }[] };
+  pairing?: { style: string; note: string }[];
+  practices?: { day: number; title: string; body: string }[];
+  loop?: { name: string; kind: string; steps: string[] };
+  overview?: { title: string; points: string[] }[];
 };
 
 export function buildChoiceReport(
@@ -16,7 +23,7 @@ export function buildChoiceReport(
   choices: Record<string, number>,
 ): { result: ResultProfile; deepResult: DeepResultContent } {
   if (test.id === ATTACHMENT_TEST_ID && questions.length > 0 && questions.every(q => q.id.startsWith('attachment-style-v3-'))) {
-    return applyAttachmentStyle(buildRelationshipReading(questions, choices), questions, choices);
+    return buildAttachmentReport(questions, choices);
   }
   if (test.id === ATTACHMENT_TEST_ID) {
     const result = buildAttachmentResult(questions, choices);
