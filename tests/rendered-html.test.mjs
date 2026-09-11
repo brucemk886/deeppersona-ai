@@ -116,6 +116,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(adminStyles, /aspect-ratio: 4 \/ 5/);
   assert.match(adminStyles, /\.lead-table-cn \{ font-size: 13px; \}/);
   assert.match(store, /reconcilePublicCatalog|PUBLIC_QUESTION_IDS/);
+  assert.match(store, /options_json = excluded.options_json/);
   assert.match(store, /COUNT\(DISTINCT s\.id\) AS users FROM quiz_sessions/);
   assert.match(store, /answers: answerRecords/);
   assert.match(adminStyles, /\.stats-range-switcher/);

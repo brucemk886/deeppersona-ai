@@ -368,9 +368,18 @@ async function reconcilePublicCatalog(): Promise<void> {
         .bind(test.id, test.title, test.kicker, test.description, test.coverAtlasPath, test.accent, JSON.stringify(test.results ?? {}), test.position, test.active ? 1 : 0, test.featured ? 1 : 0, test.reportPriceCents),
     ),
     ...defaultQuestions.map((question) =>
-      db.prepare(`INSERT OR IGNORE INTO quiz_questions
-        (id, test_id, kicker, prompt, atlas_path, options_json, position, active)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      db.prepare(`INSERT INTO quiz_questions
+        (id, test_id, kicker, prompt, atlas_path, options_json, position, active, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(id) DO UPDATE SET
+          test_id = excluded.test_id,
+          kicker = excluded.kicker,
+          prompt = excluded.prompt,
+          atlas_path = excluded.atlas_path,
+          options_json = excluded.options_json,
+          position = excluded.position,
+          active = excluded.active,
+          updated_at = CURRENT_TIMESTAMP`)
         .bind(question.id, question.testId, question.kicker, question.prompt, question.atlasPath, JSON.stringify(question.options), question.position, question.active ? 1 : 0),
     ),
     ...retiredIds.map((id) => db.prepare("DELETE FROM quiz_questions WHERE id = ?").bind(id)),
