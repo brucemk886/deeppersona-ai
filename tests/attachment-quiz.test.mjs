@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { buildAttachmentResult, scoreAttachment } from "../lib/attachment.ts";
+import { applyAttachmentStyle, buildAttachmentResult, scoreAttachment, THEME_DIMENSIONS } from "../lib/attachment.ts";
 import { relationshipQuestions } from '../lib/relationship-content.ts';
 import { buildRelationshipReading } from '../lib/relationship-reading.ts';
 import { PUBLIC_QUESTION_IDS } from '../lib/public-catalog.ts';
@@ -49,9 +49,45 @@ test('new reading follows selected content rather than A/B/C/D position', () => 
   const remapped=Object.fromEntries(relationshipQuestions.map(q=>[q.id,3-choices[q.id]]));
   assert.deepEqual(buildRelationshipReading(reversed,remapped),reading);
   assert.equal(reading.result.key,'choices');
-  assert.equal(reading.result.anxiety,undefined);
+  assert.ok(reading.result.themeTitle);
   assert.equal(reading.deepResult.modules.length,5);
   for (const q of relationshipQuestions) assert.ok(reading.deepResult.modules.some(m=>m.explanation.includes(q.options[choices[q.id]].label)));
+});
+
+function pickFocus(focus) {
+  return Object.fromEntries(relationshipQuestions.map((question) => {
+    const index = question.options.findIndex((option) => option.readingFocus === focus);
+    return [question.id, index >= 0 ? index : 0];
+  }));
+}
+
+test("relationship image choices map onto the four attachment styles", () => {
+  assert.equal(scoreAttachment(relationshipQuestions, pickFocus("reassurance")).style, "anxious");
+  assert.equal(scoreAttachment(relationshipQuestions, pickFocus("space")).style, "avoidant");
+  const secureChoices = Object.fromEntries(relationshipQuestions.map((question) => {
+    let best = 0;
+    let bestScore = Number.POSITIVE_INFINITY;
+    question.options.forEach((option, optionIndex) => {
+      const dim = THEME_DIMENSIONS[option.readingFocus ?? ""] ?? { anxiety: 2, avoidance: 2 };
+      const score = dim.anxiety + dim.avoidance;
+      if (score < bestScore) {
+        bestScore = score;
+        best = optionIndex;
+      }
+    });
+    return [question.id, best];
+  }));
+  assert.equal(scoreAttachment(relationshipQuestions, secureChoices).style, "secure");
+  const mixed = Object.fromEntries(relationshipQuestions.map((question, index) => {
+    const focus = index % 2 === 0 ? "presence" : "space";
+    const found = question.options.findIndex((option) => option.readingFocus === focus);
+    return [question.id, found >= 0 ? found : question.options.findIndex((option) => THEME_DIMENSIONS[option.readingFocus ?? ""]?.[index % 2 === 0 ? "anxiety" : "avoidance"]) || 0];
+  }));
+  assert.equal(scoreAttachment(relationshipQuestions, mixed).style, "fearful");
+  const reading = applyAttachmentStyle(buildRelationshipReading(relationshipQuestions, pickFocus("reassurance")), relationshipQuestions, pickFocus("reassurance"));
+  assert.equal(reading.result.title, "Anxious");
+  assert.notEqual(reading.result.themeTitle, reading.result.title);
+  assert.equal(reading.result.strengths?.length, 3);
 });
 
 test("attachment scoring maps A/B/C/D onto the four styles", () => {

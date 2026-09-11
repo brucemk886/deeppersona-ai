@@ -598,21 +598,48 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
     <main className="result-shell">
       <SiteNav active="quiz" />
       <article className="result-card result-card-expanded">
-        <span className="result-test-name">{reportData.test.title}</span><span className="result-eyebrow">Your free summary</span>
-        <h1>{reportData.result.title}</h1><p className="result-summary">{reportData.result.summary}</p>
+        <span className="result-test-name">{reportData.test.title}</span>
+        <span className="result-eyebrow">Your free summary</span>
+        <h1>{reportData.result.title}</h1>
+        {reportData.result.themeTitle ? <p className="result-theme">{reportData.result.themeTitle}</p> : null}
+        <p className="result-summary">{reportData.result.summary}</p>
+        <AttachmentResult result={reportData.result} />
         {reportData.preview?.overview.length ? <section className="free-overview" aria-labelledby="free-overview-title">
           <h2 id="free-overview-title">Your overall relationship pattern</h2>
-          {reportData.preview.overview.map(item=><article key={item.title}><h3>{item.title}</h3><p>{item.body}</p></article>)}
-        </section> : <AttachmentResult result={reportData.result} />}
+          {reportData.preview.overview.map((item) => (
+            <article key={item.title}>
+              <h3>{item.title}</h3>
+              {item.points?.length ? <ul>{item.points.map((point) => <li key={point}>{point}</li>)}</ul> : <p>{item.body}</p>}
+            </article>
+          ))}
+        </section> : null}
+        {reportData.preview?.sample ? <section className="free-sample" aria-labelledby="free-sample-title">
+          <span>Free sample unlock</span>
+          <h2 id="free-sample-title">{reportData.preview.sample.moduleTitle}</h2>
+          <p>{reportData.preview.sample.explanation}</p>
+          <article className="free-sample-choice">
+            {sceneKeyFromPath(reportData.preview.sample.choice.atlasPath)
+              ? <SceneCard className="choice-review-image" index={reportData.preview.sample.choice.selectedIndex} scene={sceneKeyFromPath(reportData.preview.sample.choice.atlasPath) ?? "phone"} />
+              : <AtlasImage className="choice-review-image" index={reportData.preview.sample.choice.selectedIndex} loading="eager" path={reportData.preview.sample.choice.atlasPath} sizes="180px" />}
+            <div>
+              <span>Question {reportData.preview.sample.choice.questionNumber}</span>
+              <p className="choice-review-question">{reportData.preview.sample.choice.prompt}</p>
+              <h3>{reportData.preview.sample.choice.label}</h3>
+              <p>{reportData.preview.sample.choice.meaning}</p>
+            </div>
+          </article>
+          <p className="free-sample-prompt">{reportData.preview.sample.reflection}</p>
+        </section> : null}
         <section className="report-paywall">
-          <h2>Explore the meaning behind every choice</h2>
-          {reportData.preview ? <p>Go deeper with all {reportData.preview.totalChoices} image interpretations{reportData.preview.modules.length ? ` and ${reportData.preview.modules.length} personal theme sections` : ''}.</p> : null}
-          {reportData.preview?.modules.length ? <ul className="report-preview-topics" aria-label="Theme sections in the full report">{reportData.preview.modules.map(title=><li key={title}>{title}<span>Full report</span></li>)}</ul> : null}
-          <p>Your full reading includes each image you chose, its written interpretation, and a reflection prompt.</p><p className="service-context">For entertainment and self-reflection. Uses written interpretations for each selected image, not a validated psychological assessment or professional advice. <Link href="/disclaimer">How to use these results</Link></p>
+          <h2>Unlock your full reading</h2>
+          {reportData.preview ? <p>Your full report includes every image interpretation{reportData.preview.modules.length ? ` and ${reportData.preview.modules.length} theme sections` : ""}. One sample is open above so you can see the format.</p> : null}
+          {reportData.preview?.modules.length ? <ul className="report-preview-topics" aria-label="Theme sections in the full report">{reportData.preview.modules.map((title) => <li key={title}>{title}<span>{title === reportData.preview?.sample?.moduleTitle ? "Sample unlocked" : "Full report"}</span></li>)}</ul> : null}
+          <p>After payment, this page unlocks immediately. We also email a private backup link to the address you used with the test.</p>
+          <p className="service-context">For entertainment and self-reflection. This is not a clinical diagnosis, a validated psychological assessment, or professional advice. <Link href="/disclaimer">How to use these results</Link></p>
           {reportData.sandbox ? <p className="sandbox-notice">Test checkout — no real money will be charged.</p> : null}
           {reportData.status === "refunded" ? <p>This purchase has been refunded. Full report access has ended.</p> : <>
             <p className="report-price">{reportData.amountCents === 0 ? "Free report" : `USD ${(reportData.amountCents / 100).toFixed(2)} · Optional full report`}</p>
-            <p>For this test result only. No subscription or recurring charges. View your full report here after payment confirmation.</p>
+            <p>One-time payment for this test result only. No subscription or recurring charges.</p>
             {reportData.amountCents > 0 && <p className="purchase-refund-notice">{reportData.refundPolicy === '14-day-2026-09-08' ? <>This order retains our original 14-day refund request policy. <Link href="/refunds/legacy-2026-09">Read your policy</Link></> : <>After successful delivery, no refunds for a change of mind or subjective dissatisfaction. Delivery failures, duplicate charges, material misdescription and legal rights are excepted. <Link href="/refunds">Read the refund policy</Link></>}</p>}
             <button className="primary-button full-button" disabled={submitting || (!reportData.checkoutReady && reportData.amountCents > 0)} onClick={() => void beginCheckout()}>{submitting ? "Opening checkout…" : reportData.amountCents === 0 ? "Open my full reading" : "Unlock my full reading →"}</button>
             {!reportData.checkoutReady && reportData.amountCents > 0 ? <p>Checkout is being set up. Your result is saved; please come back later.</p> : null}
@@ -759,6 +786,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
           <span className="result-basis">Based on {answeredChoices.length} visual choices</span>
           <span className="result-eyebrow">{result.eyebrow}</span>
           <h1>{result.title}</h1>
+          {result.themeTitle ? <p className="result-theme">{result.themeTitle}</p> : null}
           <p className="result-summary">{result.summary}</p>
           <AttachmentResult result={result} />
 

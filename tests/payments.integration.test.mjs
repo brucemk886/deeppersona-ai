@@ -75,7 +75,7 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
     assert.equal((await call('/api/events',{body:{sessionId:crypto.randomUUID(),eventName:'session_started'}})).status,200,'test events work without an age checkbox');
     const testId = catalog.tests[0].id;
     const { data: { questions } } = await call(`/api/questions?test=${testId}`);
-    const save = async (price = 499) => {
+    const save = async (price = 999) => {
       await db.prepare("UPDATE quiz_tests SET report_price_cents = ? WHERE id = ?").bind(price, testId).run();
       const body = { sessionId: crypto.randomUUID(), testId, email: "qa-payments@deeppersonaai.com",
         answerChoices: Object.fromEntries(questions.map((q) => [q.id, 0])), resultType: "creator" };
@@ -92,10 +92,10 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       return response.status;
     };
     await t.test('refund terms are versioned and old orders retain the original policy', async () => {
-      const fresh=await save(500);
+      const fresh=await save(899);
       assert.equal((await reportState(fresh)).data.refundPolicy,'limited-2026-09-08');
-      assert.equal((await call('/api/checkout',{cookie:fresh.cookie,body:{reportId:fresh.id,expectedAmountCents:500}})).status,409,'stale pages must review updated terms');
-      assert.equal((await checkout(fresh,500)).status,200);
+      assert.equal((await call('/api/checkout',{cookie:fresh.cookie,body:{reportId:fresh.id,expectedAmountCents:899}})).status,409,'stale pages must review updated terms');
+      assert.equal((await checkout(fresh,899)).status,200);
       const order=await db.prepare('SELECT id FROM payment_orders WHERE report_id=?').bind(fresh.id).first();
       assert.equal((await db.prepare('SELECT version FROM payment_order_policies WHERE order_id=?').bind(order.id).first()).version,'limited-2026-09-08');
       const old=await save(500);
@@ -105,7 +105,7 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       assert.equal((await reportState(old)).data.refundPolicy,'14-day-2026-09-08','checkout must not replace old policy');
     });
     await t.test('report email recovery, retry, idempotency, expiry and refund access', async () => {
-      const r = await save(500); await checkout(r,500);
+      const r = await save(899); await checkout(r,899);
       // Local fixture only: simulate a confirmed LIVE order without making any external charge.
       await db.prepare("UPDATE payment_orders SET status = 'paid', livemode = 1 WHERE report_id = ?").bind(r.id).run();
       assert.equal((await call('/api/report-email',{body:{email:r.body.email},origin:'https://evil.example'})).status,403);
@@ -197,7 +197,9 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       report = await save();
       const state = await reportState(report);
       assert.equal(state.data.unlocked, false);
-      assert.equal(state.data.result.key, "choices");
+      assert.ok(["anxious", "avoidant", "secure", "fearful"].includes(state.data.result.key));
+      assert.equal(typeof state.data.result.anxiety, "number");
+      assert.equal(typeof state.data.result.avoidance, "number");
       assert.equal(questions[0].options[0].scoreKey, undefined);
       assert.equal(state.data.deepResult, undefined);
       assert.equal(state.data.questions, undefined);
@@ -205,11 +207,12 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       assert.equal(state.data.preview.overview.length,3);
       assert.equal(state.data.preview.modules.length,5);
       assert.equal(state.data.preview.choices,undefined);
-      assert.ok(state.data.preview.overview.every(item=>item.body.length>20));
+      assert.ok(state.data.preview.sample?.moduleTitle);
+      assert.ok(state.data.preview.overview.every(item=>item.body.length>20 && item.points?.length === 3));
       const stored=JSON.parse((await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(report.id).first()).snapshot_json);
-      for (const q of stored.questions) for (const option of q.options) {
-        assert.ok(!JSON.stringify(state.data).includes(option.meaning), 'Unpaid response must not expose an individual image interpretation');
-      }
+      const leaked = stored.questions.flatMap((q) => q.options.map((option) => option.meaning)).filter((meaning) => JSON.stringify(state.data).includes(meaning));
+      assert.equal(leaked.length, 1, 'Unpaid response may unlock one sample interpretation only');
+      assert.equal(state.data.preview.sample.choice.meaning, leaked[0]);
       assert.match(state.headers.get("cache-control"), /no-store/);
       assert.equal((await call(`/api/reports/${report.id}`)).status, 401);
       assert.equal((await call(`/api/reports/${report.id}`, { cookie: `dp_profile=${crypto.randomUUID()}` })).status, 404);
@@ -218,19 +221,19 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
     });
     await t.test("rejects cross-origin requests, other owners and altered prices", async () => {
       assert.equal((await call("/api/checkout", { cookie: report.cookie, origin: "https://attacker.invalid", body: { reportId: report.id } })).status, 403);
-      assert.equal((await checkout({ ...report, cookie: `dp_profile=${crypto.randomUUID()}` }, 499)).status, 404);
+      assert.equal((await checkout({ ...report, cookie: `dp_profile=${crypto.randomUUID()}` }, 999)).status, 404);
       assert.equal((await checkout(report, 1)).status, 409);
     });
     await t.test("uses each test's server price and reuses concurrent checkout", async () => {
-      const results = await Promise.all([checkout(report, 499), checkout(report, 499)]);
+      const results = await Promise.all([checkout(report, 999), checkout(report, 999)]);
       for (const result of results) assert.equal(result.status, 200, JSON.stringify(result.data));
       assert.equal(results[0].data.url, results[1].data.url);
       session = await getSession(results[0].data.url.split("/").at(-1));
-      assert.equal(session.amount_total, 499);
+      assert.equal(session.amount_total, 999);
       const other = await save(1299);
       const next = await checkout(other, 1299);
       assert.equal((await getSession(next.data.url.split("/").at(-1))).amount_total, 1299);
-      assert.equal((await reportState(report)).data.amountCents, 499);
+      assert.equal((await reportState(report)).data.amountCents, 999);
     });
     await t.test("free reports unlock without a Stripe order", async () => {
       const free = await save(0);
@@ -255,14 +258,14 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       assert.equal(await notify("checkout.session.completed", session), 200);
       const state = await reportState(report);
       assert.equal(state.data.unlocked, true); assert.ok(state.data.deepResult); assert.ok(state.data.questions[0].options[0].meaning);
-      assert.equal((await checkout(report, 499)).data.url, `/reports/${report.id}`);
+      assert.equal((await checkout(report, 999)).data.url, `/reports/${report.id}`);
     });
     await t.test("full refunds revoke access; late completed events cannot regrant it", async () => {
       assert.equal(await notify("charge.refunded", { refunded: true, payment_intent: session.payment_intent }), 200);
       assert.equal((await reportState(report)).data.unlocked, false);
       assert.equal(await notify("checkout.session.completed", session), 200);
       assert.equal((await reportState(report)).data.status, "refunded");
-      assert.equal((await checkout(report, 499)).status, 409);
+      assert.equal((await checkout(report, 999)).status, 409);
     });
     await t.test("return-page reconciliation verifies Stripe, not the URL parameter", async () => {
       const returning = await save(799);

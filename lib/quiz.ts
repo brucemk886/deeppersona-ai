@@ -47,6 +47,10 @@ export type ResultProfile = {
   strength: string;
   watchout: string;
   nextStep: string;
+  themeTitle?: string;
+  strengths?: string[];
+  stuckPoints?: string[];
+  startingPoints?: string[];
   anxiety?: number;
   avoidance?: number;
   affiliateProductId?: string;

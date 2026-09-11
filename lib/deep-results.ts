@@ -1,4 +1,4 @@
-import { buildAttachmentResult } from "./attachment";
+import { applyAttachmentStyle, buildAttachmentResult } from "./attachment";
 import { buildRelationshipReading } from './relationship-reading';
 import { ATTACHMENT_TEST_ID } from "./quiz-content";
 import type { QuizQuestion, QuizTest, ResultProfile } from "./quiz";
@@ -16,7 +16,7 @@ export function buildChoiceReport(
   choices: Record<string, number>,
 ): { result: ResultProfile; deepResult: DeepResultContent } {
   if (test.id === ATTACHMENT_TEST_ID && questions.length > 0 && questions.every(q => q.id.startsWith('attachment-style-v3-'))) {
-    return buildRelationshipReading(questions, choices);
+    return applyAttachmentStyle(buildRelationshipReading(questions, choices), questions, choices);
   }
   if (test.id === ATTACHMENT_TEST_ID) {
     const result = buildAttachmentResult(questions, choices);

@@ -2,8 +2,10 @@ import { answerRecords } from '@/lib/admin-answer-records';
 import { ensureTrafficSchema } from './traffic-store';
 import { productionSession } from './traffic-stats';
 import {
+  ATTACHMENT_TEST_ID,
   defaultQuestions,
   defaultTests,
+  FULL_REPORT_PRICE_CENTS,
   PUBLIC_QUESTION_IDS,
   RETIRED_QUESTION_IDS,
   RETIRED_QUESTION_PROMPTS,
@@ -127,7 +129,7 @@ async function createSchema(): Promise<void> {
       position INTEGER NOT NULL DEFAULT 0,
       active INTEGER NOT NULL DEFAULT 1,
       featured INTEGER NOT NULL DEFAULT 0,
-      report_price_cents INTEGER NOT NULL DEFAULT 499,
+      report_price_cents INTEGER NOT NULL DEFAULT ${FULL_REPORT_PRICE_CENTS},
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
     db.prepare(`CREATE TABLE IF NOT EXISTS quiz_questions (
@@ -191,9 +193,11 @@ async function createSchema(): Promise<void> {
     )`),
   ]);
 
-  await db.prepare("ALTER TABLE quiz_tests ADD COLUMN report_price_cents INTEGER NOT NULL DEFAULT 499").run().catch((error: unknown) => {
+  await db.prepare(`ALTER TABLE quiz_tests ADD COLUMN report_price_cents INTEGER NOT NULL DEFAULT ${FULL_REPORT_PRICE_CENTS}`).run().catch((error: unknown) => {
     if (!(error instanceof Error) || !/duplicate column name/i.test(error.message)) throw error;
   });
+  await db.prepare("UPDATE quiz_tests SET report_price_cents = ? WHERE id = ? AND report_price_cents IN (499, 500)")
+    .bind(FULL_REPORT_PRICE_CENTS, ATTACHMENT_TEST_ID).run();
   await db.prepare("ALTER TABLE quiz_sessions ADD COLUMN profile_id TEXT").run().catch((error: unknown) => {
     if (!(error instanceof Error) || !/duplicate column name/i.test(error.message)) throw error;
   });
@@ -267,7 +271,7 @@ function rowToTest(row: TestRow): QuizTest {
     position: row.position,
     active: Boolean(row.active),
     featured: Boolean(row.featured),
-    reportPriceCents: Number(row.report_price_cents ?? 499),
+    reportPriceCents: Number(row.report_price_cents ?? FULL_REPORT_PRICE_CENTS),
     questionCount: Number(row.question_count ?? 0),
   };
 }

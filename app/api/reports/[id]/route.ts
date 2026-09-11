@@ -5,7 +5,7 @@ import { readProfileId } from "@/lib/profile-cookie";
 import { paymentConfig, stripeClient } from "@/lib/stripe";
 import type { ReportResponse } from "@/lib/payment-types";
 import { orderRefundPolicy } from '@/lib/refund-policy';
-import { reportPreview } from '@/lib/report-preview';
+import { freeResultFromSnapshot, reportPreview } from '@/lib/report-preview';
 
 export const dynamic = "force-dynamic";
 
@@ -26,10 +26,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       amountCents: report.free ? 0 : order?.amount_cents ?? await currentPrice(report), currency: "usd",
       sandbox: config.sandbox, checkoutReady: config.ready && matchingEnvironment, test: snapshot.test,
       refundPolicy: await orderRefundPolicy(order?.id),
-      result: unlocked ? snapshot.result : {
-        key: snapshot.result.key, title: snapshot.result.title, summary: snapshot.result.summary,
-        eyebrow: snapshot.result.eyebrow, strength: "", watchout: "", nextStep: "",
-      },
+      result: unlocked ? snapshot.result : freeResultFromSnapshot(snapshot),
       ...(unlocked ? { questions: snapshot.questions, answerChoices: snapshot.answerChoices, deepResult: snapshot.deepResult } : { preview: reportPreview(snapshot) }),
     };
     return privateJson(response);

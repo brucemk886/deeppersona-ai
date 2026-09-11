@@ -27,6 +27,7 @@ export function buildRelationshipReading(questions: QuizQuestion[], choices: Rec
       ? 'Your selections do not point to one single response. The way you approach closeness changes across these situations. Your full reading follows those shifts through meeting, waiting, receiving care, personal space, and repair.'
       : `Across these scenes, you returned to ${lead.need}. This is a theme in the images you chose, not a fixed attachment identity. Your full reading explores where that preference supports you and where a different situation changes what you need.`,
     strength: `A possible resource in your choices is ${lead.need}. Notice where that actually helps in your own relationships.`, watchout: lead.watch, nextStep: lead.ask,
+    themeTitle: mixed ? 'Different moments, different ways of connecting' : lead.title,
   };
   const modules = [...new Set(selected.map(x => x.q.kicker))].map(title => {
     const entries=selected.filter(x=>x.q.kicker===title);
@@ -34,5 +35,5 @@ export function buildRelationshipReading(questions: QuizQuestion[], choices: Rec
     const needs=themes.map(k=>readingThemes[k].need);
     return { title, explanation: `In these situations, you chose ${entries.map(x=>`“${x.o.label}”`).join(', ')}.\n\n${themes.length>1 ? 'Your preferences shift with the situation: these scenes make room for ' : 'A recurring thread in these scenes is '}${needs.join('; ')}. Compare these preferences with what you actually do when the same situation happens. An appealing image and an automatic response are not always the same.`, reflection: themes.length>1 ? 'Which change in the situation changes what you need? Notice whether you make that shift clear to the other person, or expect them to infer it.' : (readingThemes[themes[0]]?.ask ?? lead.ask) };
   });
-  return { result, deepResult: { modules, lens: { title: 'Read the situation, not a label', explanation: 'Your report follows the actions and settings in your selected images. A visual preference can have several explanations; it cannot establish childhood experiences, diagnose an attachment style, or reveal facts about another person. Use the reading to compare these possibilities with your lived experience.', reflectionPrompt: lead.ask } } };
+  return { result, deepResult: { modules, lens: { title: 'A pattern, not a verdict', explanation: 'These scores describe how often your image choices leaned toward reaching, stepping back, staying steady, or doing both. Your report also follows the actions and settings in the pictures you selected. A visual preference can have several explanations; it cannot establish childhood experiences, diagnose an attachment style, or reveal facts about another person.', reflectionPrompt: lead.ask } } };
 }

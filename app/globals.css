@@ -1289,6 +1289,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .quadrant-fearful { right: 12px; top: 12px; }
 .quadrant-secure { left: 12px; bottom: 12px; }
 .quadrant-avoidant { right: 12px; bottom: 12px; }
+.quadrant-axis-x, .quadrant-axis-y { position: absolute; color: var(--muted); font-size: 9px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.quadrant-axis-x { left: 50%; bottom: -22px; transform: translateX(-50%); }
+.quadrant-axis-y { left: -10px; top: 50%; transform: translate(-50%, -50%) rotate(-90deg); }
 .quadrant-dot {
   position: absolute; width: 18px; height: 18px; border: 3px solid white; border-radius: 50%;
   background: var(--wine); box-shadow: 0 6px 16px rgba(111,41,59,.28); transform: translate(-50%, -50%);
@@ -1367,3 +1370,19 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .free-overview article { padding: 18px 0; border-top: 1px solid var(--line); }
 .free-overview h3 { margin: 0 0 10px; font-size: 16px; }
 .free-overview p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.7; }
+.free-overview ul { margin: 0; padding-left: 20px; color: var(--muted); font-size: 15px; line-height: 1.7; }
+.free-overview li { margin: 8px 0; }
+.result-theme { margin: 8px auto 0; max-width: 640px; color: var(--wine); font: italic 22px/1.35 Georgia, serif; }
+.quadrant-board { margin-bottom: 28px; }
+.free-sample { margin: 8px 0 12px; padding: 28px 0 8px; border-top: 1px solid var(--line); text-align: left; }
+.free-sample > span { color: var(--wine); font-size: 11px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+.free-sample h2 { margin: 10px 0 14px; font: 500 28px/1.2 Georgia, serif; }
+.free-sample > p { color: var(--muted); font-size: 15px; line-height: 1.7; }
+.free-sample-choice { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 18px; margin: 22px 0; padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: #fffdf8; }
+.free-sample-choice span { color: var(--wine); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.free-sample-choice h3 { margin: 8px 0; font: 500 22px/1.2 Georgia, serif; }
+.free-sample-choice p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
+.free-sample-prompt { padding: 14px 16px; border-radius: 12px; background: #f7f4e9; }
+@media (max-width: 640px) {
+  .free-sample-choice { grid-template-columns: 1fr; }
+}

@@ -13,7 +13,20 @@ export type ReportResponse = {
   preview?: {
     totalChoices: number;
     modules: string[];
-    overview: { title: string; body: string }[];
+    overview: { title: string; body: string; points?: string[] }[];
+    sample?: {
+      moduleTitle: string;
+      explanation: string;
+      reflection: string;
+      choice: {
+        questionNumber: number;
+        prompt: string;
+        label: string;
+        meaning: string;
+        atlasPath: string;
+        selectedIndex: number;
+      };
+    };
   };
   id: string;
   unlocked: boolean;

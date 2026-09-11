@@ -3,6 +3,7 @@ import { readingThemes } from "./relationship-reading";
 import { type QuizQuestion, type QuizTest } from "./quiz";
 
 export const ATTACHMENT_TEST_ID = "attachment-style";
+export const FULL_REPORT_PRICE_CENTS = 999;
 
 export const defaultTests: QuizTest[] = [
   {
@@ -15,7 +16,7 @@ export const defaultTests: QuizTest[] = [
     position: 1,
     active: true,
     featured: true,
-    reportPriceCents: 499,
+    reportPriceCents: FULL_REPORT_PRICE_CENTS,
   },
   {
     id: "emotional-needs",
@@ -27,7 +28,7 @@ export const defaultTests: QuizTest[] = [
     position: 2,
     active: false,
     featured: false,
-    reportPriceCents: 499,
+    reportPriceCents: FULL_REPORT_PRICE_CENTS,
   },
   {
     id: "conflict-style",
@@ -39,7 +40,7 @@ export const defaultTests: QuizTest[] = [
     position: 3,
     active: false,
     featured: false,
-    reportPriceCents: 499,
+    reportPriceCents: FULL_REPORT_PRICE_CENTS,
   },
   {
     id: "social-energy",
@@ -51,7 +52,7 @@ export const defaultTests: QuizTest[] = [
     position: 4,
     active: false,
     featured: false,
-    reportPriceCents: 499,
+    reportPriceCents: FULL_REPORT_PRICE_CENTS,
   },
   {
     id: "love-language",
@@ -63,7 +64,7 @@ export const defaultTests: QuizTest[] = [
     position: 5,
     active: false,
     featured: false,
-    reportPriceCents: 499,
+    reportPriceCents: FULL_REPORT_PRICE_CENTS,
   },
   {
     id: "stress-reset",
@@ -75,7 +76,7 @@ export const defaultTests: QuizTest[] = [
     position: 6,
     active: false,
     featured: false,
-    reportPriceCents: 499,
+    reportPriceCents: FULL_REPORT_PRICE_CENTS,
   },
   {
     id: "boundary-style",
@@ -87,7 +88,7 @@ export const defaultTests: QuizTest[] = [
     position: 7,
     active: false,
     featured: false,
-    reportPriceCents: 499,
+    reportPriceCents: FULL_REPORT_PRICE_CENTS,
   },
   {
     id: "hidden-strength",
@@ -99,7 +100,7 @@ export const defaultTests: QuizTest[] = [
     position: 8,
     active: false,
     featured: false,
-    reportPriceCents: 499,
+    reportPriceCents: FULL_REPORT_PRICE_CENTS,
   },
 ];
 
