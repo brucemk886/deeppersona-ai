@@ -185,7 +185,7 @@ export function worthPattern(questions: QuizQuestion[], choices: Record<string, 
     secure: "When worth is on the line, you tend to feel a flicker without writing yourself off.",
     fearful: "When worth is on the line, you tend to feel good and then later feel undeserving.",
   }[dominant];
-  const bullets = self.slice(0, 2).map((entry) => {
+  const bullets: string[] = self.slice(0, 2).map((entry) => {
     if (entry.question.position === 13) return "A sincere compliment still has to get past a test before you can keep it.";
     if (entry.question.position === 14) return "A small miss can turn into a larger story about whether they will stay.";
     if (entry.question.position === 15) return "Someone who looks “more” in their world can become a referendum on you.";

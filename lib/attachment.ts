@@ -348,7 +348,7 @@ export function applyAttachmentStyle(
       anxiety: scored.anxiety,
       avoidance: scored.avoidance,
     } satisfies ResultProfile,
-    deepResult: reading.deepResult,
+    deepResult: _reading.deepResult,
   };
 }
 
