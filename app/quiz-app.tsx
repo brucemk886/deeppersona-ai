@@ -685,7 +685,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
           <div className="progress-track"><span style={{ width: `${progress}%`, background: selectedTest.accent }} /></div>
         </header>
         <section className="question-section">
-          <div className="question-heading"><span>{relationshipContext ? `Thinking of ${relationshipContext.nickname}` : activeQuestion.kicker}</span><h1>{activeQuestion.prompt}</h1><p>{relationshipContext ? `Keep ${relationshipContext.nickname} in mind. Notice the first response this relationship brings up.` : "There is no correct choice. Notice your first emotional response."}</p></div>
+          <div className="question-heading"><span>{relationshipContext ? `Thinking of ${relationshipContext.nickname}` : activeQuestion.kicker}</span><h1>{activeQuestion.prompt}</h1><p>{relationshipContext ? `Keep ${relationshipContext.nickname} in mind. Notice the first response this relationship brings up.` : "No wrong answers."}</p></div>
           <div className="option-grid" role="radiogroup" aria-label={activeQuestion.prompt}>
             {activeQuestion.options.map((option, index) => {
               const selected = selectedOptionIndex === index;

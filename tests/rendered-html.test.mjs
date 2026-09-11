@@ -116,7 +116,12 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(adminStyles, /aspect-ratio: 4 \/ 5/);
   assert.match(adminStyles, /\.lead-table-cn \{ font-size: 13px; \}/);
   assert.match(store, /reconcilePublicCatalog|PUBLIC_QUESTION_IDS/);
+  assert.match(quiz, /No wrong answers\./);
+  assert.doesNotMatch(quiz, /There is no correct choice/);
   assert.match(store, /options_json = excluded.options_json/);
+  assert.match(store, /prompt = excluded.prompt/);
+  assert.match(store, /kicker = excluded.kicker/);
+  assert.match(store, /atlas_path = excluded.atlas_path/);
   assert.match(store, /COUNT\(DISTINCT s\.id\) AS users FROM quiz_sessions/);
   assert.match(store, /answers: answerRecords/);
   assert.match(adminStyles, /\.stats-range-switcher/);

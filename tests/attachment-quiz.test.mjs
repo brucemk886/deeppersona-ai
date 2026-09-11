@@ -32,6 +32,39 @@ const questions = [1, 2, 3, 4].map((position) => ({
   ],
 }));
 
+const SHORT_QUIZ_BANK = [
+  ["Left on read for 2 hours. What do you do first?", ["Refresh the chat", "Phone face-down", "Wait, then ask once", "Draft, delete, redraft"]],
+  ["Replies turn into \"k\" / \"busy\" / \"later.\" You…", ["Spiral on old chats", "Match the chill", "Stay steady, ask once", "Double-text, then go cold"]],
+  ["They want tonight alone. You…", ["Push to call / come over", "Feel relief; reply tomorrow", "\"Enjoy — talk tomorrow?\"", "Say OK, then check if online"]],
+  ["You're exclusive but unnamed. A friend asks if you're official. You…", ["Bring it up tonight", "Dodge the label", "Ask calmly this weekend", "Want it and fear the cage"]],
+  ["They get more affectionate and talk future. You…", ["Lean in harder", "Pull back a notch", "Enjoy it, keep your pace", "Melt in, cool off tomorrow"]],
+  ["Rough day. They ask what's wrong. You…", ["Spill everything", "Say you're fine", "Share the headline + ask", "Start, then shut down"]],
+  ["Three days together. Sunday afternoon. You want…", ["One more plan together", "Real alone time", "Hours apart, dinner later", "Ask for space, then cling"]],
+  ["After a sharp fight, silence. First move?", ["Text / call to fix it", "Leave to cool off", "\"20 minutes, then talk\"", "Push away, then panic"]],
+  ["They apologize — but not in enough detail. You…", ["Keep pressing", "Say it's fine; stay cold", "Name what's missing once", "Accept, then bring it up later"]],
+  ["Same fight, third time. You…", ["Protest harder", "Shut down", "Own your part + one change", "Explode, then ghost"]],
+  ["They tear up sharing something hard. You…", ["Jump in / rush to fix", "Joke or intellectualize", "Listen; ask what they need", "Feel close, then need air"]],
+  ["Morning after a really close night. You…", ["Need texts and plans", "Need quiet space", "Warm and normal", "Close at night, distant by noon"]],
+  ["They sincerely compliment you. You…", ["Ask if they mean it", "Deflect / change subject", "Take it in, say thanks", "Feel good, then unworthy"]],
+  ["You replied late or said the wrong thing. You…", ["Over-apologize", "Act like nothing happened", "Own it once, move on", "Want to explain and disappear"]],
+  ["Someone in their world seems \"better.\" You…", ["Seek reassurance you're chosen", "Cool off; say you don't care", "Feel a flicker, stay grounded", "Look fine; spiral later"]],
+  ["Late night: \"Do I deserve steady love?\"", ["Fear the answer is no", "Prefer self-reliance", "Mostly believe you do", "Sometimes yes, sometimes ruin it"]],
+  ["As a kid, when scared or upset, you usually…", ["Cling for promises", "Hide; say you're fine", "Tell someone + take space", "Freeze at the door"]],
+  ["When you cried or got angry as a kid…", ["Soothed — still feared annoyance", "Told to hide it", "Listened to, no shame", "Sometimes held, sometimes yelled at"]],
+  ["When you needed help as a kid, you…", ["Kept calling until someone came", "Tough it out alone", "Asked clearly when you could", "Called out, then said never mind"]],
+  ["Parent leaving / you leaving for school. You were…", ["Hard to separate", "Leave fast; look unfazed", "Feel it, then trust return", "Say go — panic inside"]],
+];
+
+test("public catalog uses the short v6 prompts and option labels", () => {
+  assert.equal(relationshipQuestions.length, SHORT_QUIZ_BANK.length);
+  relationshipQuestions.forEach((question, index) => {
+    const [prompt, labels] = SHORT_QUIZ_BANK[index];
+    assert.equal(question.prompt, prompt);
+    assert.deepEqual(question.options.map((option) => option.label), labels);
+    assert.deepEqual(question.options.map((option) => option.microcopy), labels);
+  });
+});
+
 test("public catalog contains twenty distinct image scenarios and eighty interpretations", async () => {
   const catalog = await readFile(new URL("../lib/quiz-content.ts", import.meta.url), "utf8");
   const live = catalog.slice(0, catalog.indexOf("RETIRED_QUESTION_PROMPTS"));
