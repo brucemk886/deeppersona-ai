@@ -15,6 +15,7 @@ import {
 } from "../lib/attachment.ts";
 import { relationshipQuestions } from '../lib/relationship-content.ts';
 import { PUBLIC_QUESTION_IDS } from '../lib/public-catalog.ts';
+import { RELATIONSHIP_ZH, localizeRelationshipQuestion, quizLocaleFromAcceptLanguage } from '../lib/relationship-zh.ts';
 
 const questions = [1, 2, 3, 4].map((position) => ({
   id: `q${position}`,
@@ -33,36 +34,53 @@ const questions = [1, 2, 3, 4].map((position) => ({
 }));
 
 const SHORT_QUIZ_BANK = [
-  ["Left on read for 2 hours. What do you do first?", ["Refresh the chat", "Phone face-down", "Wait, then ask once", "Draft, delete, redraft"]],
-  ["Replies turn into \"k\" / \"busy\" / \"later.\" You…", ["Spiral on old chats", "Match the chill", "Stay steady, ask once", "Double-text, then go cold"]],
-  ["They want tonight alone. You…", ["Push to call / come over", "Feel relief; reply tomorrow", "\"Enjoy — talk tomorrow?\"", "Say OK, then check if online"]],
-  ["You're exclusive but unnamed. A friend asks if you're official. You…", ["Bring it up tonight", "Dodge the label", "Ask calmly this weekend", "Want it and fear the cage"]],
-  ["They get more affectionate and talk future. You…", ["Lean in harder", "Pull back a notch", "Enjoy it, keep your pace", "Melt in, cool off tomorrow"]],
+  ["Your text shows Read — 2 hours, no reply. What do you do first?", ["Refresh the chat", "Phone face-down", "Wait, then text once", "Draft, delete, redraft"]],
+  ["Replies are just \"k\" / \"busy\" / \"later.\" You…", ["Spiral on old chats", "Match the chill", "Stay steady, ask once", "Double-text, then go cold"]],
+  ["They say they need tonight alone. You…", ["Push to FaceTime / come over", "Feel relief; reply tomorrow", "\"Cool — talk tomorrow?\"", "Say OK, then check if online"]],
+  ["You're exclusive but never defined it. Friend asks if you're official. You…", ["Bring it up tonight", "Dodge the label", "Ask calmly this weekend", "Want it and fear the cage"]],
+  ["After a good week they get more affectionate. You…", ["Lean in harder", "Pull back a notch", "Enjoy it, keep your pace", "Melt in, cool off tomorrow"]],
   ["Rough day. They ask what's wrong. You…", ["Spill everything", "Say you're fine", "Share the headline + ask", "Start, then shut down"]],
-  ["Three days together. Sunday afternoon. You want…", ["One more plan together", "Real alone time", "Hours apart, dinner later", "Ask for space, then cling"]],
-  ["After a sharp fight, silence. First move?", ["Text / call to fix it", "Leave to cool off", "\"20 minutes, then talk\"", "Push away, then panic"]],
-  ["They apologize — but not in enough detail. You…", ["Keep pressing", "Say it's fine; stay cold", "Name what's missing once", "Accept, then bring it up later"]],
+  ["Three days together. Sunday afternoon you want…", ["One more plan together", "Real alone time", "Hours apart, dinner later", "Ask for space, then cling"]],
+  ["After a fight, silence. First move?", ["Text / call to fix it", "Leave to cool off", "\"20 minutes, then talk\"", "Push away, then panic"]],
+  ["They apologize — not with every detail you wanted. You…", ["Keep pressing", "Say it's fine; stay cold", "Name what's missing once", "Accept, then bring it up later"]],
   ["Same fight, third time. You…", ["Protest harder", "Shut down", "Own your part + one change", "Explode, then ghost"]],
   ["They tear up sharing something hard. You…", ["Jump in / rush to fix", "Joke or intellectualize", "Listen; ask what they need", "Feel close, then need air"]],
   ["Morning after a really close night. You…", ["Need texts and plans", "Need quiet space", "Warm and normal", "Close at night, distant by noon"]],
   ["They sincerely compliment you. You…", ["Ask if they mean it", "Deflect / change subject", "Take it in, say thanks", "Feel good, then unworthy"]],
   ["You replied late or said the wrong thing. You…", ["Over-apologize", "Act like nothing happened", "Own it once, move on", "Want to explain and disappear"]],
   ["Someone in their world seems \"better.\" You…", ["Seek reassurance you're chosen", "Cool off; say you don't care", "Feel a flicker, stay grounded", "Look fine; spiral later"]],
-  ["Late night: \"Do I deserve steady love?\"", ["Fear the answer is no", "Prefer self-reliance", "Mostly believe you do", "Sometimes yes, sometimes ruin it"]],
+  ["Late night: do I deserve steady love?", ["Fear the answer is no", "Prefer self-reliance", "Mostly believe you do", "Sometimes yes, sometimes ruin it"]],
   ["As a kid, when scared or upset, you usually…", ["Cling for promises", "Hide; say you're fine", "Tell someone + take space", "Freeze at the door"]],
   ["When you cried or got angry as a kid…", ["Soothed — still feared annoyance", "Told to hide it", "Listened to, no shame", "Sometimes held, sometimes yelled at"]],
   ["When you needed help as a kid, you…", ["Kept calling until someone came", "Tough it out alone", "Asked clearly when you could", "Called out, then said never mind"]],
-  ["Parent leaving / you leaving for school. You were…", ["Hard to separate", "Leave fast; look unfazed", "Feel it, then trust return", "Say go — panic inside"]],
+  ["Goodbye for school / parent leaving. You were…", ["Hard to separate", "Leave fast; look unfazed", "Feel it, then trust return", "Say go — panic inside"]],
 ];
 
-test("public catalog uses the short v6 prompts and option labels", () => {
+test("public catalog uses the short v7 prompts and option labels", () => {
   assert.equal(relationshipQuestions.length, SHORT_QUIZ_BANK.length);
   relationshipQuestions.forEach((question, index) => {
     const [prompt, labels] = SHORT_QUIZ_BANK[index];
     assert.equal(question.prompt, prompt);
     assert.deepEqual(question.options.map((option) => option.label), labels);
     assert.deepEqual(question.options.map((option) => option.microcopy), labels);
+    assert.equal(question.atlasPath, `/quiz/relationship-v7/q${String(index + 1).padStart(2, "0")}.webp`);
   });
+  assert.match(relationshipQuestions[0].prompt, /text shows Read/);
+  assert.doesNotMatch(relationshipQuestions[0].prompt, /email|Left on read|left you on read/i);
+  assert.doesNotMatch(relationshipQuestions.map((question) => question.prompt).join("\n"), /weekend together|new town|cinema/i);
+});
+
+test("Chinese quiz copy uses 短信/消息已读 and never 邮件 for left-on-read", () => {
+  assert.equal(quizLocaleFromAcceptLanguage("zh-CN,zh;q=0.9,en;q=0.8"), "zh");
+  assert.equal(quizLocaleFromAcceptLanguage("en-US,en;q=0.9"), "en");
+  const q1 = localizeRelationshipQuestion(relationshipQuestions[0], "zh");
+  assert.match(q1.prompt, /短信/);
+  assert.match(q1.prompt, /已读/);
+  assert.doesNotMatch(q1.prompt, /邮件/);
+  assert.deepEqual(Object.keys(RELATIONSHIP_ZH).sort(), relationshipQuestions.map((question) => question.id));
+  const zhCopy = Object.values(RELATIONSHIP_ZH).map((entry) => `${entry.prompt}\n${entry.labels.join("\n")}`).join("\n");
+  assert.doesNotMatch(zhCopy, /邮件/);
+  assert.equal(RELATIONSHIP_ZH["attachment-style-v3-q01"].labels[2], "先等着，再发一条");
 });
 
 test("public catalog contains twenty distinct image scenarios and eighty interpretations", async () => {

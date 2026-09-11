@@ -122,6 +122,12 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(store, /prompt = excluded.prompt/);
   assert.match(store, /kicker = excluded.kicker/);
   assert.match(store, /atlas_path = excluded.atlas_path/);
+  assert.match(store, /PUBLIC_QUESTION_IDS.has\(row.id\)/);
+  assert.match(await readFile(new URL("../lib/relationship-zh.ts", import.meta.url), "utf8"), /短信显示「已读」/);
+  assert.doesNotMatch(await readFile(new URL("../lib/relationship-zh.ts", import.meta.url), "utf8"), /邮件显示|邮件已读|左你在邮件/);
+  assert.match(homeLanding, /text left on Read/);
+  assert.doesNotMatch(homeLanding, /weekend invite/);
+  assert.match(catalog, /They invite you to spend a weekend together/);
   assert.match(store, /COUNT\(DISTINCT s\.id\) AS users FROM quiz_sessions/);
   assert.match(store, /answers: answerRecords/);
   assert.match(adminStyles, /\.stats-range-switcher/);

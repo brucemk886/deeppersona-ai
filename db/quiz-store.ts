@@ -230,6 +230,12 @@ export async function ensureQuizSchema(): Promise<void> {
 function rowToQuestion(row: QuestionRow): QuizQuestion {
   const legacyPaths = ["/quiz/doors.png", "/quiz/rooms.png", "/quiz/landscapes.png", "/quiz/symbols.png"];
   const catalogQuestion = defaultQuestions.find((question) => question.id === row.id);
+  if (catalogQuestion && PUBLIC_QUESTION_IDS.has(row.id)) {
+    return {
+      ...catalogQuestion,
+      active: Boolean(row.active),
+    };
+  }
   const legacyPath = legacyPaths[Math.max(0, row.position - 1) % legacyPaths.length];
   const atlasPath = catalogQuestion && row.atlas_path === legacyPath
     ? catalogQuestion.atlasPath

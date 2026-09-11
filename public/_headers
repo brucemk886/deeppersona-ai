@@ -1,6 +1,9 @@
 /quiz/*
   Cache-Control: public, max-age=3600
 
+/quiz/relationship-v7/*
+  Cache-Control: public, max-age=86400
+
 /images/editorial/*
   Cache-Control: public, max-age=86400
 

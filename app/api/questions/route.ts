@@ -1,6 +1,7 @@
 import { publicQuestion } from "@/lib/public-quiz";
 import { isAdminRequest } from "@/app/admin-auth";
 import { deleteQuestion, listQuestions, saveQuestion } from "@/db/quiz-store";
+import { localizeRelationshipQuestion, quizLocaleFromAcceptLanguage } from "@/lib/relationship-zh";
 import { type QuizQuestion } from "@/lib/quiz";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,8 @@ export async function GET(request: Request) {
 
   try {
     const items = await listQuestions(testId, includeInactive);
-    return Response.json({ questions: includeInactive ? items : items.map(publicQuestion) });
+    const locale = includeInactive ? "en" : quizLocaleFromAcceptLanguage(request.headers.get("accept-language"));
+    return Response.json({ questions: includeInactive ? items : items.map((question) => publicQuestion(localizeRelationshipQuestion(question, locale))) });
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Unable to load questions" },

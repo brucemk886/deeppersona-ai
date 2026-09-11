@@ -11,7 +11,7 @@ export const defaultTests: QuizTest[] = [
     title: "Attachment Style Quiz",
     kicker: "Free · 20 image choices",
     description: "See how you move toward or away from closeness when a relationship feels uncertain.",
-    coverAtlasPath: "/quiz/relationship-v3/q01.webp",
+    coverAtlasPath: "/quiz/relationship-v7/q01.webp",
     accent: "#9b4f5e",
     position: 1,
     active: true,
@@ -118,6 +118,7 @@ export const RETIRED_QUESTION_IDS = [
 ];
 
 export const RETIRED_QUESTION_PROMPTS = [
+  "They invite you to spend a weekend together. Which scene draws you in?",
   "They suddenly go quiet. Which door feels most like your next move?",
   "Which room feels safest to share with someone you love?",
   "Which path best matches the pace of love you trust?",

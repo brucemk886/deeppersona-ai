@@ -77,7 +77,7 @@ export function HomeLanding({
           <article>
             <span>01</span>
             <h3>It shows up in ordinary moments</h3>
-            <p>A quiet phone, a weekend invite, or a request for space can reveal the move you trust first.</p>
+            <p>A text left on Read, a request for space, or a closer week can reveal the move you trust first.</p>
           </article>
           <article>
             <span>02</span>
