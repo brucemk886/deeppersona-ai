@@ -1,5 +1,6 @@
 import type { QuizQuestion, QuizTest, ResultProfile } from "./quiz";
 import type { DeepResultContent } from "./deep-results";
+import type { DimensionScore, WorthLevel } from "./attachment";
 
 export type ReportSnapshot = {
   test: QuizTest;
@@ -9,29 +10,31 @@ export type ReportSnapshot = {
   deepResult: DeepResultContent;
 };
 
-export type ReportResponse = {
-  preview?: {
-    totalChoices: number;
-    modules: string[];
-    overview: { title: string; body: string; points?: string[] }[];
-    loop?: { name: string; kind: string; steps: string[] };
-    childhoodTeaser?: string;
-    worthPattern?: { sentence: string; bullets: string[] };
-    inclusions?: string[];
-    sample?: {
-      moduleTitle: string;
-      explanation: string;
-      reflection: string;
-      choice: {
-        questionNumber: number;
-        prompt: string;
-        label: string;
-        meaning: string;
-        atlasPath: string;
-        selectedIndex: number;
-      };
+export type ReportPreview = {
+  totalChoices: number;
+  modules: string[];
+  romanceEssay?: string;
+  scores?: DimensionScore;
+  caregiver?: { intro: string } & DimensionScore;
+  selfWorth?: { level: WorthLevel; percent: number; sentences: string };
+  inclusions?: string[];
+  sample?: {
+    moduleTitle: string;
+    explanation: string;
+    reflection: string;
+    choice: {
+      questionNumber: number;
+      prompt: string;
+      label: string;
+      meaning: string;
+      atlasPath: string;
+      selectedIndex: number;
     };
   };
+};
+
+export type ReportResponse = {
+  preview?: ReportPreview;
   id: string;
   unlocked: boolean;
   status: string;

@@ -42,6 +42,8 @@ test("builds the complete DeepPersona AI experience", async () => {
   const homeLanding = await readFile(new URL("../app/_components/home-landing.tsx", import.meta.url), "utf8");
   const siteChrome = await readFile(new URL("../app/_components/site-chrome.tsx", import.meta.url), "utf8");
   const attachment = await readFile(new URL("../lib/attachment.ts", import.meta.url), "utf8");
+  const freeResults = await readFile(new URL("../app/_components/free-attachment-results.tsx", import.meta.url), "utf8");
+  const resultsUi = quiz + freeResults;
   assert.match(quiz, /<BrandLogo/);
   assert.match(await readFile("app/_components/brand.tsx", "utf8"), /alt="DeepPersona AI"/);
   assert.match(homeLanding, /Do you know your attachment style\?/);
@@ -73,7 +75,13 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(quiz, /Your Inner Map/);
   assert.doesNotMatch(quiz, /That feels accurate/);
   assert.match(quiz, /See your relationship patterns/);
-  assert.match(quiz, /Unlock my full reading/);
+  assert.match(resultsUi, /Unlock full results/);
+  assert.match(resultsUi, /How you scored/);
+  assert.match(resultsUi, /Your romantic patterns/);
+  assert.match(resultsUi, /caregiver attachment patterns/);
+  assert.doesNotMatch(resultsUi, /Unlock my full reading/);
+  assert.doesNotMatch(resultsUi, /Full childhood detail is locked|paid reading/);
+  assert.doesNotMatch(resultsUi, /Mother \(CG|Father \(CG|AT WORK|millions of users/i);
   assert.match(attachment, /scoreAttachment/);
   const liveCatalog = catalog.slice(0, catalog.indexOf("RETIRED_QUESTION_PROMPTS"));
   assert.match(catalog, /relationshipQuestions\.map/);
