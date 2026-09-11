@@ -2,13 +2,9 @@ import { answerRecords } from '@/lib/admin-answer-records';
 import { ensureTrafficSchema } from './traffic-store';
 import { productionSession } from './traffic-stats';
 import {
-  ATTACHMENT_TEST_ID,
   defaultQuestions,
   defaultTests,
   FULL_REPORT_PRICE_CENTS,
-  PUBLIC_QUESTION_IDS,
-  RETIRED_QUESTION_IDS,
-  RETIRED_QUESTION_PROMPTS,
 } from "@/lib/quiz-content";
 import { env } from "cloudflare:workers";
 import {
@@ -93,6 +89,7 @@ type RelationshipRow = {
 };
 
 let schemaReady: Promise<void> | undefined;
+let catalogReady: Promise<void> | undefined;
 
 export function getRuntimeEnv(): RuntimeEnv {
   return env as unknown as RuntimeEnv;
@@ -107,6 +104,10 @@ export function getD1(): D1Database {
 async function createSchema(): Promise<void> {
   const db = getD1();
   await db.batch([
+    db.prepare(`CREATE TABLE IF NOT EXISTS quiz_catalog_state (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      seed_defaults INTEGER NOT NULL DEFAULT 0
+    )`),
     db.prepare("CREATE TABLE IF NOT EXISTS admin_deleted_leads (session_id TEXT PRIMARY KEY, deleted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"),
     db.prepare(`CREATE TABLE IF NOT EXISTS affiliate_products (
       id TEXT PRIMARY KEY,
@@ -196,8 +197,6 @@ async function createSchema(): Promise<void> {
   await db.prepare(`ALTER TABLE quiz_tests ADD COLUMN report_price_cents INTEGER NOT NULL DEFAULT ${FULL_REPORT_PRICE_CENTS}`).run().catch((error: unknown) => {
     if (!(error instanceof Error) || !/duplicate column name/i.test(error.message)) throw error;
   });
-  await db.prepare("UPDATE quiz_tests SET report_price_cents = ? WHERE id = ? AND report_price_cents IN (499, 500)")
-    .bind(FULL_REPORT_PRICE_CENTS, ATTACHMENT_TEST_ID).run();
   await db.prepare("ALTER TABLE quiz_sessions ADD COLUMN profile_id TEXT").run().catch((error: unknown) => {
     if (!(error instanceof Error) || !/duplicate column name/i.test(error.message)) throw error;
   });
@@ -228,18 +227,6 @@ export async function ensureQuizSchema(): Promise<void> {
 }
 
 function rowToQuestion(row: QuestionRow): QuizQuestion {
-  const legacyPaths = ["/quiz/doors.png", "/quiz/rooms.png", "/quiz/landscapes.png", "/quiz/symbols.png"];
-  const catalogQuestion = defaultQuestions.find((question) => question.id === row.id);
-  if (catalogQuestion && PUBLIC_QUESTION_IDS.has(row.id)) {
-    return {
-      ...catalogQuestion,
-      active: Boolean(row.active),
-    };
-  }
-  const legacyPath = legacyPaths[Math.max(0, row.position - 1) % legacyPaths.length];
-  const atlasPath = catalogQuestion && row.atlas_path === legacyPath
-    ? catalogQuestion.atlasPath
-    : row.atlas_path;
   const parsedOptions = JSON.parse(row.options_json) as Partial<QuizOption>[];
 
   return {
@@ -247,17 +234,16 @@ function rowToQuestion(row: QuestionRow): QuizQuestion {
     testId: row.test_id,
     kicker: row.kicker,
     prompt: row.prompt,
-    atlasPath,
+    atlasPath: row.atlas_path,
     options: parsedOptions.map((option, index) => {
-      const catalogOption = catalogQuestion?.options[index];
       return {
         label: option.label ?? `Choice ${String.fromCharCode(65 + index)}`,
         microcopy: option.microcopy ?? "Trust your first response",
         meaning: option.meaning?.trim() || "",
         projection: option.projection?.trim() || "",
-        ...(catalogOption?.readingFocus ? { readingFocus: catalogOption.readingFocus } : {}),
-        ...(catalogOption?.styleKey ? { styleKey: catalogOption.styleKey } : {}),
-        ...(catalogOption?.cardTone ? { cardTone: catalogOption.cardTone } : option.cardTone ? { cardTone: option.cardTone } : {}),
+        ...(option.readingFocus ? { readingFocus: option.readingFocus } : {}),
+        ...(option.styleKey ? { styleKey: option.styleKey } : {}),
+        ...(option.cardTone ? { cardTone: option.cardTone } : {}),
       };
     }),
     position: row.position,
@@ -323,92 +309,46 @@ export async function deleteAffiliateProduct(id: string): Promise<void> {
   await ensureQuizSchema();
   await getD1().prepare("DELETE FROM affiliate_products WHERE id = ?").bind(id).run();
 }
-function isRetiredQuestion(question: { id: string; prompt: string }): boolean {
-  return RETIRED_QUESTION_IDS.includes(question.id) || RETIRED_QUESTION_PROMPTS.includes(question.prompt);
-}
-
-async function seedCatalogIfNeeded(): Promise<void> {
+// Defaults initialize a new database only. An existing catalog belongs to the admin,
+// including missing/deleted rows. Never reconcile it with source code on reads.
+async function initializeCatalog(): Promise<void> {
   const db = getD1();
-  const count = await db.prepare("SELECT COUNT(*) AS total FROM quiz_tests").first<{ total: number }>();
-  if ((count?.total ?? 0) > 0) return;
+  if (await db.prepare("SELECT id FROM quiz_catalog_state WHERE id = 1").first()) return;
 
+  // D1 batches are atomic. Concurrent first requests cannot seed again after a
+  // different isolate has adopted/initialized the catalog, even if it is empty.
   await db.batch([
+    db.prepare(`INSERT OR IGNORE INTO quiz_catalog_state (id, seed_defaults)
+      SELECT 1, NOT EXISTS (SELECT 1 FROM quiz_tests) AND NOT EXISTS (SELECT 1 FROM quiz_questions)`),
     ...defaultTests.map((test) =>
       db.prepare(`INSERT OR IGNORE INTO quiz_tests
         (id, title, kicker, description, cover_atlas_path, accent, results_json, position, active, featured, report_price_cents)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        WHERE (SELECT seed_defaults FROM quiz_catalog_state WHERE id = 1) = 1`)
         .bind(test.id, test.title, test.kicker, test.description, test.coverAtlasPath, test.accent, JSON.stringify(test.results ?? {}), test.position, test.active ? 1 : 0, test.featured ? 1 : 0, test.reportPriceCents),
     ),
     ...defaultQuestions.map((question) =>
-      db.prepare(`INSERT INTO quiz_questions
-        (id, test_id, kicker, prompt, atlas_path, options_json, position, active, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(id) DO UPDATE SET
-          test_id = excluded.test_id,
-          kicker = excluded.kicker,
-          prompt = excluded.prompt,
-          atlas_path = excluded.atlas_path,
-          options_json = excluded.options_json,
-          position = excluded.position,
-          active = excluded.active,
-          updated_at = CURRENT_TIMESTAMP`)
+      db.prepare(`INSERT OR IGNORE INTO quiz_questions
+        (id, test_id, kicker, prompt, atlas_path, options_json, position, active)
+        SELECT ?, ?, ?, ?, ?, ?, ?, ?
+        WHERE (SELECT seed_defaults FROM quiz_catalog_state WHERE id = 1) = 1`)
         .bind(question.id, question.testId, question.kicker, question.prompt, question.atlasPath, JSON.stringify(question.options), question.position, question.active ? 1 : 0),
     ),
+    db.prepare("UPDATE quiz_catalog_state SET seed_defaults = 0 WHERE id = 1"),
   ]);
 }
 
-async function reconcilePublicCatalog(): Promise<void> {
-  const db = getD1();
-  const existing = await db.prepare("SELECT id, prompt FROM quiz_questions").all<{ id: string; prompt: string }>();
-  const retiredIds = [...new Set([
-    ...existing.results.filter(isRetiredQuestion).map((row) => row.id),
-    ...existing.results.filter((row) => !PUBLIC_QUESTION_IDS.has(row.id)).map((row) => row.id),
-  ])];
-
-  const writes = [
-    ...defaultTests.map((test) =>
-      db.prepare(`INSERT INTO quiz_tests
-        (id, title, kicker, description, cover_atlas_path, accent, results_json, position, active, featured, report_price_cents, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(id) DO UPDATE SET
-          title = excluded.title,
-          kicker = excluded.kicker,
-          description = excluded.description,
-          cover_atlas_path = excluded.cover_atlas_path,
-          accent = excluded.accent,
-          position = excluded.position,
-          active = excluded.active,
-          featured = excluded.featured,
-          updated_at = CURRENT_TIMESTAMP`)
-        .bind(test.id, test.title, test.kicker, test.description, test.coverAtlasPath, test.accent, JSON.stringify(test.results ?? {}), test.position, test.active ? 1 : 0, test.featured ? 1 : 0, test.reportPriceCents),
-    ),
-    ...defaultQuestions.map((question) =>
-      db.prepare(`INSERT INTO quiz_questions
-        (id, test_id, kicker, prompt, atlas_path, options_json, position, active, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(id) DO UPDATE SET
-          test_id = excluded.test_id,
-          kicker = excluded.kicker,
-          prompt = excluded.prompt,
-          atlas_path = excluded.atlas_path,
-          options_json = excluded.options_json,
-          position = excluded.position,
-          active = excluded.active,
-          updated_at = CURRENT_TIMESTAMP`)
-        .bind(question.id, question.testId, question.kicker, question.prompt, question.atlasPath, JSON.stringify(question.options), question.position, question.active ? 1 : 0),
-    ),
-    ...retiredIds.map((id) => db.prepare("DELETE FROM quiz_questions WHERE id = ?").bind(id)),
-  ];
-
-  for (let index = 0; index < writes.length; index += 40) {
-    await db.batch(writes.slice(index, index + 40));
-  }
+async function ensureCatalog(): Promise<void> {
+  await ensureQuizSchema();
+  catalogReady ??= initializeCatalog().catch((error) => {
+    catalogReady = undefined;
+    throw error;
+  });
+  await catalogReady;
 }
 
 export async function listTests(includeInactive = false): Promise<QuizTest[]> {
-  await ensureQuizSchema();
-  await seedCatalogIfNeeded();
-  await reconcilePublicCatalog();
+  await ensureCatalog();
   const where = includeInactive ? "" : "WHERE t.active = 1";
   const result = await getD1().prepare(`SELECT t.*,
       COUNT(CASE WHEN q.active = 1 THEN 1 END) AS question_count
@@ -421,7 +361,7 @@ export async function listTests(includeInactive = false): Promise<QuizTest[]> {
 }
 
 export async function saveTest(test: QuizTest): Promise<void> {
-  await ensureQuizSchema();
+  await ensureCatalog();
   await getD1().prepare(`INSERT INTO quiz_tests
     (id, title, kicker, description, cover_atlas_path, accent, results_json, position, active, featured, report_price_cents, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -442,30 +382,24 @@ export async function saveTest(test: QuizTest): Promise<void> {
 }
 
 export async function listQuestions(testId?: string, includeInactive = false): Promise<QuizQuestion[]> {
-  await ensureQuizSchema();
-  await seedCatalogIfNeeded();
-  await reconcilePublicCatalog();
+  await ensureCatalog();
   const filters: string[] = [];
   const values: string[] = [];
-  if (!includeInactive) filters.push("active = 1");
+  if (!includeInactive) filters.push("q.active = 1", "t.active = 1");
   if (testId) {
-    filters.push("test_id = ?");
+    filters.push("q.test_id = ?");
     values.push(testId);
   }
   const where = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
   const result = await getD1().prepare(`SELECT q.* FROM quiz_questions q
     LEFT JOIN quiz_tests t ON t.id = q.test_id
-    ${where ? where.replaceAll("active", "q.active") : ""}
+    ${where}
     ORDER BY COALESCE(t.position, 2147483647), q.test_id, q.position, q.id`).bind(...values).all<QuestionRow>();
-  return result.results
-    .map(rowToQuestion)
-    .filter((question) => includeInactive
-      ? !isRetiredQuestion(question)
-      : PUBLIC_QUESTION_IDS.has(question.id) && !isRetiredQuestion(question));
+  return result.results.map(rowToQuestion);
 }
 
 export async function saveQuestion(question: QuizQuestion): Promise<void> {
-  await ensureQuizSchema();
+  await ensureCatalog();
   await getD1().prepare(`INSERT INTO quiz_questions
     (id, test_id, kicker, prompt, atlas_path, options_json, position, active, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -483,7 +417,7 @@ export async function saveQuestion(question: QuizQuestion): Promise<void> {
 }
 
 export async function deleteQuestion(id: string): Promise<void> {
-  await ensureQuizSchema();
+  await ensureCatalog();
   await getD1().prepare("DELETE FROM quiz_questions WHERE id = ?").bind(id).run();
 }
 
@@ -650,8 +584,7 @@ export async function submitQuiz(input: {
   return getProfileSummary(input.profileId);
 }
 export async function getAdminStats(rangeInput?: string | null) {
-  await ensureQuizSchema();
-  await seedCatalogIfNeeded();
+  await ensureCatalog();
   await ensureTrafficSchema();
   const db = getD1();
   const range = resolveAdminStatsRange(rangeInput);

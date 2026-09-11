@@ -19,7 +19,9 @@ export async function GET(request: Request) {
   try {
     const items = await listQuestions(testId, includeInactive);
     const locale = includeInactive ? "en" : quizLocaleFromAcceptLanguage(request.headers.get("accept-language"));
-    return Response.json({ questions: includeInactive ? items : items.map((question) => publicQuestion(localizeRelationshipQuestion(question, locale))) });
+    return Response.json({ questions: includeInactive ? items : items.map((question) => publicQuestion(localizeRelationshipQuestion(question, locale))) }, {
+      headers: { "Cache-Control": "no-store", Vary: "Accept-Language, Cookie" },
+    });
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Unable to load questions" },
@@ -40,6 +42,8 @@ export async function PUT(request: Request) {
     typeof body.prompt === "string" &&
     typeof body.kicker === "string" &&
     typeof body.atlasPath === "string" &&
+    typeof body.active === "boolean" &&
+    Number.isSafeInteger(body.position) && body.position >= 0 &&
     Array.isArray(body.options) &&
     body.options.length === 4 &&
     body.options.every(
@@ -47,7 +51,8 @@ export async function PUT(request: Request) {
         typeof option.label === "string" &&
         typeof option.microcopy === "string" &&
         typeof option.meaning === "string" &&
-        typeof option.projection === "string",
+        typeof option.projection === "string" &&
+        [option.readingFocus, option.styleKey, option.cardTone].every((value) => value === undefined || typeof value === "string"),
     );
 
   if (!valid) {
@@ -56,11 +61,12 @@ export async function PUT(request: Request) {
 
   await saveQuestion({
     ...body,
-    options: body.options.map(({ label, microcopy, meaning, projection, styleKey, cardTone }) => ({
+    options: body.options.map(({ label, microcopy, meaning, projection, readingFocus, styleKey, cardTone }) => ({
       label,
       microcopy,
       meaning,
       projection,
+      ...(readingFocus ? { readingFocus } : {}),
       ...(styleKey ? { styleKey } : {}),
       ...(cardTone ? { cardTone } : {}),
     })),

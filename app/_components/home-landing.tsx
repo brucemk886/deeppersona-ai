@@ -35,7 +35,7 @@ export function HomeLanding({
           <span className="editorial-kicker">A visual quiz for real relationships</span>
           <h1>Do you know your attachment style?</h1>
           <p className="hero-lede">
-            Explore the patterns behind how you connect, receive care, and find your way back to each other through 20 visual choices.
+            Explore the patterns behind how you connect, receive care, and find your way back to each other through {featuredTest?.questionCount || "intuitive"} visual choices.
           </p>
           <div className="attach-hero-actions">
             <button

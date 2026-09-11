@@ -132,7 +132,7 @@ export function FreeAttachmentResults({
 
       <section className="ap-paywall" id="unlock-full-results">
         <h2>Unlock full results · {amountCents === 0 ? "Free" : price}</h2>
-        <p>USD 9.99, one time. This page unlocks now, plus an email backup link to the address you used with the test.</p>
+        <p>{amountCents > 0 ? `USD ${(amountCents / 100).toFixed(2)}, one time. ` : ""}This page unlocks after confirmation, plus an email backup link to the address you used with the test.</p>
         {preview.inclusions?.length ? (
           <ul className="report-inclusions" aria-label="What the full reading includes">
             {preview.inclusions.map((item) => <li key={item}>{item}</li>)}

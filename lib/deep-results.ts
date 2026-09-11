@@ -29,7 +29,7 @@ export function buildChoiceReport(
   questions: QuizQuestion[],
   choices: Record<string, number>,
 ): { result: ResultProfile; deepResult: DeepResultContent } {
-  if (test.id === ATTACHMENT_TEST_ID && questions.length > 0 && questions.every(q => q.id.startsWith('attachment-style-v3-'))) {
+  if (test.id === ATTACHMENT_TEST_ID && questions.length > 0) {
     return buildAttachmentReport(questions, choices);
   }
   if (test.id === ATTACHMENT_TEST_ID) {

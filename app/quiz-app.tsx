@@ -8,8 +8,8 @@ import { AttachmentResult, HowYouScored, PatternLoop, SelfWorthRing, StyleBanner
 import { FreeAttachmentResults } from "@/app/_components/free-attachment-results";
 import { SceneCard, sceneKeyFromPath } from "@/app/_components/scene-card";
 import { SiteFooter, SiteNav } from "@/app/_components/site-chrome";
-import { ATTACHMENT_TEST_ID, PUBLIC_QUESTION_IDS } from "@/lib/public-catalog";
-import { QUIZ_HELPER_EN, QUIZ_HELPER_ZH } from "@/lib/relationship-zh";
+import { ATTACHMENT_TEST_ID } from "@/lib/public-catalog";
+import { QUIZ_HELPER_EN, QUIZ_HELPER_ZH } from "@/lib/quiz-copy";
 import { currentAttribution } from "@/lib/traffic";
 import { requestJson } from '@/lib/browser-request';
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -34,9 +34,6 @@ import {
   type RelationshipType,
 } from "@/lib/relationship-network";
 
-function isPublicQuestion(question: QuizQuestion): boolean {
-  return PUBLIC_QUESTION_IDS.has(question.id);
-}
 
 type Stage = "home" | "detail" | "quiz" | "email" | "result";
 
@@ -189,7 +186,7 @@ function RelationshipNetwork({
     </section>
   );
 }
-export function QuizApp({ initialTests, initialTestId, initialQuestions: defaultQuestions, initialReportId, initialLocale = "en" }: { initialTests: QuizTest[]; initialTestId?: string; initialQuestions: QuizQuestion[]; initialReportId?: string; initialLocale?: "zh" | "en" }) {
+export function QuizApp({ initialTests, initialTestId, initialQuestions, initialReportId, initialLocale = "en" }: { initialTests: QuizTest[]; initialTestId?: string; initialQuestions: QuizQuestion[]; initialReportId?: string; initialLocale?: "zh" | "en" }) {
   const [tests, setTests] = useState(initialTests);
   const [affiliateProducts, setAffiliateProducts] = useState<AffiliateProduct[]>([]);
   const [selectedTest, setSelectedTest] = useState<QuizTest | null>(() => initialTestId ? initialTests.find((test) => test.id === initialTestId) ?? null : null);
@@ -224,8 +221,8 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
     if (cached?.length) return cached;
     // These are the current, sanitized rows already read for this page by the server.
     // Starting the quiz must not wait for a second network request on mobile.
-    const suppliedQuestions = defaultQuestions
-      .filter((question) => question.testId === testId && question.active && isPublicQuestion(question))
+    const suppliedQuestions = initialQuestions
+      .filter((question) => question.testId === testId && question.active)
       .sort((a, b) => a.position - b.position);
     if (suppliedQuestions.length) {
       questionsCache.current.set(testId, suppliedQuestions);
@@ -234,8 +231,8 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
     const pending = questionRequests.current.get(testId);
     if (pending) return pending;
     const request = (async () => {
-      const fallbackQuestions = defaultQuestions
-        .filter((question) => question.testId === testId && question.active && isPublicQuestion(question))
+      const fallbackQuestions = initialQuestions
+        .filter((question) => question.testId === testId && question.active)
         .sort((a, b) => a.position - b.position);
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 4_000);
@@ -245,7 +242,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
           signal: controller.signal,
         });
         const data = (await response.json()) as { error?: string; questions?: QuizQuestion[] };
-        const publicQuestions = (data.questions ?? []).filter(isPublicQuestion);
+        const publicQuestions = (data.questions ?? []).filter((question) => question.testId === testId && question.active).sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
         if (!response.ok || !publicQuestions.length) {
           throw new Error(data.error ?? "This test is not available yet.");
         }
@@ -265,7 +262,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
     } finally {
       questionRequests.current.delete(testId);
     }
-  }, [defaultQuestions]);
+  }, [initialQuestions]);
 
   const loadRelationships = useCallback(async () => {
     try {
@@ -634,9 +631,11 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
         </main>
       );
     }
-    const detailQuestion = defaultQuestions.find((question) => question.testId === selectedTest.id && question.position === 1 && isPublicQuestion(question));
+    const detailQuestions = initialQuestions.filter((question) => question.testId === selectedTest.id && question.active)
+      .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
+    const detailQuestion = detailQuestions[0];
     const detailPrompt = detailQuestion?.prompt ?? "Choose the scene that matches your first move.";
-    const questionCount = defaultQuestions.filter((question) => question.testId === selectedTest.id && isPublicQuestion(question)).length;
+    const questionCount = detailQuestions.length;
     const previewScene = detailQuestion ? sceneKeyFromPath(detailQuestion.atlasPath) : "phone";
     const quizReady = questionCount > 0;
     return (
@@ -646,7 +645,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
           <div className="detail-gallery" aria-label="Four visual choices preview">
             {previewScene
               ? [0, 1, 2, 3].map((index) => <SceneCard index={index} key={index} scene={previewScene} />)
-              : [0, 1, 2, 3].map((index) => <AtlasImage index={index} key={index} loading="eager" path={selectedTest.coverAtlasPath} priority={index === 0} sizes="(max-width: 640px) 50vw, 340px" />)}
+              : [0, 1, 2, 3].map((index) => <AtlasImage index={index} key={index} loading="eager" path={detailQuestion?.atlasPath ?? selectedTest.coverAtlasPath} priority={index === 0} sizes="(max-width: 640px) 50vw, 340px" />)}
             <span className="detail-gallery-tag">Choose the one you feel first</span>
           </div>
           <div className="detail-story">
@@ -655,7 +654,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions: default
             <h1>{quizReady ? detailPrompt : "This quiz is being prepared."}</h1>
             <p className="detail-intro">{quizReady ? "There is no right answer. Pick the scene that matches your first move when closeness feels uncertain." : "The previous question set is no longer offered. Start the free attachment quiz when you are ready."}</p>
             <p className="service-context">For entertainment and self-reflection, not diagnosis or treatment. <Link href="/disclaimer">Read the limitations</Link></p>
-            {quizReady ? <div className="detail-reveal"><span>YOUR FREE RESULT INCLUDES</span><div><p>A primary style label, anxiety × avoidance map, and a type overview.</p><p>Your common loop, a childhood teaser, and a worth-pattern snapshot.</p><p>An optional $9.99 full reading with every selected image unpacked.</p></div></div> : null}
+            {quizReady ? <div className="detail-reveal"><span>YOUR FREE RESULT INCLUDES</span><div><p>A primary style label, anxiety × avoidance map, and a type overview.</p><p>Your common loop, a childhood teaser, and a worth-pattern snapshot.</p><p>A full reading with every selected image unpacked.</p></div></div> : null}
             <button className="primary-button detail-cta" disabled={!quizReady || loadingTest === selectedTest.id} onClick={() => void startTest(selectedTest)}>{!quizReady ? "Quiz items coming next" : loadingTest === selectedTest.id ? "Opening…" : "Start the free quiz"} <span aria-hidden="true">→</span></button>
             <div className="detail-assurance"><span>Free visual test</span><i /> <span>Private by design</span>{selectedTest.reportPriceCents > 0 ? <><i /> <span>Optional report: USD {(selectedTest.reportPriceCents / 100).toFixed(2)}</span></> : null}</div>
             {selectedTest.reportPriceCents > 0 ? <p className="detail-purchase-note">The type is free. A longer reading is a one-time optional payment. No subscription.</p> : null}

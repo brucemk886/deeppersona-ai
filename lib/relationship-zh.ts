@@ -1,8 +1,7 @@
 import type { QuizQuestion } from "./quiz";
+import { relationshipQuestions } from "./relationship-content";
 
 /** Chinese quiz surface copy. Left-on-read is 短信/消息已读 — never 邮件. */
-export const QUIZ_HELPER_ZH = "没有对错答案。";
-export const QUIZ_HELPER_EN = "No wrong answers.";
 
 export const RELATIONSHIP_KICKERS_ZH: Record<string, string> = {
   Romance: "恋爱",
@@ -106,15 +105,18 @@ export function quizLocaleFromAcceptLanguage(header: string | null | undefined):
 export function localizeRelationshipQuestion(question: QuizQuestion, locale: "zh" | "en"): QuizQuestion {
   if (locale !== "zh") return question;
   const zh = RELATIONSHIP_ZH[question.id];
-  if (!zh) return question;
+  const original = relationshipQuestions.find((item) => item.id === question.id);
+  if (!zh || !original) return question;
+  // Built-in translations apply only to their original source text. Admin edits
+  // must remain visible in every locale rather than being masked by stale copy.
   return {
     ...question,
     kicker: RELATIONSHIP_KICKERS_ZH[question.kicker] ?? question.kicker,
-    prompt: zh.prompt,
+    prompt: question.prompt === original.prompt ? zh.prompt : question.prompt,
     options: question.options.map((option, index) => ({
       ...option,
-      label: zh.labels[index] ?? option.label,
-      microcopy: zh.labels[index] ?? option.microcopy,
+      label: option.label === original.options[index]?.label ? zh.labels[index] ?? option.label : option.label,
+      microcopy: option.microcopy === original.options[index]?.microcopy ? zh.labels[index] ?? option.microcopy : option.microcopy,
     })),
   };
 }

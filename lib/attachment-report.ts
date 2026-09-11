@@ -18,7 +18,7 @@ export const SELF_ESTEEM_MODULE = "Self-esteem";
 export const CHILDHOOD_MODULE = "Childhood";
 
 export const REPORT_INCLUSIONS = [
-  "An interpretation of all 20 image choices",
+  "An interpretation of every image you selected",
   "Pairing notes versus each of the four styles",
   "Seven-day micro practices",
 ];

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { buildSync } from "esbuild";
 import {
   attachmentPlotPosition,
   buildAttachmentResult,
@@ -15,7 +16,10 @@ import {
 } from "../lib/attachment.ts";
 import { relationshipQuestions } from '../lib/relationship-content.ts';
 import { PUBLIC_QUESTION_IDS } from '../lib/public-catalog.ts';
-import { RELATIONSHIP_ZH, localizeRelationshipQuestion, quizLocaleFromAcceptLanguage } from '../lib/relationship-zh.ts';
+const localization = buildSync({ entryPoints: ['lib/relationship-zh.ts'], bundle: true, write: false, format: 'esm' });
+const { RELATIONSHIP_ZH, localizeRelationshipQuestion, quizLocaleFromAcceptLanguage } = await import(
+  'data:text/javascript;base64,' + Buffer.from(localization.outputFiles[0].text).toString('base64')
+);
 
 const questions = [1, 2, 3, 4].map((position) => ({
   id: `q${position}`,
@@ -210,7 +214,7 @@ test("paywall inclusions stay at three bullets without invented multi-context sc
   const report = await readFile(new URL("../lib/attachment-report.ts", import.meta.url), "utf8");
   const preview = await readFile(new URL("../lib/report-preview.ts", import.meta.url), "utf8");
   const quiz = await readFile(new URL("../app/_components/free-attachment-results.tsx", import.meta.url), "utf8");
-  assert.match(report, /An interpretation of all 20 image choices/);
+  assert.match(report, /An interpretation of every image you selected/);
   assert.match(report, /Pairing notes versus each of the four styles/);
   assert.match(report, /Seven-day micro practices/);
   assert.match(report, /not blame statements about caregivers/);

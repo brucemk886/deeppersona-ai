@@ -298,7 +298,7 @@ export function AdminDashboard({
         body: JSON.stringify(question),
       });
       if (!response.ok) throw new Error("保存失败");
-      showNotice(question.active ? "题目已保存并上线" : "题目草稿已保存");
+      showNotice(question.active ? "题目已保存，刷新前台即可查看（所属测试须已上线）" : "题目草稿已保存，前台不展示");
       await loadData(true);
     } catch (error) {
       showNotice(error instanceof Error ? error.message : "保存失败");
@@ -856,7 +856,7 @@ function QuestionManager({
   return (
     <>
       <div className="admin-page-heading question-heading-admin">
-        <div><span className="admin-kicker">测评内容</span><h1>题目管理</h1><p>管理所选测试内部的每一道图片题、A/B/C/D 选项、选择含义和投射解读。保存后用户端立即生效。</p></div>
+        <div><span className="admin-kicker">测评内容</span><h1>题目管理</h1><p>管理题目、四格图片、选项和对应解读。保存后刷新前台即可查看；草稿不展示，排序决定出题顺序。修改只影响之后生成的报告。</p></div>
         <button className="admin-primary-button" onClick={addQuestion}>＋ 新增题目</button>
       </div>
       <div className="test-filter-bar">

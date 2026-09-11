@@ -14,3 +14,9 @@ The owner has authorized ongoing GitHub synchronization after production changes
 ## Product direction
 
 Tests use intuitive image choices. Do not replace the experience with written scenario questionnaires. The relationship-test-v2-draft.md scenario proposal was rejected by the owner and is not approved for implementation.
+
+## Catalog source of truth
+
+- D1 `quiz_tests` and `quiz_questions` are authoritative for the admin, public quiz, images, ordering, publication state, prices, and new report interpretations.
+- Code defaults initialize an empty database only. Do not overwrite the existing catalog on reads, filter published questions by a fixed list of IDs, or resurrect deleted rows during deployment.
+- Update existing production content through the admin or an explicitly scoped data migration. Changing the seed files alone does not update a live catalog. Preserve completed report snapshots.

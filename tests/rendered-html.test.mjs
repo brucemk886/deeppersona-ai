@@ -60,7 +60,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.doesNotMatch(quiz, /image_zoomed|image-lightbox/);
   assert.match(quiz, /srcSet/);
   assert.match(quiz, /preloadAtlas/);
-  assert.match(quiz, /defaultQuestions/);
+  assert.match(quiz, /initialQuestions/);
   assert.match(quiz, /AbortController/);
   assert.doesNotMatch(quiz, /className="hero-mosaic"/);
   assert.match(quiz, /HomeLanding/);
@@ -115,16 +115,15 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(adminStyles, /\.test-card-image \.atlas-image img/);
   assert.match(adminStyles, /aspect-ratio: 4 \/ 5/);
   assert.match(adminStyles, /\.lead-table-cn \{ font-size: 13px; \}/);
-  assert.match(store, /reconcilePublicCatalog|PUBLIC_QUESTION_IDS/);
   const quizZh = await readFile(new URL("../lib/relationship-zh.ts", import.meta.url), "utf8");
-  assert.match(quiz + quizZh, /No wrong answers\./);
+  const quizCopy = await readFile(new URL("../lib/quiz-copy.ts", import.meta.url), "utf8");
+  assert.match(quiz + quizCopy, /No wrong answers\./);
   assert.match(quiz, /QUIZ_HELPER_EN|QUIZ_HELPER_ZH/);
   assert.doesNotMatch(quiz, /There is no correct choice/);
   assert.match(store, /options_json = excluded.options_json/);
   assert.match(store, /prompt = excluded.prompt/);
   assert.match(store, /kicker = excluded.kicker/);
   assert.match(store, /atlas_path = excluded.atlas_path/);
-  assert.match(store, /PUBLIC_QUESTION_IDS.has\(row.id\)/);
   assert.match(quizZh, /短信显示「已读」/);
   assert.doesNotMatch(quizZh, /邮件显示|邮件已读|左你在邮件/);
   assert.match(homeLanding, /text left on Read/);

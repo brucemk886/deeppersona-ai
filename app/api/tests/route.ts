@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
   try {
     const items = await listTests(includeInactive);
-    return Response.json({ tests: items.map(publicTest) });
+    return Response.json({ tests: items.map(publicTest) }, { headers: { "Cache-Control": "no-store", Vary: "Cookie" } });
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Unable to load tests" },
