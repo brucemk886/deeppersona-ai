@@ -1,7 +1,8 @@
 import { publicTest } from "@/lib/public-quiz";
 import { isAdminRequest } from "@/app/admin-auth";
-import { listTests, saveTest } from "@/db/quiz-store";
-import { TRAIT_KEYS, type QuizTest } from "@/lib/quiz";
+import { deleteTest, listTests, saveTest } from "@/db/quiz-store";
+import { paymentError, requireSameOrigin } from "@/lib/payment-http";
+import { type QuizTest } from "@/lib/quiz";
 
 export const dynamic = "force-dynamic";
 
@@ -47,4 +48,17 @@ export async function PUT(request: Request) {
   if (!valid) return Response.json({ error: "Invalid test payload" }, { status: 400 });
   await saveTest(body);
   return Response.json({ ok: true });
+}
+
+export async function DELETE(request: Request) {
+  if (!await isAdminRequest(request)) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  try {
+    requireSameOrigin(request);
+    const id = new URL(request.url).searchParams.get("id")?.trim();
+    if (!id || id.length > 100) return Response.json({ error: "Invalid test id" }, { status: 400 });
+    await deleteTest(id);
+    return Response.json({ ok: true });
+  } catch (error) { return paymentError(error); }
 }

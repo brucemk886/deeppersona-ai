@@ -381,6 +381,16 @@ export async function saveTest(test: QuizTest): Promise<void> {
     .run();
 }
 
+export async function deleteTest(id: string): Promise<void> {
+  await ensureCatalog();
+  // Catalog deletion is atomic. Completed reports contain their own snapshots;
+  // orders, reports, email delivery and answer records are deliberately retained.
+  await getD1().batch([
+    getD1().prepare("DELETE FROM quiz_questions WHERE test_id = ?").bind(id),
+    getD1().prepare("DELETE FROM quiz_tests WHERE id = ?").bind(id),
+  ]);
+}
+
 export async function listQuestions(testId?: string, includeInactive = false): Promise<QuizQuestion[]> {
   await ensureCatalog();
   const filters: string[] = [];

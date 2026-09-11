@@ -9,7 +9,7 @@ test("admin catalog edits persist across public reads and fresh Worker isolates"
   const modules = ["index.js", ...readdirSync("dist/server", { recursive: true }).filter(p => p.endsWith(".js") && p !== "index.js")]
     .map(p => ({ type: "ESModule", path: resolve("dist/server", p) }));
   const mf = new Miniflare({ host: "127.0.0.1", port: 0, inspectorPort: 0, workers:
-    ["editor", "migration", "restart"].map(name => ({
+    ["editor", "migration", "restart", "empty-restart"].map(name => ({
       name, modules, modulesRoot: resolve("dist/server"), compatibilityDate: "2026-05-22", compatibilityFlags: ["nodejs_compat"],
       bindings: { ADMIN_PASSWORD: "fixture", ADMIN_SESSION_SECRET: "catalog-local-fixture", STRIPE_SECRET_KEY: "sk_test_local_fixture" },
       d1Databases: { DB: "catalog-db" },
@@ -20,13 +20,16 @@ test("admin catalog edits persist across public reads and fresh Worker isolates"
     const db = await mf.getD1Database("DB", "editor");
     const issuedAt = String(Math.floor(Date.now() / 1000));
     const cookie = "deeppersona_admin=" + issuedAt + "." + createHmac("sha256", "catalog-local-fixture").update("admin." + issuedAt).digest("hex");
-    const request = async (path, { method = "GET", body, admin = false, locale = "en", worker = "editor" } = {}) => {
+    const request = async (path, { method = "GET", body, admin = false, locale = "en", worker = "editor", origin = base, profileCookie } = {}) => {
       const stub = await mf.getWorker(worker);
       const response = await stub.fetch(base + path, { method,
-        headers: { origin: base, "content-type": "application/json", "accept-language": locale, ...(admin ? { cookie } : {}) },
+        headers: { origin, "content-type": "application/json", "accept-language": locale, ...(admin ? { cookie } : profileCookie ? { cookie: profileCookie } : {}) },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
-      return { status: response.status, headers: response.headers, data: await response.json() };
+      const text = await response.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { error: text }; }
+      return { status: response.status, headers: response.headers, data };
     };
     const questions = async (options = {}) => (await request("/api/questions?test=attachment-style" + (options.admin ? "&all=1" : ""), options)).data.questions;
     const save = async (question) => assert.equal((await request("/api/questions", { method: "PUT", admin: true, body: question })).status, 200);
@@ -100,6 +103,7 @@ test("admin catalog edits persist across public reads and fresh Worker isolates"
       assert.equal((await request("/api/tests", { worker: "migration" })).data.tests[0].reportPriceCents, 500, "fresh isolates must not reset admin pricing");
     });
 
+    let savedReport;
     await t.test("new reports use saved interpretations; existing report snapshots remain unchanged", async () => {
       const published = await questions();
       const result = await request("/api/submit", { method: "POST", body: {
@@ -109,6 +113,7 @@ test("admin catalog edits persist across public reads and fresh Worker isolates"
       assert.equal(result.status, 200, JSON.stringify(result.data));
       const row = await db.prepare("SELECT snapshot_json FROM quiz_reports WHERE id = ?").bind(result.data.reportId).first();
       const snapshot = JSON.parse(row.snapshot_json);
+      savedReport = { id: result.data.reportId, profileCookie: result.headers.get("set-cookie").split(";")[0], snapshot: row.snapshot_json };
       assert.ok(snapshot.questions.some(q => q.id === added.id));
       assert.deepEqual(snapshot.questions.find(q => q.id === edited.id), edited);
       assert.ok(snapshot.deepResult.romanceEssay, "a custom question ID must not downgrade the full report");
@@ -116,13 +121,45 @@ test("admin catalog edits persist across public reads and fresh Worker isolates"
       assert.equal((await db.prepare("SELECT snapshot_json FROM quiz_reports WHERE id = ?").bind(result.data.reportId).first()).snapshot_json, row.snapshot_json);
     });
 
+    await t.test("deleting a test removes its questions, retains paid reports/orders and leaves other tests intact", async () => {
+      const otherTest = { ...editedTest, id: "another-test", title: "Another test" };
+      await saveTest(otherTest);
+      await save({ ...added, id: "other-test-question", testId: otherTest.id });
+      for (const route of ["/api/tests", "/api/questions"]) {
+        const id = route.endsWith("tests") ? originalTest.id : edited.id;
+        assert.equal((await request(route + "?id=" + id, { method: "DELETE" })).status, 401);
+        assert.equal((await request(route + "?id=" + id, { method: "DELETE", admin: true, origin: "https://evil.example" })).status, 403);
+        assert.equal((await request(route, { method: "DELETE", admin: true })).status, 400);
+        assert.equal((await request(route + "?id=" + "x".repeat(101), { method: "DELETE", admin: true })).status, 400);
+      }
+      assert.equal((await questions()).length, 20, "rejected deletions must not change content");
+      // Isolated fixture only: simulate a confirmed sandbox order without charging.
+      const orderId = crypto.randomUUID();
+      await db.prepare("INSERT INTO payment_orders (id,report_id,amount_cents,livemode,status) VALUES (?,?,500,0,'paid')").bind(orderId, savedReport.id).run();
+      const deleted = await request("/api/tests?id=" + originalTest.id, { method: "DELETE", admin: true });
+      assert.equal(deleted.status, 200);
+      assert.deepEqual(await questions({ admin: true }), []);
+      assert.ok(!(await request("/api/tests?all=1", { admin: true })).data.tests.some(item => item.id === originalTest.id));
+      assert.equal((await db.prepare("SELECT COUNT(*) AS total FROM quiz_questions WHERE test_id=?").bind(otherTest.id).first()).total, 1);
+      assert.equal((await db.prepare("SELECT snapshot_json FROM quiz_reports WHERE id=?").bind(savedReport.id).first()).snapshot_json, savedReport.snapshot);
+      assert.equal((await db.prepare("SELECT status FROM payment_orders WHERE id=?").bind(orderId).first()).status, "paid");
+      const retained = await request("/api/reports/" + savedReport.id, { profileCookie: savedReport.profileCookie });
+      assert.equal(retained.status, 200);
+      assert.equal(retained.data.unlocked, true);
+      assert.equal(retained.data.questions.length, 20);
+      assert.equal((await request("/api/tests?id=" + originalTest.id, { method: "DELETE", admin: true })).status, 200, "retrying a deletion is safe");
+      assert.deepEqual(await questions({ admin: true, worker: "restart" }), [], "deleted tests and questions must not reappear in a fresh isolate");
+    });
+
     await t.test("an intentionally empty catalog stays empty after a fresh Worker starts", async () => {
-      for (const question of await questions({ admin: true })) {
+      for (const question of (await request("/api/questions?all=1", { admin: true })).data.questions) {
         assert.equal((await request("/api/questions?id=" + question.id, { method: "DELETE", admin: true })).status, 200);
       }
-      await db.prepare("DELETE FROM quiz_tests").run();
-      assert.deepEqual(await questions({ admin: true, worker: "restart" }), []);
-      assert.deepEqual((await request("/api/tests", { worker: "restart" })).data.tests, []);
+      for (const item of (await request("/api/tests?all=1", { admin: true })).data.tests) {
+        assert.equal((await request("/api/tests?id=" + item.id, { method: "DELETE", admin: true })).status, 200);
+      }
+      assert.deepEqual(await questions({ admin: true, worker: "empty-restart" }), []);
+      assert.deepEqual((await request("/api/tests", { worker: "empty-restart" })).data.tests, []);
     });
   } finally { await mf.dispose(); }
 });

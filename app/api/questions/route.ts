@@ -3,6 +3,7 @@ import { isAdminRequest } from "@/app/admin-auth";
 import { deleteQuestion, listQuestions, saveQuestion } from "@/db/quiz-store";
 import { localizeRelationshipQuestion, quizLocaleFromAcceptLanguage } from "@/lib/relationship-zh";
 import { type QuizQuestion } from "@/lib/quiz";
+import { paymentError, requireSameOrigin } from "@/lib/payment-http";
 
 export const dynamic = "force-dynamic";
 
@@ -79,11 +80,13 @@ export async function DELETE(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const id = new URL(request.url).searchParams.get("id")?.trim();
-  if (!id || id.length > 100) {
-    return Response.json({ error: "Invalid question id" }, { status: 400 });
-  }
-
-  await deleteQuestion(id);
-  return Response.json({ ok: true });
+  try {
+    requireSameOrigin(request);
+    const id = new URL(request.url).searchParams.get("id")?.trim();
+    if (!id || id.length > 100) {
+      return Response.json({ error: "Invalid question id" }, { status: 400 });
+    }
+    await deleteQuestion(id);
+    return Response.json({ ok: true });
+  } catch (error) { return paymentError(error); }
 }

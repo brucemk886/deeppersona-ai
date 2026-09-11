@@ -135,6 +135,7 @@ export function AdminDashboard({
   const [affiliateProducts, setAffiliateProducts] = useState<AffiliateProduct[]>([]);
   const [selectedTestId, setSelectedTestId] = useState("");
   const [savingId, setSavingId] = useState("");
+  const [deletingId, setDeletingId] = useState("");
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const [emailSearch, setEmailSearch] = useState("");
@@ -184,7 +185,7 @@ export function AdminDashboard({
       if (testsResult.status === "fulfilled") {
         const nextTests = testsResult.value.tests ?? [];
         setTests(nextTests);
-        setSelectedTestId((current) => current || nextTests[0]?.id || "");
+        setSelectedTestId((current) => nextTests.some((item) => item.id === current) ? current : nextTests[0]?.id || "");
         loadedModules += 1;
       }
       if (!loadedModules) throw new Error("后台数据读取失败");
@@ -330,16 +331,33 @@ export function AdminDashboard({
   }
 
   async function removeQuestion(question: QuizQuestion) {
-    if (!window.confirm(`确定删除“${question.prompt}”吗？此操作不可撤销。`)) return;
-    const response = await fetch(`/api/questions?id=${encodeURIComponent(question.id)}`, {
-      method: "DELETE",
-    });
-    if (!response.ok) {
-      showNotice("删除失败");
-      return;
-    }
-    setQuestions((current) => current.filter((item) => item.id !== question.id));
-    showNotice("题目已删除");
+    if (deletingId || savingId) return;
+    if (!window.confirm(`确定删除题目“${question.prompt}”吗？删除后无法恢复，已生成的报告不受影响。`)) return;
+    setDeletingId(question.id);
+    try {
+      await fetchAdminJson(`/api/questions?id=${encodeURIComponent(question.id)}`, { method: "DELETE" });
+      setQuestions((current) => current.filter((item) => item.id !== question.id));
+      // Refresh server counts without overwriting other unsaved editor fields.
+      const catalog = await fetchAdminJson<{ tests: QuizTest[] }>("/api/tests?all=1").catch(() => null);
+      if (catalog) setTests(current => current.map(item => ({ ...item, questionCount: catalog.tests.find(test => test.id === item.id)?.questionCount ?? 0 })));
+      showNotice("题目已删除");
+    } catch { showNotice("删除题目失败，请重试"); }
+    finally { setDeletingId(""); }
+  }
+
+  async function removeTest(test: QuizTest) {
+    if (deletingId || savingId) return;
+    const count = questions.filter(question => question.testId === test.id).length;
+    if (!window.confirm(`确定删除测试“${test.title}”及其下的 ${count} 道题目吗？删除后无法恢复，已生成的报告和订单记录会保留。`)) return;
+    setDeletingId(test.id);
+    try {
+      await fetchAdminJson(`/api/tests?id=${encodeURIComponent(test.id)}`, { method: "DELETE" });
+      setTests(current => current.filter(item => item.id !== test.id));
+      setQuestions(current => current.filter(item => item.testId !== test.id));
+      setSelectedTestId(current => current === test.id ? tests.find(item => item.id !== test.id)?.id ?? "" : current);
+      showNotice("测试及所属题目已删除，历史报告和订单已保留");
+    } catch { showNotice("删除测试失败，请重试"); }
+    finally { setDeletingId(""); }
   }
 
   function exportEmails() {
@@ -481,6 +499,7 @@ export function AdminDashboard({
           {activeSection === "questions" ? (
             <QuestionManager
               addQuestion={addQuestion}
+              deletingId={deletingId}
               questions={questions.filter((question) => question.testId === selectedTestId)}
               removeQuestion={removeQuestion}
               saveQuestion={saveQuestion}
@@ -495,7 +514,9 @@ export function AdminDashboard({
 
           {activeSection === "tests" ? (
             <TestManager
+              deletingId={deletingId}
               products={affiliateProducts}
+              removeTest={removeTest}
               saveTest={saveTest}
               savingId={savingId}
               tests={tests}
@@ -774,13 +795,17 @@ function SourceList({ sources }: { sources: Stats["sources"] }) {
 }
 
 function TestManager({
+  deletingId,
   products,
+  removeTest,
   saveTest,
   savingId,
   tests,
   updateTest,
 }: {
+  deletingId: string;
   products: AffiliateProduct[];
+  removeTest: (test: QuizTest) => Promise<void>;
   saveTest: (test: QuizTest) => Promise<void>;
   savingId: string;
   tests: QuizTest[];
@@ -812,11 +837,15 @@ function TestManager({
               <div className="field-row two"><label>封面拼图地址<input list="atlas-paths" value={test.coverAtlasPath} onChange={(event) => updateTest(test.id, { coverAtlasPath: event.target.value })} /></label><label>排序<input min="1" type="number" value={test.position} onChange={(event) => updateTest(test.id, { position: Number(event.target.value) })} /></label></div>
               <label>完整解析价格（USD，填 0 为免费且前台不展示价格）<input min="0" step="0.01" type="number" value={(test.reportPriceCents / 100).toFixed(2)} onChange={(event) => updateTest(test.id, { reportPriceCents: Math.max(0, Math.round(Number(event.target.value || 0) * 100)) })} /></label>
               <label className="featured-checkbox"><input checked={test.featured} onChange={(event) => updateTest(test.id, { featured: event.target.checked })} type="checkbox" />设为首页主推测试</label>
-              <button className="admin-primary-button" disabled={savingId === test.id} onClick={() => void saveTest(test)}>{savingId === test.id ? "保存中…" : "保存测试"}</button>
+              <div className="catalog-editor-actions">
+                <button className="admin-ghost-button admin-delete-button" disabled={Boolean(deletingId || savingId)} onClick={() => void removeTest(test)} type="button">{deletingId === test.id ? "删除中…" : "删除测试"}</button>
+                <button className="admin-primary-button" disabled={Boolean(deletingId) || savingId === test.id} onClick={() => void saveTest(test)}>{savingId === test.id ? "保存中…" : "保存测试"}</button>
+              </div>
             </div>
           </article>
         ))}
       </div>
+      {!tests.length ? <EmptyState title="暂无测试" text="测试已全部删除。历史报告和订单仍可在对应页面查看。" /> : null}
     </>
   );
 }
@@ -832,6 +861,7 @@ function AffiliateProductsPanel({ addProduct, products, removeProduct, saveProdu
 
 function QuestionManager({
   addQuestion,
+  deletingId,
   questions,
   removeQuestion,
   saveQuestion,
@@ -843,6 +873,7 @@ function QuestionManager({
   updateQuestion,
 }: {
   addQuestion: () => void;
+  deletingId: string;
   questions: QuizQuestion[];
   removeQuestion: (question: QuizQuestion) => Promise<void>;
   saveQuestion: (question: QuizQuestion) => Promise<void>;
@@ -904,7 +935,7 @@ function QuestionManager({
                 </div>
               </div>
             </div>
-            <footer><button className="danger-text-button" onClick={() => void removeQuestion(question)}>删除题目</button><div><button className="admin-ghost-button" onClick={() => updateQuestion(question.id, { active: !question.active })}>{question.active ? "转为草稿" : "设为上线"}</button><button className="admin-primary-button" disabled={savingId === question.id} onClick={() => void saveQuestion(question)}>{savingId === question.id ? "保存中…" : "保存题目"}</button></div></footer>
+            <footer><button className="admin-ghost-button admin-delete-button" disabled={Boolean(deletingId || savingId)} onClick={() => void removeQuestion(question)} type="button">{deletingId === question.id ? "删除中…" : "删除题目"}</button><div><button className="admin-ghost-button" disabled={Boolean(deletingId)} onClick={() => updateQuestion(question.id, { active: !question.active })}>{question.active ? "转为草稿" : "设为上线"}</button><button className="admin-primary-button" disabled={Boolean(deletingId) || savingId === question.id} onClick={() => void saveQuestion(question)}>{savingId === question.id ? "保存中…" : "保存题目"}</button></div></footer>
           </article>
         ))}
       </div>
