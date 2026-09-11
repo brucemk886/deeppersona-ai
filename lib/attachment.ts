@@ -270,9 +270,43 @@ function optionDimension(option: QuizQuestion["options"][number], index: number)
   return STYLE_DIMENSIONS[styleFromOptionIndex(index)];
 }
 
+/** Scores at or above this count as “high” on the Bartholomew grid. */
+export const QUADRANT_THRESHOLD = 45;
+
+/**
+ * Stretch a 0–100 dimension onto the colored 50/50 board so the classification
+ * cutoff (45) sits on the visual midline, not 5 points into the “low” half.
+ */
+export function chartAxisPercent(score: number, threshold = QUADRANT_THRESHOLD): number {
+  const value = Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0;
+  if (value < threshold) return (value / threshold) * 50;
+  if (value === threshold) return 52;
+  return 50 + ((value - threshold) / (100 - threshold)) * 50;
+}
+
+export function attachmentPlotPosition(
+  anxiety: number,
+  avoidance: number,
+): { leftPercent: number; topPercent: number } {
+  return {
+    leftPercent: chartAxisPercent(avoidance),
+    topPercent: 100 - chartAxisPercent(anxiety),
+  };
+}
+
+export function plotVisualQuadrant(anxiety: number, avoidance: number): AttachmentStyle {
+  const { leftPercent, topPercent } = attachmentPlotPosition(anxiety, avoidance);
+  const highAnxiety = topPercent < 50;
+  const highAvoidance = leftPercent > 50;
+  if (highAnxiety && highAvoidance) return "fearful";
+  if (highAnxiety) return "anxious";
+  if (highAvoidance) return "avoidant";
+  return "secure";
+}
+
 export function classifyAttachment(anxietyScore: number, avoidanceScore: number): AttachmentStyle {
-  const highAnxiety = anxietyScore >= 45;
-  const highAvoidance = avoidanceScore >= 45;
+  const highAnxiety = anxietyScore >= QUADRANT_THRESHOLD;
+  const highAvoidance = avoidanceScore >= QUADRANT_THRESHOLD;
   if (highAnxiety && highAvoidance) return "fearful";
   if (highAnxiety) return "anxious";
   if (highAvoidance) return "avoidant";
