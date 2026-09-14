@@ -17,12 +17,6 @@ export const ROMANCE_MODULE = "Romance";
 export const SELF_ESTEEM_MODULE = "Self-esteem";
 export const CHILDHOOD_MODULE = "Childhood";
 
-export const REPORT_INCLUSIONS = [
-  "底层自相矛盾画像",
-  "三大高频暴击分镜与防御破译",
-  "急救刹车与沟通话术",
-];
-
 export const BLUR_FILLER =
   "This longer reading follows the pictures you chose and the first move they suggest in closeness, silence, repair, and self-talk. It stays behind the lock until you open the full report. The sentences here are only a visual tease, not the paid interpretation.";
 

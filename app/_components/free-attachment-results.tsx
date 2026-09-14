@@ -145,11 +145,6 @@ export function FreeAttachmentResults({
       <section className="ap-paywall" id="unlock-full-results">
         <h2>Unlock full results · {amountCents === 0 ? "Free" : price}</h2>
         <p>{amountCents > 0 ? `USD ${(amountCents / 100).toFixed(2)}, one time. ` : ""}This page unlocks after confirmation, plus an email backup link to the address you used with the test.</p>
-        {preview.inclusions?.length ? (
-          <ul className="report-inclusions" aria-label="What the full reading includes">
-            {preview.inclusions.map((item) => <li key={item}>{item}</li>)}
-          </ul>
-        ) : null}
         <p className="service-context">For entertainment and self-reflection. This is not a clinical diagnosis, a validated psychological assessment, or professional advice. <Link href="/disclaimer">How to use these results</Link></p>
         {sandbox ? <p className="sandbox-notice">Test checkout — no real money will be charged.</p> : null}
         {status === "refunded" ? <p>This purchase has been refunded. Full report access has ended.</p> : (

@@ -10,7 +10,6 @@ import {
 import {
   caregiverIntro,
   CHILDHOOD_MODULE,
-  REPORT_INCLUSIONS,
   ROMANCE_MODULE,
   romanceEssay,
   selfWorthSentences,
@@ -79,7 +78,6 @@ export function reportPreview(snapshot: ReportSnapshot): ReportPreview {
       ...worth,
       sentences: snapshot.deepResult.selfWorth?.sentences ?? selfWorthSentences(snapshot.questions, snapshot.answerChoices, scored.style),
     } : undefined,
-    inclusions: REPORT_INCLUSIONS,
     aiInsight: insight ? {
       paradox: insight.contradiction.paradox,
       selfSabotage: insight.contradiction.selfSabotage,

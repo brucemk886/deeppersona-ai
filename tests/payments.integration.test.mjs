@@ -216,9 +216,7 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       assert.equal(state.data.preview.caregiver, undefined);
       assert.equal(typeof state.data.preview.scores?.anxietySeven, "number");
       assert.ok(["Low", "Medium", "High"].includes(state.data.preview.selfWorth.level));
-      assert.equal(state.data.preview.inclusions?.length, 3);
-      assert.match(state.data.preview.inclusions.join("\n"), /底层自相矛盾画像/);
-      assert.doesNotMatch(state.data.preview.inclusions.join("\n"), /7天脱敏|7-day/);
+      assert.equal(state.data.preview.inclusions, undefined);
       assert.doesNotMatch(JSON.stringify(state.data.preview), /paid reading|Mother \(CG|Father \(CG|AT WORK|millions of users/i);
       const stored=JSON.parse((await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(report.id).first()).snapshot_json);
       const leaked = stored.questions.flatMap((q) => q.options.map((option) => option.meaning)).filter((meaning) => meaning && JSON.stringify(state.data).includes(meaning));

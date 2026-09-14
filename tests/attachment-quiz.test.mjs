@@ -190,14 +190,13 @@ test("majority vote surfaces a secondary style on ties", () => {
   assert.ok(result.secondaryKey);
 });
 
-test("paywall inclusions stay at three bullets without invented multi-context scores", async () => {
+test("paywall does not list canned inclusions or invented multi-context scores", async () => {
   const report = await readFile(new URL("../lib/attachment-report.ts", import.meta.url), "utf8");
   const preview = await readFile(new URL("../lib/report-preview.ts", import.meta.url), "utf8");
   const quiz = await readFile(new URL("../app/_components/free-attachment-results.tsx", import.meta.url), "utf8");
-  assert.match(report, /底层自相矛盾画像/);
-  assert.match(report, /三大高频暴击分镜与防御破译/);
-  assert.match(report, /急救刹车与沟通话术/);
+  assert.doesNotMatch(report, /底层自相矛盾画像|三大高频暴击分镜|急救刹车与沟通话术/);
   assert.doesNotMatch(report + quiz, /7天脱敏|7-day practice/);
+  assert.doesNotMatch(quiz, /report-inclusions/);
   assert.match(preview, /aiInsight/);
   assert.match(preview, /sample: undefined/);
   assert.match(report, /not blame statements about caregivers/);
