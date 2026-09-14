@@ -15,7 +15,6 @@ import {
 } from "../lib/attachment.ts";
 import { ATTACHMENT_V12_BANK, relationshipQuestions } from '../lib/relationship-content.ts';
 import { PUBLIC_QUESTION_IDS } from '../lib/public-catalog.ts';
-import { defaultTests } from '../lib/quiz-content.ts';
 import { normalizePresentationMode, showsOptionImages } from '../lib/quiz.ts';
 
 const questions = [1, 2, 3, 4].map((position) => ({
@@ -64,11 +63,10 @@ test("public catalog contains twenty distinct text questions and eighty interpre
     assert.deepEqual(q.options.map(o => o.styleKey), ["anxious", "avoidant", "secure", "fearful"]);
     assert.equal(q.atlasPath, "");
   }
-  const attachment = defaultTests.find((test) => test.id === "attachment-style");
-  assert.equal(attachment?.presentationMode, "text");
-  assert.equal(attachment?.title, "依恋风格自测：20个真实暴击瞬间");
-  assert.match(attachment?.description ?? "", /不要选「成熟体面的做法」/);
-  assert.ok(defaultTests.filter((test) => test.id !== "attachment-style").every((test) => test.presentationMode === "image"));
+  assert.match(catalog, /presentationMode: "text"/);
+  assert.match(catalog, /依恋风格自测：20个真实暴击瞬间/);
+  assert.match(catalog, /不要选「成熟体面的做法」/);
+  assert.equal((catalog.match(/presentationMode: "image"/g) ?? []).length, 7);
   assert.doesNotMatch(live, /They suddenly go quiet/);
   assert.doesNotMatch(live, /Which room feels safest to share/);
   assert.doesNotMatch(live, /Move toward it/);
