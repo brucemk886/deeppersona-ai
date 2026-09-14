@@ -56,13 +56,17 @@ export function buildAiReadingPrompt(
       testTitle: test.title,
       resultTitle: result.title,
       resultSummary: result.summary,
-      instruction: "Write a reflection-only reading from the chosen option wording. Do not diagnose, pathologize, or invent facts that are not in the choices. Quote or paraphrase the selected wording. Return JSON only.",
+      instruction: "Write a reflection-only reading from the chosen option wording. Include every questionId in choices. Do not diagnose, pathologize, or invent facts that are not in the choices. Quote or paraphrase the selected wording. Return JSON only.",
       choices: selected,
     }),
   };
 }
 
-export function parseAiReading(raw: string, questionIds: string[] = []): AiReading | null {
+export function parseAiReading(
+  raw: string,
+  questionIds: string[] = [],
+  options: { requireSummary?: boolean } = {},
+): AiReading | null {
   const allowed = new Set(questionIds);
   let parsed: unknown;
   try {
@@ -73,7 +77,7 @@ export function parseAiReading(raw: string, questionIds: string[] = []): AiReadi
   const record = asRecord(parsed);
   if (!record) return null;
   const summary = cleanText(record.summary);
-  if (!summary) return null;
+  if (!summary && options.requireSummary !== false) return null;
   const reflectionPrompt = cleanText(record.reflectionPrompt);
   const rows = Array.isArray(record.choices) ? record.choices : [];
   const seen = new Set<string>();
@@ -89,6 +93,25 @@ export function parseAiReading(raw: string, questionIds: string[] = []): AiReadi
     choices.push({ questionId, reading });
   }
   if (!choices.length) return null;
+  return {
+    summary,
+    ...(reflectionPrompt ? { reflectionPrompt } : {}),
+    choices,
+  };
+}
+
+export function mergeAiReadings(base: AiReading | null, next: AiReading, questionIds: string[]): AiReading | null {
+  const byId = new Map((base?.choices ?? []).map((item) => [item.questionId, item]));
+  for (const item of next.choices) {
+    if (!byId.has(item.questionId)) byId.set(item.questionId, item);
+  }
+  const choices = questionIds.flatMap((questionId) => {
+    const item = byId.get(questionId);
+    return item ? [item] : [];
+  });
+  const summary = cleanText(base?.summary) || cleanText(next.summary);
+  if (!summary || !choices.length) return null;
+  const reflectionPrompt = cleanText(base?.reflectionPrompt) || cleanText(next.reflectionPrompt);
   return {
     summary,
     ...(reflectionPrompt ? { reflectionPrompt } : {}),
