@@ -368,13 +368,23 @@ async function initializeCatalog(): Promise<void> {
 }
 
 const ATTACHMENT_V12_MIGRATION = "attachment-v12-text-2026-09";
+const ATTACHMENT_V12_EN_MIGRATION = "attachment-v12-en-2026-09";
+
+async function catalogMigrationApplied(id: string): Promise<boolean> {
+  const applied = await getD1().prepare("SELECT id FROM quiz_catalog_migrations WHERE id = ?")
+    .bind(id)
+    .first();
+  return Boolean(applied);
+}
 
 async function applyScopedCatalogMigrations(): Promise<void> {
+  await applyAttachmentV12TextMigration();
+  await applyAttachmentEnglishBankMigration();
+}
+
+async function applyAttachmentV12TextMigration(): Promise<void> {
   const db = getD1();
-  const applied = await db.prepare("SELECT id FROM quiz_catalog_migrations WHERE id = ?")
-    .bind(ATTACHMENT_V12_MIGRATION)
-    .first();
-  if (applied) return;
+  if (await catalogMigrationApplied(ATTACHMENT_V12_MIGRATION)) return;
 
   const existing = await db.prepare("SELECT id FROM quiz_tests WHERE id = ?")
     .bind(ATTACHMENT_TEST_ID)
@@ -415,6 +425,49 @@ async function applyScopedCatalogMigrations(): Promise<void> {
       .bind(ATTACHMENT_TEST_ID, ...questions.map((question) => question.id)),
     db.prepare("INSERT OR IGNORE INTO quiz_catalog_migrations (id) VALUES (?)")
       .bind(ATTACHMENT_V12_MIGRATION),
+  ]);
+}
+
+async function applyAttachmentEnglishBankMigration(): Promise<void> {
+  const db = getD1();
+  if (await catalogMigrationApplied(ATTACHMENT_V12_EN_MIGRATION)) return;
+
+  const existing = await db.prepare("SELECT id FROM quiz_tests WHERE id = ?")
+    .bind(ATTACHMENT_TEST_ID)
+    .first();
+  if (!existing) {
+    await db.prepare("INSERT OR IGNORE INTO quiz_catalog_migrations (id) VALUES (?)")
+      .bind(ATTACHMENT_V12_EN_MIGRATION)
+      .run();
+    return;
+  }
+
+  const attachment = defaultTests.find((test) => test.id === ATTACHMENT_TEST_ID);
+  const questions = defaultQuestions.filter((question) => question.testId === ATTACHMENT_TEST_ID);
+  if (!attachment || !questions.length) return;
+
+  await db.batch([
+    db.prepare(`UPDATE quiz_tests
+      SET title = ?, kicker = ?, description = ?, presentation_mode = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?`)
+      .bind(attachment.title, attachment.kicker, attachment.description, normalizePresentationMode(attachment.presentationMode), ATTACHMENT_TEST_ID),
+    ...questions.map((question) =>
+      db.prepare(`INSERT INTO quiz_questions
+        (id, test_id, kicker, prompt, atlas_path, options_json, position, active, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(id) DO UPDATE SET
+          test_id = excluded.test_id,
+          kicker = excluded.kicker,
+          prompt = excluded.prompt,
+          atlas_path = excluded.atlas_path,
+          options_json = excluded.options_json,
+          position = excluded.position,
+          active = excluded.active,
+          updated_at = CURRENT_TIMESTAMP`)
+        .bind(question.id, question.testId, question.kicker, question.prompt, question.atlasPath, JSON.stringify(question.options), question.position, question.active ? 1 : 0),
+    ),
+    db.prepare("INSERT OR IGNORE INTO quiz_catalog_migrations (id) VALUES (?)")
+      .bind(ATTACHMENT_V12_EN_MIGRATION),
   ]);
 }
 

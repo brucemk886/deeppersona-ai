@@ -132,6 +132,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(store, /atlas_path = excluded.atlas_path/);
   assert.match(store, /presentation_mode/);
   assert.match(store, /attachment-v12-text-2026-09/);
+  assert.match(store, /attachment-v12-en-2026-09/);
   assert.match(homeLanding, /text left on Read/);
   assert.doesNotMatch(homeLanding, /weekend invite/);
   assert.match(catalog, /They invite you to spend a weekend together/);

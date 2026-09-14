@@ -8,9 +8,9 @@ export const FULL_REPORT_PRICE_CENTS = 999;
 export const defaultTests: QuizTest[] = [
   {
     id: ATTACHMENT_TEST_ID,
-    title: "依恋风格自测：20个真实暴击瞬间",
+    title: "Attachment Style Quiz: 20 Real First-Reaction Moments",
     kicker: "Free · 20 first-reaction questions",
-    description: "回想那段最折磨你的关系。不要选「成熟体面的做法」，只选你身体最诚实的第一反应。",
+    description: "Think about the relationship that hurt you most. Don't pick the polished, mature answer. Pick the first reaction your body actually has.",
     coverAtlasPath: "/quiz/relationship-v7/q01.webp",
     accent: "#9b4f5e",
     position: 1,

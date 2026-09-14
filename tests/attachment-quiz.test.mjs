@@ -33,7 +33,7 @@ const questions = [1, 2, 3, 4].map((position) => ({
   ],
 }));
 
-test("attachment quiz uses the V1.2 Chinese text bank", () => {
+test("attachment quiz uses the V1.2 English text bank", () => {
   assert.equal(relationshipQuestions.length, ATTACHMENT_V12_BANK.length);
   assert.equal(relationshipQuestions.length, 20);
   relationshipQuestions.forEach((question, index) => {
@@ -42,10 +42,10 @@ test("attachment quiz uses the V1.2 Chinese text bank", () => {
     assert.deepEqual(question.options.map((option) => option.label), [item.anxious, item.avoidant, item.secure, item.fearful]);
     assert.deepEqual(question.options.map((option) => option.microcopy), [item.anxious, item.avoidant, item.secure, item.fearful]);
     assert.equal(question.atlasPath, "");
-    assert.equal(question.kicker, "第一反应");
+    assert.equal(question.kicker, "First reaction");
   });
-  assert.match(relationshipQuestions[0].prompt, /对方聊天突然冷淡/);
-  assert.match(relationshipQuestions[0].options[0].label, /我是不是哪句话说错了/);
+  assert.match(relationshipQuestions[0].prompt, /When their texting suddenly goes cold and dry/);
+  assert.match(relationshipQuestions[0].options[0].label, /Did I say something wrong/);
   assert.doesNotMatch(relationshipQuestions.map((question) => question.prompt).join("\n"), /weekend together|new town|cinema|text shows Read/i);
 });
 
@@ -56,7 +56,7 @@ test("public catalog contains twenty distinct text questions and eighty interpre
   assert.equal(new Set(relationshipQuestions.map(q => q.id)).size, 20);
   assert.deepEqual(new Set(relationshipQuestions.map(q => q.id)), PUBLIC_QUESTION_IDS);
   assert.equal(new Set(relationshipQuestions.flatMap(q => q.options.map(o => o.meaning))).size, 80);
-  assert.deepEqual(relationshipQuestions.map(q => q.kicker), Array(20).fill("第一反应"));
+  assert.deepEqual(relationshipQuestions.map(q => q.kicker), Array(20).fill("First reaction"));
   for (const q of relationshipQuestions) {
     assert.equal(q.options.length, 4);
     assert.ok(q.options.every(o=>o.meaning.length>80 && o.readingFocus && o.styleKey && o.microcopy === o.label));
@@ -64,8 +64,8 @@ test("public catalog contains twenty distinct text questions and eighty interpre
     assert.equal(q.atlasPath, "");
   }
   assert.match(catalog, /presentationMode: "text"/);
-  assert.match(catalog, /依恋风格自测：20个真实暴击瞬间/);
-  assert.match(catalog, /不要选「成熟体面的做法」/);
+  assert.match(catalog, /Attachment Style Quiz: 20 Real First-Reaction Moments/);
+  assert.match(catalog, /Don't pick the polished, mature answer/);
   assert.equal((catalog.match(/presentationMode: "image"/g) ?? []).length, 7);
   assert.doesNotMatch(live, /They suddenly go quiet/);
   assert.doesNotMatch(live, /Which room feels safest to share/);
@@ -99,7 +99,7 @@ test("selected option labels and style keys travel with the option, not the slot
   assert.deepEqual(again.map((option) => option.label), selected.map((option) => option.label));
   assert.deepEqual(again.map((option) => option.styleKey), selected.map((option) => option.styleKey));
   assert.equal(scoreAttachment(relationshipQuestions, choices).style, scoreAttachment(reversed, remapped).style);
-  assert.deepEqual(relationshipQuestions.map((q) => q.kicker), Array(20).fill("第一反应"));
+  assert.deepEqual(relationshipQuestions.map((q) => q.kicker), Array(20).fill("First reaction"));
 });
 
 test("relationship text choices map onto the four attachment styles", () => {
