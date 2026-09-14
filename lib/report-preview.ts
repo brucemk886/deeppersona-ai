@@ -14,7 +14,7 @@ import {
   romanceEssay,
   selfWorthSentences,
 } from './attachment-report';
-import { publicInsightReport } from './ai-reading-parse';
+import { publicInsightReport, publicInsightV2 } from './ai-reading-parse';
 import type { ReportPreview, ReportSnapshot } from './payment-types';
 import type { ResultProfile } from './quiz';
 
@@ -58,7 +58,9 @@ export function reportPreview(snapshot: ReportSnapshot): ReportPreview {
   const answered = snapshot.questions.map((q, index) => ({ q, index, selectedIndex: snapshot.answerChoices[q.id] }))
     .filter((x) => Number.isInteger(x.selectedIndex) && x.q.options[x.selectedIndex]);
   const modules = snapshot.deepResult.modules ?? [];
-  const insight = publicInsightReport(snapshot.deepResult.aiReading);
+  const insightV2 = publicInsightV2(snapshot.deepResult.aiReading);
+  const insight = insightV2 ? null : publicInsightReport(snapshot.deepResult.aiReading);
+  const hasInsight = Boolean(insightV2 || insight);
   const scored = resolveAttachmentScores(snapshot.questions, snapshot.answerChoices, snapshot.result);
   const caregiverScored = scoreAttachmentSubset(snapshot.questions, snapshot.answerChoices, CHILDHOOD_MODULE);
   const worth = scored ? selfWorthSnapshot(snapshot.questions, snapshot.answerChoices) : undefined;
@@ -66,7 +68,7 @@ export function reportPreview(snapshot: ReportSnapshot): ReportPreview {
   return {
     totalChoices: answered.length,
     modules: modules.map((module) => module.title),
-    romanceEssay: insight || !scored
+    romanceEssay: hasInsight || !scored
       ? undefined
       : (snapshot.deepResult.romanceEssay ?? romanceEssay(snapshot.questions, snapshot.answerChoices, scored.style)),
     scores: scored ? dimensionScore(scored.anxiety, scored.avoidance) : undefined,
@@ -77,6 +79,14 @@ export function reportPreview(snapshot: ReportSnapshot): ReportPreview {
     selfWorth: scored && worth ? {
       ...worth,
       sentences: snapshot.deepResult.selfWorth?.sentences ?? selfWorthSentences(snapshot.questions, snapshot.answerChoices, scored.style),
+    } : undefined,
+    aiInsightV2: insightV2 ? {
+      patternName: insightV2.hook.patternName,
+      mirror: insightV2.hook.mirror,
+      tell: insightV2.hook.tell,
+      cost: insightV2.cost,
+      turningPointSetup: insightV2.turningPoint.setup,
+      teasers: insightV2.teasers,
     } : undefined,
     aiInsight: insight ? {
       paradox: insight.contradiction.paradox,

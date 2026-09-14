@@ -26,6 +26,14 @@ export type ReportPreview = {
     conflictAlarm: string;
     fear: string;
   };
+  aiInsightV2?: {
+    patternName: string;
+    mirror: string;
+    tell: string;
+    cost: string[];
+    turningPointSetup: string;
+    teasers: string[];
+  };
   sample?: {
     moduleTitle: string;
     explanation: string;

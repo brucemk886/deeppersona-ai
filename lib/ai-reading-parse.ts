@@ -5,11 +5,19 @@ export type AiChoiceReading = {
   reading: string;
 };
 
+// First DeepSeek format: one short reading per selected option. Kept only for stored snapshots.
+export type LegacyChoiceReading = {
+  summary?: string;
+  reflectionPrompt?: string;
+  choices: AiChoiceReading[];
+};
+
 export type AiScene = {
   alarm: string;
   action: string;
 };
 
+// Second format: four descriptive modules. Kept only for stored snapshots.
 export type AiInsightReport = {
   contradiction: {
     paradox: string;
@@ -30,11 +38,31 @@ export type AiInsightReport = {
   };
 };
 
-export type AiReading = AiInsightReport & {
-  summary?: string;
-  reflectionPrompt?: string;
-  choices?: AiChoiceReading[];
+// Current format: a hook that stops right before the payoff, then the paid payoff.
+export type AiInsightV2 = {
+  version: 2;
+  hook: {
+    patternName: string;
+    mirror: string;
+    tell: string;
+  };
+  cost: string[];
+  turningPoint: {
+    setup: string;
+    move: string;
+    misread: string;
+  };
+  teasers: string[];
+  throughTheirEyes: string;
+  forecast: string;
+  coverStory: string;
+  toolkit: {
+    brake: string[];
+    scripts: string[];
+  };
 };
+
+export type AiReading = AiInsightV2 | AiInsightReport | LegacyChoiceReading;
 
 const STYLE_EN: Record<string, string> = {
   anxious: "Anxious-Preoccupied",
@@ -48,7 +76,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 }
 
 function cleanText(value: unknown): string {
-  return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+  return typeof value === "string" ? value.replace(/[ \t]+/g, " ").replace(/\s*\n\s*/g, "\n").trim() : "";
 }
 
 function cleanList(value: unknown, min: number, max: number): string[] {
@@ -78,7 +106,7 @@ function extractJsonObject(raw: string): unknown {
   }
 }
 
-export function hasLegacyChoiceReadings(value: unknown): value is { choices: AiChoiceReading[] } {
+export function hasLegacyChoiceReadings(value: unknown): value is LegacyChoiceReading {
   const record = asRecord(value);
   if (!record || !Array.isArray(record.choices)) return false;
   return record.choices.some((item) => {
@@ -89,19 +117,6 @@ export function hasLegacyChoiceReadings(value: unknown): value is { choices: AiC
 
 export function hasCjkText(value: unknown): boolean {
   return /[\u3400-\u9fff]/.test(typeof value === "string" ? value : JSON.stringify(value ?? ""));
-}
-
-export function publicInsightReport(value: unknown): AiInsightReport | null {
-  return isInsightReport(value) && !hasCjkText(value) ? value : null;
-}
-
-export function shouldRefreshAiReading(deepResult: {
-  aiReading?: unknown;
-  aiReadingFrozen?: boolean;
-  aiRewriteAttempted?: boolean;
-}): boolean {
-  if (deepResult.aiReadingFrozen || deepResult.aiRewriteAttempted) return false;
-  return hasCjkText(deepResult.aiReading);
 }
 
 export function isInsightReport(value: unknown): value is AiInsightReport {
@@ -124,6 +139,62 @@ export function isInsightReport(value: unknown): value is AiInsightReport {
   );
 }
 
+export function publicInsightReport(value: unknown): AiInsightReport | null {
+  return isInsightReport(value) && !hasCjkText(value) ? value : null;
+}
+
+function readInsightV2(value: unknown): AiInsightV2 | null {
+  const record = asRecord(value);
+  if (!record) return null;
+  const hook = asRecord(record.hook);
+  const turningPoint = asRecord(record.turningPoint);
+  const toolkit = asRecord(record.toolkit);
+  const patternName = cleanText(hook?.patternName);
+  const mirror = cleanText(hook?.mirror);
+  const tell = cleanText(hook?.tell);
+  const cost = cleanList(record.cost, 2, 3);
+  const setup = cleanText(turningPoint?.setup);
+  const move = cleanText(turningPoint?.move);
+  const misread = cleanText(turningPoint?.misread);
+  const teasers = cleanList(record.teasers, 3, 4);
+  const throughTheirEyes = cleanText(record.throughTheirEyes);
+  const forecast = cleanText(record.forecast);
+  const coverStory = cleanText(record.coverStory);
+  const brake = cleanList(toolkit?.brake, 3, 3);
+  const scripts = cleanList(toolkit?.scripts, 2, 2);
+  if (!patternName || !mirror || !tell || !cost.length || !setup || !move || !misread || !teasers.length
+    || !throughTheirEyes || !forecast || !coverStory || brake.length !== 3 || scripts.length !== 2) {
+    return null;
+  }
+  return {
+    version: 2,
+    hook: { patternName, mirror, tell },
+    cost,
+    turningPoint: { setup, move, misread },
+    teasers,
+    throughTheirEyes,
+    forecast,
+    coverStory,
+    toolkit: { brake, scripts },
+  };
+}
+
+export function isInsightV2(value: unknown): value is AiInsightV2 {
+  return readInsightV2(value) !== null;
+}
+
+export function publicInsightV2(value: unknown): AiInsightV2 | null {
+  const report = readInsightV2(value);
+  return report && !hasCjkText(report) ? report : null;
+}
+
+// One upgrade attempt per report. Legacy per-choice snapshots stay as purchased.
+export function needsAiUpgrade(deepResult: { aiReading?: unknown; aiUpgradeAttempted?: boolean }): boolean {
+  if (deepResult.aiUpgradeAttempted) return false;
+  if (hasLegacyChoiceReadings(deepResult.aiReading)) return false;
+  return !publicInsightV2(deepResult.aiReading);
+}
+
 export function buildAiReadingPrompt(
   _test: QuizTest,
   questions: QuizQuestion[],
@@ -143,40 +214,15 @@ export function buildAiReadingPrompt(
       avoidance: result.avoidance ?? null,
       leanCounts: counts,
       language: "en",
-      rule: "Do not list, quote, or retell any quiz item or option. Write the four-part report in English from the style and leanings only.",
+      rule: "Do not list, quote, or retell any quiz item or option. Write the reading in English from the style and leanings only.",
     }),
   };
 }
 
-export function parseAiReading(raw: string): AiReading | null {
-  let parsed: unknown;
+export function parseAiReading(raw: string): AiInsightV2 | null {
   try {
-    parsed = extractJsonObject(raw);
+    return readInsightV2(extractJsonObject(raw));
   } catch {
     return null;
   }
-  const record = asRecord(parsed);
-  if (!record) return null;
-  const contradiction = asRecord(record.contradiction);
-  const scenes = asRecord(record.scenes);
-  const defense = asRecord(record.defense);
-  const toolkit = asRecord(record.toolkit);
-  const closeness = cleanScene(scenes?.closeness);
-  const silence = cleanScene(scenes?.silence);
-  const conflict = cleanScene(scenes?.conflict);
-  const brake = cleanList(toolkit?.brake, 3, 3);
-  const scripts = cleanList(toolkit?.scripts, 2, 2);
-  const paradox = cleanText(contradiction?.paradox);
-  const selfSabotage = cleanText(contradiction?.selfSabotage);
-  const fear = cleanText(defense?.fear);
-  const excuse = cleanText(defense?.excuse);
-  if (!paradox || !selfSabotage || !closeness || !silence || !conflict || !fear || !excuse || brake.length !== 3 || scripts.length !== 2) {
-    return null;
-  }
-  return {
-    contradiction: { paradox, selfSabotage },
-    scenes: { closeness, silence, conflict },
-    defense: { fear, excuse },
-    toolkit: { brake, scripts },
-  };
 }

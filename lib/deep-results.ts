@@ -6,6 +6,9 @@ import type { QuizQuestion, QuizTest, ResultProfile } from "./quiz";
 
 export type DeepResultContent = {
   aiReading?: AiReading;
+  aiReadingVersion?: number;
+  aiUpgradeAttempted?: boolean;
+  // Older flags left in stored snapshots.
   aiReadingFrozen?: boolean;
   aiRewriteAttempted?: boolean;
   modules?: { title: string; explanation: string; reflection: string }[];

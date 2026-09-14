@@ -1,5 +1,110 @@
 import type { ReactNode } from "react";
-import type { AiInsightReport } from "@/lib/ai-reading-parse";
+import type { AiInsightReport, AiInsightV2 } from "@/lib/ai-reading-parse";
+import type { ReportPreview } from "@/lib/payment-types";
+
+function Paragraphs({ text }: { text: string }) {
+  return <>{text.split(/\n{2,}/).map((part) => <p className="ap-essay" key={part}>{part}</p>)}</>;
+}
+
+function LockGlyph() {
+  return (
+    <svg aria-hidden="true" className="ai-insight-lock" viewBox="0 0 24 24" width="16" height="16">
+      <rect x="5" y="10" width="14" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function PatternBlock({ patternName, mirror, tell }: { patternName: string; mirror: string; tell: string }) {
+  return (
+    <Block eyebrow="Part 1 · Your move" title={patternName}>
+      <Paragraphs text={mirror} />
+      <aside className="ai-insight-tell">
+        <span>The tell</span>
+        <p>{tell}</p>
+      </aside>
+    </Block>
+  );
+}
+
+function CostBlock({ cost }: { cost: string[] }) {
+  return (
+    <Block eyebrow="Part 2" title="What it has already cost you">
+      <ul className="ai-insight-cost">
+        {cost.map((line) => <li key={line}>{line}</li>)}
+      </ul>
+    </Block>
+  );
+}
+
+export function AiInsightPreviewV2({
+  insight,
+  unlockLabel,
+  onUnlock,
+}: {
+  insight: NonNullable<ReportPreview["aiInsightV2"]>;
+  unlockLabel: string;
+  onUnlock: () => void;
+}) {
+  return (
+    <div className="ai-insight-report">
+      <PatternBlock patternName={insight.patternName} mirror={insight.mirror} tell={insight.tell} />
+      <CostBlock cost={insight.cost} />
+      <Block eyebrow="Part 3" title="The moment you lose them">
+        <Paragraphs text={insight.turningPointSetup} />
+        <div className="ai-insight-locked">
+          <span className="ai-insight-kicker">Behind the lock</span>
+          <ul>
+            {insight.teasers.map((line) => <li key={line}><LockGlyph />{line}</li>)}
+          </ul>
+          <button className="unlock-button unlock-button-primary" onClick={onUnlock} type="button">{unlockLabel}</button>
+          <p className="ai-insight-tease">Written once from this result and kept. It does not change when you come back.</p>
+        </div>
+      </Block>
+    </div>
+  );
+}
+
+export function AiInsightReportV2({ reading }: { reading: AiInsightV2 }) {
+  return (
+    <div className="ai-insight-report">
+      <PatternBlock patternName={reading.hook.patternName} mirror={reading.hook.mirror} tell={reading.hook.tell} />
+      <CostBlock cost={reading.cost} />
+      <Block eyebrow="Part 3" title="The moment you lose them">
+        <Paragraphs text={reading.turningPoint.setup} />
+        <article className="ai-insight-scene">
+          <h3>The move</h3>
+          <Paragraphs text={reading.turningPoint.move} />
+        </article>
+        <article className="ai-insight-scene">
+          <h3>How it lands on their side</h3>
+          <Paragraphs text={reading.turningPoint.misread} />
+        </article>
+      </Block>
+      <Block eyebrow="Part 4" title="Through their eyes">
+        <Paragraphs text={reading.throughTheirEyes} />
+      </Block>
+      <Block eyebrow="Part 5" title="The next 60 days if nothing changes">
+        <Paragraphs text={reading.forecast} />
+      </Block>
+      <Block eyebrow="Part 6" title="The cover story">
+        <Paragraphs text={reading.coverStory} />
+      </Block>
+      <Block eyebrow="Part 7" title="What to do when it spikes">
+        <article className="ai-insight-scene">
+          <h3>Emergency brake</h3>
+          <ol>
+            {reading.toolkit.brake.map((step) => <li key={step}>{step}</li>)}
+          </ol>
+        </article>
+        <article className="ai-insight-scene">
+          <h3>Send this instead</h3>
+          {reading.toolkit.scripts.map((line) => <blockquote key={line}>{line}</blockquote>)}
+        </article>
+      </Block>
+    </div>
+  );
+}
 
 function Block({
   eyebrow,
