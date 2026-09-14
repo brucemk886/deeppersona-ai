@@ -197,8 +197,9 @@ test("paywall does not list canned inclusions or invented multi-context scores",
   assert.doesNotMatch(report, /底层自相矛盾画像|三大高频暴击分镜|急救刹车与沟通话术/);
   assert.doesNotMatch(report + quiz, /7天脱敏|7-day practice/);
   assert.doesNotMatch(quiz, /report-inclusions/);
-  assert.match(preview, /aiInsight/);
+  assert.match(preview, /romanceEssay/);
   assert.match(preview, /sample: undefined/);
+  assert.doesNotMatch(preview + quiz, /aiInsightV2|patternName|The 2am Pull-Back/);
   assert.match(report, /not blame statements about caregivers/);
   assert.match(report, /In one scene you chose/);
   assert.doesNotMatch(report + preview + quiz, /Mother \(CG|Father \(CG|AT WORK|millions of users/);

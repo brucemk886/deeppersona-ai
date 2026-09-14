@@ -2,7 +2,7 @@ import { getD1, getProfileSummary, listQuestions, listTests, submitQuiz } from "
 import { ensurePaymentSchema, type ReportRow } from "@/db/payment-store";
 import { validateEmailAddress } from "@/lib/email-validation";
 import { buildChoiceReport } from "@/lib/deep-results";
-import { generateAiReading } from "@/lib/ai-reading";
+import { applyAiModules, generateAiReading } from "@/lib/ai-reading";
 import { catalogQuestion, publicTest } from "@/lib/public-quiz";
 import { createProfileId, profileCookie, readProfileId } from "@/lib/profile-cookie";
 import { PaymentError, paymentError, requireSameOrigin } from "@/lib/payment-http";
@@ -40,10 +40,7 @@ export async function POST(request: Request) {
     const answers = Object.fromEntries(questions.map(q => [q.id, choices[q.id]]));
     const { result, deepResult } = buildChoiceReport(test, questions, choices);
     const aiReading = await generateAiReading(test, questions, choices, result);
-    if (aiReading) {
-      deepResult.aiReading = aiReading;
-      deepResult.aiReadingVersion = 2;
-    }
+    if (aiReading) applyAiModules(deepResult, aiReading);
     const reportId = crypto.randomUUID();
     const profile = await submitQuiz({
       sessionId: body.sessionId, profileId, email: email.normalized, marketingConsent: body.marketingConsent === true,

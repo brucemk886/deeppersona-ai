@@ -1,5 +1,12 @@
 import { getRuntimeEnv } from "@/db/quiz-store";
-import { buildAiReadingPrompt, hasCjkText, needsAiUpgrade, parseAiReading, type AiInsightV2 } from "./ai-reading-parse";
+import {
+  buildAiReadingPrompt,
+  hasCjkText,
+  needsAiUpgrade,
+  parseAiReading,
+  type AiAttachmentModules,
+} from "./ai-reading-parse";
+import type { DeepResultContent } from "./deep-results";
 import type { ReportSnapshot } from "./payment-types";
 import type { QuizQuestion, QuizTest, ResultProfile } from "./quiz";
 
@@ -9,47 +16,71 @@ const ATTACHMENT_KEYS = new Set(["anxious", "avoidant", "secure", "fearful"]);
 
 export { buildAiReadingPrompt } from "./ai-reading-parse";
 
-const SYSTEM_PROMPT = `You write the attachment reading for an English quiz site. Voice: a sharp friend who happens to be a trauma-trained clinician. Spoken English. Second person, present tense. No hedging ("may", "might", "tend to", "often", "can"). No brochure words ("journey", "healing", "navigate", "hold space", "boundaries", "self-care"). No adjective lists. Every paragraph carries at least one concrete detail: a time of night, a phone face-down on the table, a third date, a reply left on read, a specific sentence someone said.
+const SYSTEM_PROMPT = `You write the attachment report for an English quiz site. The page uses the same modules as a standard attachment-style result: romantic patterns, romantic characteristics, superpowers, triggers, how they see themselves, self-talk rewrites, dating / conflict / need, and how this style meets the other three.
 
-The reader sees the first three parts free. Their job is to make the reader feel caught, then stop right before the part they most want. Everything after that is paid, and it has to pay off the promise.
+You are analyzing the person's actual first-reaction answers, not a generic type essay. The JSON they send includes every moment they faced and the first move they picked. Use those moves as evidence. If anxious and avoidant answers sit next to each other, name that mix. If most answers cluster one way with two sharp exceptions, keep the exceptions.
+
+Voice: clear, specific, second person, present tense. Short sentences. No brochure words ("journey", "healing", "navigate", "hold space"). No guest-services lines ("this reading", "according to your results", "this is not a judgment"). No invented late-night novel, no cliffhangers, no "unlock" language, no 7-day plan.
 
 Return JSON only, exactly this shape:
 {
-  "version": 2,
-  "hook": {
-    "patternName": "3-5 words that name their specific move, not the attachment label. Examples of the register: 'The Pre-emptive Exit', 'The 11pm Audit', 'The Two-Day Freeze'. Invent one that fits this person.",
-    "mirror": "6-8 sentences. Open inside a scene they will recognize. Show what they do, then what they tell themselves in that moment, then what actually happened. The final sentence should land like being seen through, not like advice.",
-    "tell": "2 sentences. The small thing they do that they believe nobody notices. Specific enough to be slightly uncomfortable."
-  },
-  "cost": [
-    "one sentence, concrete, phrased as a loss they have already paid",
-    "one sentence",
-    "one sentence"
+  "version": 3,
+  "romanceEssay": "8-12 sentences. How they actually move in romance, drawn from their first-reaction answers: silence, affection, cancelations, labels, fights. Name the pattern, then the cost, then what they are protecting. Paraphrase 3-5 revealing answers. Do not quote a stack of quiz items.",
+  "characteristics": [
+    "5-7 short bullets. Each is one romantic characteristic this person showed in the answers, not a generic type list."
   ],
-  "turningPoint": {
-    "setup": "3-4 sentences building the exact moment they lose people. Stop right before the move itself. End on a cliff.",
-    "move": "3-4 sentences describing the move precisely: what they say, send, or stop doing.",
-    "misread": "3-4 sentences on how the other person reads that move, and why it lands as the opposite of what was meant."
-  },
-  "teasers": [
-    "one sentence promising the 'move + misread' section, phrased as something they will learn, no resolution",
-    "one sentence promising the partner's-eye section: what the other person has already concluded but not said",
-    "one sentence promising the forecast: what the next 60 days look like if nothing changes",
-    "one sentence promising the exact text they can send instead of the move"
+  "superpowers": [
+    "exactly 3 bullets. Strengths that showed up in the answers, even inside an insecure pattern."
   ],
-  "throughTheirEyes": "5-6 sentences from the partner's side. What they see, what they quietly stop doing, what they have already decided but not said out loud.",
-  "forecast": "5-6 sentences: the next 30 to 60 days if nothing changes. Specific, plausible, with a rough timeline.",
-  "coverStory": "4-5 sentences: the excuse they use for the distance, why it sounds reasonable, and the one detail that gives it away.",
-  "toolkit": {
-    "brake": ["step 1, physical, under 15 words", "step 2", "step 3"],
-    "scripts": ["a text they can send as-is, under 40 words", "a second one, different situation"]
-  }
+  "triggers": [
+    "exactly 3 bullets. Moments from the answers that reliably set them off."
+  ],
+  "selfWorthSentences": "4-6 sentences on how they treat their own worth in these answers: checking, shrinking, armoring, proving, or staying steady.",
+  "rewrites": [
+    { "from": "the line they already tell themselves, taken from the answers", "to": "a shorter replacement they can use in the same moment" },
+    { "from": "...", "to": "..." },
+    { "from": "...", "to": "..." }
+  ],
+  "essay": {
+    "dating": "4-6 sentences from the dating / texting / pace answers.",
+    "conflict": "4-6 sentences from the fight / shutdown / chase answers.",
+    "need": "4-6 sentences on the concrete thing they need next, inferred from the answers. No worksheet."
+  },
+  "pairing": [
+    { "style": "Anxious-Preoccupied", "note": "3-4 sentences: how THIS person's answers would meet an anxious partner." },
+    { "style": "Dismissing-Avoidant", "note": "3-4 sentences." },
+    { "style": "Secure", "note": "3-4 sentences." },
+    { "style": "Fearful-Avoidant", "note": "3-4 sentences." }
+  ],
+  "caregiverIntro": "Omit this key unless childhoodMoves was sent. If sent: 4-6 sentences on the caregiver pattern those answers show. Do not blame parents."
 }
 
-Never write "this reading", "according to your results", "this is not a judgment", or "everyone does this sometimes". Never quote or list quiz items or options. English only.`;
+pairing.style must use those four labels exactly. English only.`;
 
 export function hasAiKey(): boolean {
   return Boolean(getRuntimeEnv().DEEPSEEK_API_KEY?.trim());
+}
+
+export function applyAiModules(deepResult: DeepResultContent, reading: AiAttachmentModules) {
+  deepResult.aiReading = reading;
+  deepResult.aiReadingVersion = 3;
+  deepResult.romanceEssay = reading.romanceEssay;
+  deepResult.characteristics = reading.characteristics;
+  deepResult.superpowers = reading.superpowers;
+  deepResult.triggers = reading.triggers;
+  deepResult.essay = reading.essay;
+  deepResult.pairing = reading.pairing;
+  if (deepResult.selfWorth) {
+    deepResult.selfWorth = { ...deepResult.selfWorth, sentences: reading.selfWorthSentences };
+  }
+  deepResult.selfEsteem = {
+    title: deepResult.selfEsteem?.title ?? "Your worth pattern",
+    paragraphs: [reading.selfWorthSentences, ...(deepResult.selfEsteem?.paragraphs.slice(1) ?? [])].filter(Boolean),
+    rewrites: reading.rewrites,
+  };
+  if (reading.caregiverIntro && deepResult.caregiver) {
+    deepResult.caregiver = { ...deepResult.caregiver, intro: reading.caregiverIntro };
+  }
 }
 
 export async function generateAiReading(
@@ -57,7 +88,7 @@ export async function generateAiReading(
   questions: QuizQuestion[],
   choices: Record<string, number>,
   result: ResultProfile,
-): Promise<AiInsightV2 | null> {
+): Promise<AiAttachmentModules | null> {
   const apiKey = getRuntimeEnv().DEEPSEEK_API_KEY?.trim();
   if (!apiKey) return null;
   const { user } = buildAiReadingPrompt(test, questions, choices, result);
@@ -73,8 +104,8 @@ export async function generateAiReading(
       },
       body: JSON.stringify({
         model: DEEPSEEK_MODEL,
-        temperature: 0.6,
-        max_tokens: 6000,
+        temperature: 0.4,
+        max_tokens: 5000,
         response_format: { type: "json_object" },
         thinking: { type: "disabled" },
         messages: [
@@ -99,9 +130,6 @@ export async function upgradeAiReading(snapshot: ReportSnapshot): Promise<boolea
   if (!needsAiUpgrade(snapshot.deepResult)) return false;
   snapshot.deepResult.aiUpgradeAttempted = true;
   const next = await generateAiReading(snapshot.test, snapshot.questions, snapshot.answerChoices, snapshot.result);
-  if (next && !hasCjkText(next)) {
-    snapshot.deepResult.aiReading = next;
-    snapshot.deepResult.aiReadingVersion = 2;
-  }
+  if (next && !hasCjkText(next)) applyAiModules(snapshot.deepResult, next);
   return true;
 }

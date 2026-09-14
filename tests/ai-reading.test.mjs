@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildAiReadingPrompt, hasCjkText, hasLegacyChoiceReadings, isInsightReport, isInsightV2, needsAiUpgrade, parseAiReading, publicInsightReport, publicInsightV2 } from "../lib/ai-reading-parse.ts";
+import {
+  buildAiReadingPrompt,
+  hasCjkText,
+  hasLegacyChoiceReadings,
+  isAttachmentModules,
+  isInsightReport,
+  isInsightV2,
+  needsAiUpgrade,
+  parseAiReading,
+  publicAttachmentModules,
+  publicInsightReport,
+} from "../lib/ai-reading-parse.ts";
 
 const questions = [{
   id: "attachment-style-v3-q01",
@@ -38,61 +49,65 @@ const insight = {
   },
 };
 
-const insightV2 = {
-  version: 2,
-  hook: {
-    patternName: "The Two-Day Freeze",
-    mirror: "It is 11:40pm and the date went well. You reread your last text three times. By morning you have decided they were being polite.",
-    tell: "You open their profile, then close it before it can register as a view.",
-  },
-  cost: [
-    "The one who kept asking stopped asking in March.",
-    "Two years of a good thing spent auditing it instead of living in it.",
+const modules = {
+  version: 3,
+  romanceEssay: "When a reply goes cold, your chest drops first. You treat the silence as a verdict before you have a fact. That same night you still want the title, because a label feels like the only thing that would settle your body. The cost is that the evening becomes a trial you run alone.",
+  characteristics: [
+    "You read a dry text as proof you already did something wrong.",
+    "You close the gap fast after a fight.",
+    "You want a label when the bond speeds up.",
+    "You keep one eye on their activity while you wait.",
+    "You apologize early to keep them from leaving.",
   ],
-  turningPoint: {
-    setup: "Third week. They start making plans that assume you. Something in your chest goes flat, and you reach for the phone.",
-    move: "You send a short, correct text and go dark for two days.",
-    misread: "They read the silence as a verdict on them, not as your alarm going off.",
-  },
-  teasers: [
-    "What you actually send at hour six, and why it reads as goodbye.",
-    "The sentence they have already said about you to a friend.",
-    "What the next 60 days look like if the freeze stays.",
-    "The 30-word text that replaces the freeze.",
+  superpowers: [
+    "You notice a shift in tone before other people do.",
+    "You are willing to repair instead of pretending nothing happened.",
+    "You can name what you need once the moment feels safe enough.",
   ],
-  throughTheirEyes: "They notice the pause before you answer. They stop suggesting Sundays.",
-  forecast: "Around week six the plans stop. By week ten you are relieved, then not.",
-  coverStory: "You call it needing space. The detail that gives it away is how fast you check whether they noticed.",
-  toolkit: {
-    brake: ["Put the phone face down", "Take four breaths", "Name this as an alarm, not a fact"],
-    scripts: [
-      "I am overloaded and want to pull back for a bit. This is not about liking you less. Give me two hours and I will come find you.",
-      "That last line was fear talking, not a verdict. I want to say it again.",
-    ],
+  triggers: [
+    "A colder reply with no explanation.",
+    "Last-minute cancelations.",
+    "A partner asking for space without a return time.",
+  ],
+  selfWorthSentences: "Worth still has to be proven in the thread. A late reply becomes a story about whether you are still chosen. You can take a compliment, then test it. The day starts to orbit the unanswered message.",
+  rewrites: [
+    { from: "If they are quiet, I am already losing them.", to: "They are quiet. I know one fact, and I can ask one question later." },
+    { from: "I have to fix this now.", to: "Repair can wait twenty minutes and still count." },
+  ],
+  essay: {
+    dating: "In dating, a cooler phone pulls the whole evening into the chat. You look for a sign you still matter before you can enjoy the night.",
+    conflict: "In conflict, you close the gap with more texts and another apology. An open rupture feels like the relationship is already leaving the room.",
+    need: "You need a visible thread: a return time, a plain sentence, a plan that makes the pause feel shared.",
   },
+  pairing: [
+    { style: "Anxious-Preoccupied", note: "With another anxious person, both of you flood the thread when a reply is late." },
+    { style: "Dismissing-Avoidant", note: "With an avoidant person, your reach meets their space and the night gets louder." },
+    { style: "Secure", note: "With a securer person, their calm can feel like not enough heat until you let the next step count." },
+    { style: "Fearful-Avoidant", note: "With a fearful-avoidant person, a pull-away starts a chase, then a chase starts the next exit." },
+  ],
 };
 
-test("parseAiReading accepts the hook-and-payoff insight JSON", () => {
-  const parsed = parseAiReading(`Here you go\n\`\`\`json\n${JSON.stringify(insightV2)}\n\`\`\``);
-  assert.deepEqual(parsed, insightV2);
-  assert.equal(isInsightV2(parsed), true);
-  assert.equal(isInsightReport(parsed), false);
-  assert.equal(publicInsightV2(parsed)?.hook.patternName, "The Two-Day Freeze");
+test("parseAiReading accepts Attachment Project-style modules written from answers", () => {
+  const parsed = parseAiReading(`Here you go\n\`\`\`json\n${JSON.stringify(modules)}\n\`\`\``);
+  assert.deepEqual(parsed, modules);
+  assert.equal(isAttachmentModules(parsed), true);
+  assert.equal(publicAttachmentModules(parsed)?.characteristics.length, 5);
 });
 
 test("parseAiReading rejects incomplete or older shapes", () => {
   assert.equal(parseAiReading(JSON.stringify(insight)), null);
-  assert.equal(parseAiReading(JSON.stringify({ ...insightV2, teasers: ["only one"] })), null);
+  assert.equal(parseAiReading(JSON.stringify({ ...modules, characteristics: ["only one"] })), null);
   assert.equal(parseAiReading('{"summary":"You reach first.","choices":[{"questionId":"q1","reading":"ok"}]}'), null);
   assert.equal(parseAiReading("not json"), null);
 });
 
-test("older four-module snapshots still validate as v1 for existing reports", () => {
+test("older snapshots still validate as their own shapes", () => {
   assert.equal(isInsightReport(insight), true);
-  assert.equal(isInsightV2(insight), false);
+  assert.equal(isInsightV2({ version: 2, hook: { patternName: "The Two-Day Freeze" } }), true);
+  assert.equal(isAttachmentModules(insight), false);
 });
 
-test("buildAiReadingPrompt sends style scores without option wording", () => {
+test("buildAiReadingPrompt sends the first-reaction answers the person actually picked", () => {
   const built = buildAiReadingPrompt(
     { id: "attachment-style", title: "Attachment Style Quiz" },
     questions,
@@ -102,41 +117,38 @@ test("buildAiReadingPrompt sends style scores without option wording", () => {
   assert.match(built.user, /Anxious-Preoccupied/);
   assert.match(built.user, /"language":"en"/);
   assert.match(built.user, /"anxiety":72/);
-  assert.doesNotMatch(built.user, /Did I say something wrong/);
-  assert.doesNotMatch(built.user, /When their texting suddenly goes cold/);
+  assert.match(built.user, /Did I say something wrong/);
+  assert.match(built.user, /When their texting suddenly goes cold/);
+  assert.match(built.user, /firstMoves/);
   assert.doesNotMatch(built.user, /中文|焦虑型/);
   assert.doesNotMatch(built.user, /PRIVATE_ADMIN_MEANING/);
 });
 
-test("publicInsightReport hides Chinese insight copy from the English site", () => {
-  assert.equal(hasCjkText(insight), false);
-  assert.equal(publicInsightReport(insight)?.contradiction.paradox, insight.contradiction.paradox);
-  const chinese = {
-    ...insight,
-    contradiction: {
-      paradox: "你渴望被抱紧，却在对方向你伸手时一刀捅过去。",
-      selfSabotage: insight.contradiction.selfSabotage,
-    },
-  };
+test("publicAttachmentModules hides Chinese copy from the English site", () => {
+  assert.equal(hasCjkText(modules), false);
+  assert.equal(publicAttachmentModules(modules)?.romanceEssay, modules.romanceEssay);
+  const chinese = { ...modules, romanceEssay: "你渴望被抱紧，却在对方向你伸手时一刀捅过去。" };
   assert.equal(hasCjkText(chinese), true);
-  assert.equal(publicInsightReport(chinese), null);
+  assert.equal(publicAttachmentModules(chinese), null);
+  assert.equal(publicInsightReport({ ...insight, contradiction: { ...insight.contradiction, paradox: "你还在" } }), null);
 });
 
 test("needsAiUpgrade runs once per report and leaves purchased per-choice snapshots alone", () => {
-  assert.equal(needsAiUpgrade({ aiReading: insightV2 }), false);
+  assert.equal(needsAiUpgrade({ aiReading: modules }), false);
   assert.equal(needsAiUpgrade({ aiReading: insight }), true);
-  assert.equal(needsAiUpgrade({ aiReading: insight, aiUpgradeAttempted: true }), false);
-  assert.equal(needsAiUpgrade({ aiReading: { ...insightV2, hook: { ...insightV2.hook, mirror: "你还在" } } }), true);
+  assert.equal(needsAiUpgrade({ aiReading: { version: 2, hook: { patternName: "x" } } }), true);
+  assert.equal(needsAiUpgrade({ aiReading: modules, aiUpgradeAttempted: true }), false);
+  assert.equal(needsAiUpgrade({ aiReading: { ...modules, romanceEssay: "你还在" } }), true);
   assert.equal(needsAiUpgrade({ aiReading: undefined }), true);
   assert.equal(needsAiUpgrade({ aiReading: { summary: "x", choices: [{ questionId: "q1", reading: "ok" }] } }), false);
 });
 
-test("legacy per-choice snapshots are detected without passing as insight reports", () => {
+test("legacy per-choice snapshots are detected without passing as module reports", () => {
   const legacy = {
     summary: "You reach first.",
     choices: [{ questionId: "attachment-style-v3-q01", reading: "The dry texts land as a threat to the bond." }],
   };
-  assert.equal(isInsightReport(legacy), false);
+  assert.equal(isAttachmentModules(legacy), false);
   assert.equal(hasLegacyChoiceReadings(legacy), true);
-  assert.equal(hasLegacyChoiceReadings(insight), false);
+  assert.equal(hasLegacyChoiceReadings(modules), false);
 });

@@ -38,7 +38,7 @@ export type AiInsightReport = {
   };
 };
 
-// Current format: a hook that stops right before the payoff, then the paid payoff.
+// Third format: marketing hook. Kept only for stored snapshots.
 export type AiInsightV2 = {
   version: 2;
   hook: {
@@ -62,14 +62,44 @@ export type AiInsightV2 = {
   };
 };
 
-export type AiReading = AiInsightV2 | AiInsightReport | LegacyChoiceReading;
+export type AiRewrite = {
+  from: string;
+  to: string;
+};
 
-const STYLE_EN: Record<string, string> = {
+export type AiPairing = {
+  style: string;
+  note: string;
+};
+
+// Current format: Attachment Project-style modules written from the user's answers.
+export type AiAttachmentModules = {
+  version: 3;
+  romanceEssay: string;
+  characteristics: string[];
+  superpowers: string[];
+  triggers: string[];
+  selfWorthSentences: string;
+  rewrites: AiRewrite[];
+  essay: {
+    dating: string;
+    conflict: string;
+    need: string;
+  };
+  pairing: AiPairing[];
+  caregiverIntro?: string;
+};
+
+export type AiReading = AiAttachmentModules | AiInsightV2 | AiInsightReport | LegacyChoiceReading;
+
+export const STYLE_EN: Record<string, string> = {
   anxious: "Anxious-Preoccupied",
   avoidant: "Dismissing-Avoidant",
   secure: "Secure",
-  fearful: "Fearful-Avoidant / Disorganized",
+  fearful: "Fearful-Avoidant",
 };
+
+const PAIRING_STYLES = new Set(Object.values(STYLE_EN));
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
@@ -143,56 +173,89 @@ export function publicInsightReport(value: unknown): AiInsightReport | null {
   return isInsightReport(value) && !hasCjkText(value) ? value : null;
 }
 
-function readInsightV2(value: unknown): AiInsightV2 | null {
+export function isInsightV2(value: unknown): value is AiInsightV2 {
+  const record = asRecord(value);
+  return Boolean(record && record.version === 2 && asRecord(record.hook)?.patternName);
+}
+
+function readAttachmentModules(value: unknown): AiAttachmentModules | null {
   const record = asRecord(value);
   if (!record) return null;
-  const hook = asRecord(record.hook);
-  const turningPoint = asRecord(record.turningPoint);
-  const toolkit = asRecord(record.toolkit);
-  const patternName = cleanText(hook?.patternName);
-  const mirror = cleanText(hook?.mirror);
-  const tell = cleanText(hook?.tell);
-  const cost = cleanList(record.cost, 2, 3);
-  const setup = cleanText(turningPoint?.setup);
-  const move = cleanText(turningPoint?.move);
-  const misread = cleanText(turningPoint?.misread);
-  const teasers = cleanList(record.teasers, 3, 4);
-  const throughTheirEyes = cleanText(record.throughTheirEyes);
-  const forecast = cleanText(record.forecast);
-  const coverStory = cleanText(record.coverStory);
-  const brake = cleanList(toolkit?.brake, 3, 3);
-  const scripts = cleanList(toolkit?.scripts, 2, 2);
-  if (!patternName || !mirror || !tell || !cost.length || !setup || !move || !misread || !teasers.length
-    || !throughTheirEyes || !forecast || !coverStory || brake.length !== 3 || scripts.length !== 2) {
+  const essay = asRecord(record.essay);
+  const romanceEssay = cleanText(record.romanceEssay);
+  const characteristics = cleanList(record.characteristics, 4, 8);
+  const superpowers = cleanList(record.superpowers, 3, 4);
+  const triggers = cleanList(record.triggers, 3, 4);
+  const selfWorthSentences = cleanText(record.selfWorthSentences);
+  const dating = cleanText(essay?.dating);
+  const conflict = cleanText(essay?.conflict);
+  const need = cleanText(essay?.need);
+  const caregiverIntro = cleanText(record.caregiverIntro) || undefined;
+  const rewrites = Array.isArray(record.rewrites)
+    ? record.rewrites.flatMap((item) => {
+      const row = asRecord(item);
+      const from = cleanText(row?.from);
+      const to = cleanText(row?.to);
+      return from && to ? [{ from, to }] : [];
+    }).slice(0, 3)
+    : [];
+  const pairing = Array.isArray(record.pairing)
+    ? record.pairing.flatMap((item) => {
+      const row = asRecord(item);
+      const style = cleanText(row?.style);
+      const note = cleanText(row?.note);
+      return style && note && PAIRING_STYLES.has(style) ? [{ style, note }] : [];
+    }).slice(0, 4)
+    : [];
+  if (!romanceEssay || characteristics.length < 4 || superpowers.length < 3 || triggers.length < 3
+    || !selfWorthSentences || rewrites.length < 2 || !dating || !conflict || !need || pairing.length < 3) {
     return null;
   }
   return {
-    version: 2,
-    hook: { patternName, mirror, tell },
-    cost,
-    turningPoint: { setup, move, misread },
-    teasers,
-    throughTheirEyes,
-    forecast,
-    coverStory,
-    toolkit: { brake, scripts },
+    version: 3,
+    romanceEssay,
+    characteristics,
+    superpowers,
+    triggers,
+    selfWorthSentences,
+    rewrites,
+    essay: { dating, conflict, need },
+    pairing,
+    ...(caregiverIntro ? { caregiverIntro } : {}),
   };
 }
 
-export function isInsightV2(value: unknown): value is AiInsightV2 {
-  return readInsightV2(value) !== null;
+export function isAttachmentModules(value: unknown): value is AiAttachmentModules {
+  return readAttachmentModules(value) !== null;
 }
 
-export function publicInsightV2(value: unknown): AiInsightV2 | null {
-  const report = readInsightV2(value);
+export function publicAttachmentModules(value: unknown): AiAttachmentModules | null {
+  const report = readAttachmentModules(value);
   return report && !hasCjkText(report) ? report : null;
 }
 
-// One upgrade attempt per report. Legacy per-choice snapshots stay as purchased.
+// One upgrade attempt per report. Purchased per-choice snapshots stay as purchased.
 export function needsAiUpgrade(deepResult: { aiReading?: unknown; aiUpgradeAttempted?: boolean }): boolean {
   if (deepResult.aiUpgradeAttempted) return false;
   if (hasLegacyChoiceReadings(deepResult.aiReading)) return false;
-  return !publicInsightV2(deepResult.aiReading);
+  return !publicAttachmentModules(deepResult.aiReading);
+}
+
+export function selectedFirstMoves(
+  questions: QuizQuestion[],
+  choices: Record<string, number>,
+) {
+  return questions.flatMap((question, index) => {
+    const option = question.options[choices[question.id]];
+    if (!option) return [];
+    return [{
+      section: question.kicker || "First reaction",
+      moment: question.prompt,
+      firstMove: option.label,
+      lean: STYLE_EN[option.styleKey ?? ""] ?? option.styleKey ?? "unspecified",
+      n: index + 1,
+    }];
+  });
 }
 
 export function buildAiReadingPrompt(
@@ -206,6 +269,8 @@ export function buildAiReadingPrompt(
     const key = question.options[choices[question.id]]?.styleKey;
     if (key && key in counts) counts[key as keyof typeof counts] += 1;
   }
+  const firstMoves = selectedFirstMoves(questions, choices);
+  const childhood = firstMoves.filter((item) => /childhood|caregiver/i.test(item.section));
   return {
     user: JSON.stringify({
       style: STYLE_EN[result.key] ?? result.title,
@@ -214,14 +279,16 @@ export function buildAiReadingPrompt(
       avoidance: result.avoidance ?? null,
       leanCounts: counts,
       language: "en",
-      rule: "Do not list, quote, or retell any quiz item or option. Write the reading in English from the style and leanings only.",
+      firstMoves,
+      childhoodMoves: childhood.length ? childhood : undefined,
+      rule: "Analyze THIS person's pattern from firstMoves. Do not invent a childhood history unless childhoodMoves is present. Do not list every item. Weave 3-5 of the most revealing first moves into the prose by paraphrasing them. English only.",
     }),
   };
 }
 
-export function parseAiReading(raw: string): AiInsightV2 | null {
+export function parseAiReading(raw: string): AiAttachmentModules | null {
   try {
-    return readInsightV2(extractJsonObject(raw));
+    return readAttachmentModules(extractJsonObject(raw));
   } catch {
     return null;
   }

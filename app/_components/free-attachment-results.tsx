@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { AiInsightPreview, AiInsightPreviewV2 } from "@/app/_components/ai-insight-report";
 import {
   HowYouScored,
   LockedInsightCard,
@@ -64,8 +63,6 @@ export function FreeAttachmentResults({
     avoidance: result.avoidance ?? 0,
   };
   const price = `$${(amountCents / 100).toFixed(2)}`;
-  const hasInsight = Boolean(preview.aiInsightV2 || preview.aiInsight);
-
   return (
     <article className="ap-results">
       <header className="ap-hero">
@@ -77,23 +74,6 @@ export function FreeAttachmentResults({
 
       <HowYouScored anxiety={scores.anxiety} avoidance={scores.avoidance} />
 
-      {preview.aiInsightV2 ? (
-        <AiInsightPreviewV2
-          insight={preview.aiInsightV2}
-          unlockLabel={amountCents === 0 ? "Open the full reading" : `Unlock the full reading · ${price}`}
-          onUnlock={onCheckout}
-        />
-      ) : preview.aiInsight ? (
-        <AiInsightPreview
-          paradox={preview.aiInsight.paradox}
-          selfSabotage={preview.aiInsight.selfSabotage}
-          closeness={preview.aiInsight.closeness}
-          silenceAlarm={preview.aiInsight.silenceAlarm}
-          conflictAlarm={preview.aiInsight.conflictAlarm}
-          fear={preview.aiInsight.fear}
-          onUnlock={onCheckout}
-        />
-      ) : (
       <section className="ap-section" aria-labelledby="romance-title">
         <h2 id="romance-title">Your romantic patterns</h2>
         {preview.romanceEssay ? <p className="ap-essay">{preview.romanceEssay}</p> : null}
@@ -106,9 +86,8 @@ export function FreeAttachmentResults({
           <LockedInsightCard kind="trigger" title="Your triggers in romance" onUnlock={onCheckout} />
         </div>
       </section>
-      )}
 
-      {!hasInsight && preview.caregiver ? (
+      {preview.caregiver ? (
         <section className="ap-section" aria-labelledby="caregiver-title">
           <StyleBanner styleKey={result.key} />
           <h2 id="caregiver-title">Your caregiver attachment patterns</h2>
@@ -122,7 +101,7 @@ export function FreeAttachmentResults({
         </section>
       ) : null}
 
-      {!hasInsight && preview.selfWorth ? (
+      {preview.selfWorth ? (
         <section className="ap-section" aria-labelledby="self-worth-title">
           <h2 id="self-worth-title">How you see yourself</h2>
           <SelfWorthRing level={preview.selfWorth.level} percent={preview.selfWorth.percent} />
