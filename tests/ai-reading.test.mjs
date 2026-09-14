@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildAiReadingPrompt, hasCjkText, hasLegacyChoiceReadings, isInsightReport, parseAiReading, publicInsightReport } from "../lib/ai-reading-parse.ts";
+import { buildAiReadingPrompt, hasCjkText, hasLegacyChoiceReadings, isInsightReport, parseAiReading, publicInsightReport, shouldRefreshAiReading } from "../lib/ai-reading-parse.ts";
 
 const questions = [{
   id: "attachment-style-v3-q01",
@@ -78,6 +78,13 @@ test("publicInsightReport hides Chinese insight copy from the English site", () 
   };
   assert.equal(hasCjkText(chinese), true);
   assert.equal(publicInsightReport(chinese), null);
+});
+
+test("shouldRefreshAiReading never repeats a frozen or already-attempted reading", () => {
+  assert.equal(shouldRefreshAiReading({ aiReading: insight, aiReadingFrozen: true }), false);
+  assert.equal(shouldRefreshAiReading({ aiReading: { paradox: "你还在" }, aiRewriteAttempted: true }), false);
+  assert.equal(shouldRefreshAiReading({ aiReading: { paradox: "你还在" } }), true);
+  assert.equal(shouldRefreshAiReading({ aiReading: insight }), false);
 });
 
 test("legacy per-choice snapshots are detected without passing as insight reports", () => {

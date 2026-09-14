@@ -1518,6 +1518,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   font: 16px/1.65 Georgia, serif;
 }
 .ai-insight-scene blockquote:last-child { margin-bottom: 0; }
+.ai-insight-tease { margin: 0 0 18px; color: #6d766f; font: 16px/1.7 Georgia, serif; }
+.ai-insight .unlock-button { margin-top: 8px; }
 .ap-premium-block {
   position: relative;
   margin: 28px 0;

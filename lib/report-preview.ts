@@ -81,6 +81,10 @@ export function reportPreview(snapshot: ReportSnapshot): ReportPreview {
     aiInsight: insight ? {
       paradox: insight.contradiction.paradox,
       selfSabotage: insight.contradiction.selfSabotage,
+      closeness: insight.scenes.closeness,
+      silenceAlarm: insight.scenes.silence.alarm,
+      conflictAlarm: insight.scenes.conflict.alarm,
+      fear: insight.defense.fear,
     } : undefined,
     sample: undefined,
   };

@@ -95,6 +95,15 @@ export function publicInsightReport(value: unknown): AiInsightReport | null {
   return isInsightReport(value) && !hasCjkText(value) ? value : null;
 }
 
+export function shouldRefreshAiReading(deepResult: {
+  aiReading?: unknown;
+  aiReadingFrozen?: boolean;
+  aiRewriteAttempted?: boolean;
+}): boolean {
+  if (deepResult.aiReadingFrozen || deepResult.aiRewriteAttempted) return false;
+  return hasCjkText(deepResult.aiReading);
+}
+
 export function isInsightReport(value: unknown): value is AiInsightReport {
   const record = asRecord(value);
   if (!record) return false;

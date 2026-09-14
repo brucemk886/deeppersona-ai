@@ -21,6 +21,10 @@ export type ReportPreview = {
   aiInsight?: {
     paradox: string;
     selfSabotage: string;
+    closeness: { alarm: string; action: string };
+    silenceAlarm: string;
+    conflictAlarm: string;
+    fear: string;
   };
   sample?: {
     moduleTitle: string;

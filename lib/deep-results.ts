@@ -6,6 +6,8 @@ import type { QuizQuestion, QuizTest, ResultProfile } from "./quiz";
 
 export type DeepResultContent = {
   aiReading?: AiReading;
+  aiReadingFrozen?: boolean;
+  aiRewriteAttempted?: boolean;
   modules?: { title: string; explanation: string; reflection: string }[];
   lens: { title: string; explanation: string; reflectionPrompt: string };
   // Present only in historical report snapshots.

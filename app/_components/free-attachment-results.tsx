@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AiInsightPortrait } from "@/app/_components/ai-insight-report";
+import { AiInsightPreview } from "@/app/_components/ai-insight-report";
 import {
   HowYouScored,
   LockedInsightCard,
@@ -77,12 +77,15 @@ export function FreeAttachmentResults({
       <HowYouScored anxiety={scores.anxiety} avoidance={scores.avoidance} />
 
       {preview.aiInsight ? (
-        <>
-          <AiInsightPortrait paradox={preview.aiInsight.paradox} selfSabotage={preview.aiInsight.selfSabotage} />
-          <PremiumLock eyebrow="Part 2" title="Three moments that blow up" onUnlock={onCheckout} />
-          <PremiumLock eyebrow="Part 3" title="What the defense is actually doing" onUnlock={onCheckout} />
-          <PremiumLock eyebrow="Part 4" title="What to do when it spikes" onUnlock={onCheckout} />
-        </>
+        <AiInsightPreview
+          paradox={preview.aiInsight.paradox}
+          selfSabotage={preview.aiInsight.selfSabotage}
+          closeness={preview.aiInsight.closeness}
+          silenceAlarm={preview.aiInsight.silenceAlarm}
+          conflictAlarm={preview.aiInsight.conflictAlarm}
+          fear={preview.aiInsight.fear}
+          onUnlock={onCheckout}
+        />
       ) : (
       <section className="ap-section" aria-labelledby="romance-title">
         <h2 id="romance-title">Your romantic patterns</h2>

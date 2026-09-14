@@ -1,5 +1,5 @@
 import { currentPrice, ownedReport, reportOrder, saveReportSnapshot, snapshotOf } from "@/db/payment-store";
-import { replaceCjkAiReading } from "@/lib/ai-reading";
+import { freezeAiReading } from "@/lib/ai-reading";
 import { fulfillSession } from "@/lib/payment-fulfillment";
 import { paymentError, privateJson } from "@/lib/payment-http";
 import { readProfileId } from "@/lib/profile-cookie";
@@ -22,7 +22,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
     const unlocked = Boolean(report.free || (matchingEnvironment && order?.status === "paid"));
     const snapshot = snapshotOf(report);
-    if (await replaceCjkAiReading(snapshot)) await saveReportSnapshot(report.id, snapshot);
+    if (await freezeAiReading(snapshot)) await saveReportSnapshot(report.id, snapshot);
     const response: ReportResponse = {
       id: report.id, unlocked, status: report.free ? "free" : order?.status ?? "unpaid",
       amountCents: report.free ? 0 : order?.amount_cents ?? await currentPrice(report), currency: "usd",

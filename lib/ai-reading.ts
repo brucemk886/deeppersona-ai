@@ -1,5 +1,5 @@
 import { getRuntimeEnv } from "@/db/quiz-store";
-import { buildAiReadingPrompt, hasCjkText, parseAiReading, type AiReading } from "./ai-reading-parse";
+import { buildAiReadingPrompt, hasCjkText, parseAiReading, publicInsightReport, shouldRefreshAiReading, type AiReading } from "./ai-reading-parse";
 import type { ReportSnapshot } from "./payment-types";
 import type { QuizQuestion, QuizTest, ResultProfile } from "./quiz";
 
@@ -10,15 +10,15 @@ export { buildAiReadingPrompt } from "./ai-reading-parse";
 
 const SYSTEM_PROMPT = `You are a senior clinician in adult attachment, schema therapy, and stress physiology. Write in sharp, spoken English. No academic padding, no brochure tone, no translated-from-Chinese cadence.
 
-Write a high-insight reading from the user's attachment result. The reader should feel seen and leave with something they can actually do. Return JSON only:
+Write a high-insight reading from the user's attachment result. The free excerpt has to hook them in the first screen: they should feel caught, a little exposed, and hungry for the rest. Return JSON only:
 {
-  "contradiction": { "paradox": "1-2 sentences on the core push-pull", "selfSabotage": "why liking someone harder makes them test or push the person away" },
+  "contradiction": { "paradox": "4-6 spoken sentences on the core push-pull. Name the want and the flinch in the same breath.", "selfSabotage": "4-6 sentences on why liking someone harder makes them test, go cold, or pick a fight. Use one concrete late-night or after-date scene." },
   "scenes": {
-    "closeness": { "alarm": "the private alarm when the other person moves closer", "action": "the reflex that starts to break it" },
-    "silence": { "alarm": "the catastrophe script when a reply is slow", "action": "the retaliatory move" },
-    "conflict": { "alarm": "what the body does when a fight starts", "action": "the extreme move" }
+    "closeness": { "alarm": "3-4 sentences of the private alarm when the other person moves closer", "action": "3-4 sentences of the reflex that starts to break it" },
+    "silence": { "alarm": "3-4 sentences of the catastrophe script when a reply is slow", "action": "3-4 sentences of the retaliatory move" },
+    "conflict": { "alarm": "3-4 sentences of what the body does when a fight starts", "action": "3-4 sentences of the extreme move" }
   },
-  "defense": { "fear": "the real fear under coldness, testing, and harsh lines", "excuse": "the story they tell themselves instead" },
+  "defense": { "fear": "4-5 sentences on the real fear under coldness, testing, and harsh lines", "excuse": "3-4 sentences on the story they tell themselves instead. End on a line that makes the excuse sound thin." },
   "toolkit": {
     "brake": ["step 1 when they want to flee, block, or attack", "step 2", "step 3"],
     "scripts": ["a line they can send as-is", "a second line they can send as-is"]
@@ -27,7 +27,7 @@ Write a high-insight reading from the user's attachment result. The reader shoul
 
 Do not write "this article will explore", "according to your test results", or "this is not a judgment".
 Do not list or quote any quiz item or option wording.
-Short sentences. Precise verbs. English only.`;
+Spoken English. Precise verbs. English only.`;
 
 export async function generateAiReading(
   test: QuizTest,
@@ -50,7 +50,7 @@ export async function generateAiReading(
       },
       body: JSON.stringify({
         model: DEEPSEEK_MODEL,
-        temperature: 0.7,
+        temperature: 0.4,
         max_tokens: 5000,
         response_format: { type: "json_object" },
         thinking: { type: "disabled" },
@@ -70,10 +70,20 @@ export async function generateAiReading(
   }
 }
 
-export async function replaceCjkAiReading(snapshot: ReportSnapshot): Promise<boolean> {
-  if (!hasCjkText(snapshot.deepResult.aiReading)) return false;
+export { shouldRefreshAiReading } from "./ai-reading-parse";
+
+export async function freezeAiReading(snapshot: ReportSnapshot): Promise<boolean> {
+  if (snapshot.deepResult.aiReadingFrozen) return false;
+  if (publicInsightReport(snapshot.deepResult.aiReading)) {
+    snapshot.deepResult.aiReadingFrozen = true;
+    return true;
+  }
+  if (!shouldRefreshAiReading(snapshot.deepResult)) return false;
+  snapshot.deepResult.aiRewriteAttempted = true;
   const next = await generateAiReading(snapshot.test, snapshot.questions, snapshot.answerChoices, snapshot.result);
-  if (!next || hasCjkText(next)) return false;
-  snapshot.deepResult.aiReading = next;
+  if (next && !hasCjkText(next)) {
+    snapshot.deepResult.aiReading = next;
+    snapshot.deepResult.aiReadingFrozen = true;
+  }
   return true;
 }
