@@ -204,7 +204,7 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       assert.equal(state.data.deepResult, undefined);
       assert.equal(state.data.questions, undefined);
       assert.equal(state.data.preview.totalChoices,20);
-      assert.equal(state.data.preview.modules.length,3);
+      assert.equal(state.data.preview.modules.length,1);
       assert.equal(state.data.preview.choices,undefined);
       assert.equal(state.data.preview.overview, undefined);
       assert.equal(state.data.preview.loop, undefined);
@@ -213,8 +213,7 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       assert.ok(state.data.preview.sample?.moduleTitle);
       assert.ok((state.data.preview.romanceEssay || "").split(/(?<=[.!?])\s+/).filter(Boolean).length >= 8);
       assert.ok((state.data.preview.romanceEssay || "").split(/(?<=[.!?])\s+/).filter(Boolean).length <= 12);
-      assert.ok(state.data.preview.caregiver?.intro);
-      assert.equal(typeof state.data.preview.caregiver.anxiety, "number");
+      assert.equal(state.data.preview.caregiver, undefined);
       assert.equal(typeof state.data.preview.scores?.anxietySeven, "number");
       assert.ok(["Low", "Medium", "High"].includes(state.data.preview.selfWorth.level));
       assert.equal(state.data.preview.inclusions?.length, 3);
@@ -384,7 +383,7 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       assert.ok(state.result.title.length > 0);
       assert.ok(state.result.themeTitle);
       assert.equal(typeof state.result.anxiety, "number");
-      assert.equal(state.deepResult.modules.length,3);
+      assert.equal(state.deepResult.modules.length,1);
       assert.ok(state.deepResult.modules[0].explanation.includes(state.questions[0].options[0].label));
       const saved = await db.prepare('SELECT answers_json,result_type FROM quiz_sessions WHERE id=?').bind(fresh.body.sessionId).first();
       assert.equal(saved.result_type,'choices');
