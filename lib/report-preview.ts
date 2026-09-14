@@ -61,6 +61,8 @@ export function reportPreview(snapshot: ReportSnapshot): ReportPreview {
   const sampleModule = modules.find((module) => module.title === FREE_SAMPLE_MODULE) ?? modules[0];
   const sampleEntry = answered.find((item) => item.q.kicker === (sampleModule?.title ?? FREE_SAMPLE_MODULE)) ?? answered[0];
   const selected = sampleEntry?.q.options[sampleEntry.selectedIndex];
+  const aiSample = snapshot.deepResult.aiReading?.choices.find((item) => item.questionId === sampleEntry?.q.id)?.reading
+    || snapshot.deepResult.aiReading?.summary;
   const scored = resolveAttachmentScores(snapshot.questions, snapshot.answerChoices, snapshot.result);
   const caregiverScored = scoreAttachmentSubset(snapshot.questions, snapshot.answerChoices, CHILDHOOD_MODULE);
   const worth = scored ? selfWorthSnapshot(snapshot.questions, snapshot.answerChoices) : undefined;
@@ -68,9 +70,10 @@ export function reportPreview(snapshot: ReportSnapshot): ReportPreview {
   return {
     totalChoices: answered.length,
     modules: modules.map((module) => module.title),
-    romanceEssay: scored
-      ? (snapshot.deepResult.romanceEssay ?? romanceEssay(snapshot.questions, snapshot.answerChoices, scored.style))
-      : undefined,
+    romanceEssay: snapshot.deepResult.aiReading?.summary
+      ?? (scored
+        ? (snapshot.deepResult.romanceEssay ?? romanceEssay(snapshot.questions, snapshot.answerChoices, scored.style))
+        : undefined),
     scores: scored ? dimensionScore(scored.anxiety, scored.avoidance) : undefined,
     caregiver: scored && caregiverScored.answered ? {
       intro: snapshot.deepResult.caregiver?.intro ?? caregiverIntro(snapshot.questions, snapshot.answerChoices, scored.style),
@@ -89,7 +92,7 @@ export function reportPreview(snapshot: ReportSnapshot): ReportPreview {
         questionNumber: sampleEntry.index + 1,
         prompt: sampleEntry.q.prompt,
         label: selected.label,
-        meaning: selected.meaning,
+        meaning: aiSample || selected.meaning,
         atlasPath: sampleEntry.q.atlasPath,
         selectedIndex: sampleEntry.selectedIndex,
       },

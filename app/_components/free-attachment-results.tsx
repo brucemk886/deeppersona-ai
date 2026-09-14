@@ -126,7 +126,7 @@ export function FreeAttachmentResults({
               <span>Question {preview.sample.choice.questionNumber}</span>
               <p className="choice-review-question">{preview.sample.choice.prompt}</p>
               <h3>{preview.sample.choice.label}</h3>
-              <p>{preview.sample.choice.meaning}</p>
+              {preview.sample.choice.meaning ? <p>{preview.sample.choice.meaning}</p> : null}
             </div>
           </article>
         </section>

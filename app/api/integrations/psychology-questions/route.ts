@@ -39,9 +39,6 @@ export async function GET(request: Request) {
       position: question.position,
       options: question.options.map((option) => ({
         label: option.label,
-        microcopy: option.microcopy,
-        meaning: option.meaning,
-        projection: option.projection,
       })),
     })),
   });

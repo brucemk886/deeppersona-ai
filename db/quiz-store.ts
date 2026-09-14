@@ -7,6 +7,7 @@ import {
   defaultTests,
   FULL_REPORT_PRICE_CENTS,
 } from "@/lib/quiz-content";
+import { catalogOption } from "@/lib/public-quiz";
 import { env } from "cloudflare:workers";
 import {
   normalizePresentationMode,
@@ -37,6 +38,7 @@ type RuntimeEnv = {
   ADMIN_SESSION_SECRET?: string;
   ADMIN_USERNAME?: string;
   CONTENT_SYNC_API_KEY?: string;
+  DEEPSEEK_API_KEY?: string;
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
   APP_URL?: string;
@@ -263,17 +265,7 @@ function rowToQuestion(row: QuestionRow): QuizQuestion {
     kicker: row.kicker,
     prompt: row.prompt,
     atlasPath: row.atlas_path,
-    options: parsedOptions.map((option, index) => {
-      return {
-        label: option.label ?? `Choice ${String.fromCharCode(65 + index)}`,
-        microcopy: option.microcopy ?? "Trust your first response",
-        meaning: option.meaning?.trim() || "",
-        projection: option.projection?.trim() || "",
-        ...(option.readingFocus ? { readingFocus: option.readingFocus } : {}),
-        ...(option.styleKey ? { styleKey: option.styleKey } : {}),
-        ...(option.cardTone ? { cardTone: option.cardTone } : {}),
-      };
-    }),
+    options: parsedOptions.map((option, index) => catalogOption(option, index)),
     position: row.position,
     active: Boolean(row.active),
   };
@@ -377,9 +369,31 @@ async function catalogMigrationApplied(id: string): Promise<boolean> {
   return Boolean(applied);
 }
 
+const STRIP_CANNED_READINGS = "strip-canned-option-readings-2026-09";
+
 async function applyScopedCatalogMigrations(): Promise<void> {
   await applyAttachmentV12TextMigration();
   await applyAttachmentEnglishBankMigration();
+  await applyStripCannedReadingsMigration();
+}
+
+async function applyStripCannedReadingsMigration(): Promise<void> {
+  if (await catalogMigrationApplied(STRIP_CANNED_READINGS)) return;
+  const db = getD1();
+  const rows = await db.prepare("SELECT id, options_json FROM quiz_questions").all<{ id: string; options_json: string }>();
+  const updates = [];
+  for (const row of rows.results) {
+    const parsed = JSON.parse(row.options_json) as Partial<QuizOption>[];
+    if (!parsed.some((option) => option.microcopy || option.meaning || option.projection)) continue;
+    updates.push(
+      db.prepare("UPDATE quiz_questions SET options_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+        .bind(JSON.stringify(parsed.map((option, index) => catalogOption(option, index))), row.id),
+    );
+  }
+  if (updates.length) await db.batch(updates);
+  await db.prepare("INSERT OR IGNORE INTO quiz_catalog_migrations (id) VALUES (?)")
+    .bind(STRIP_CANNED_READINGS)
+    .run();
 }
 
 async function applyAttachmentV12TextMigration(): Promise<void> {
@@ -558,7 +572,7 @@ export async function saveQuestion(question: QuizQuestion): Promise<void> {
       position = excluded.position,
       active = excluded.active,
       updated_at = CURRENT_TIMESTAMP`)
-    .bind(question.id, question.testId, question.kicker, question.prompt, question.atlasPath, JSON.stringify(question.options), question.position, question.active ? 1 : 0)
+    .bind(question.id, question.testId, question.kicker, question.prompt, question.atlasPath, JSON.stringify(question.options.map((option, index) => catalogOption(option, index))), question.position, question.active ? 1 : 0)
     .run();
 }
 

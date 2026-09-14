@@ -8,19 +8,12 @@ const FOCUS: Record<AttachmentStyle, string> = {
   fearful: "reflection",
 };
 
-const STYLE_MEANING: Record<AttachmentStyle, string> = {
-  anxious: "This first reaction leans anxious-preoccupied: the body moves toward the bond and scans for what went wrong.",
-  avoidant: "This first reaction leans dismissing-avoidant: the body protects space, calm, or self-reliance before staying in the feeling.",
-  secure: "This first reaction leans secure: you notice the shift, stay in contact, and leave room for a plain next step.",
-  fearful: "This first reaction leans fearful-avoidant (disorganized): closeness and an exit arrive in the same breath.",
-};
-
 function option(style: AttachmentStyle, text: string) {
   return {
     label: text,
-    microcopy: text,
-    meaning: `${STYLE_MEANING[style]} The wording you chose — 「${text}」 — is the honest first hit in this moment, not a later polished story.`,
-    projection: `The report can quote 「${text}」 because that is the option your body reached for. It is a snapshot of this relationship moment, not a diagnosis or a promise of change.`,
+    microcopy: "",
+    meaning: "",
+    projection: "",
     styleKey: style,
     readingFocus: FOCUS[style],
   };

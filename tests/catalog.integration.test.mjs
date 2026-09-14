@@ -43,7 +43,7 @@ test("admin catalog edits persist across public reads and fresh Worker isolates"
     assert.equal(first[0].atlasPath, "");
     const edited = structuredClone(first[0]);
     Object.assign(edited, { prompt: "ADMIN: Which scene would you choose?", atlasPath: first[1].atlasPath, position: 7 });
-    Object.assign(edited.options[0], { label: "A freshly edited image", microcopy: "Edited caption", meaning: "PRIVATE_ADMIN_MEANING", projection: "PRIVATE_ADMIN_PROJECTION", readingFocus: "repair", styleKey: "secure", cardTone: "warm" });
+    Object.assign(edited.options[0], { label: "A freshly edited image", readingFocus: "repair", styleKey: "secure", cardTone: "warm" });
 
     await t.test("public questions and server-rendered entries keep admin text in Chinese-language browsers", async () => {
       const english = await questions({ locale: "en-US,en;q=0.9" });
@@ -63,7 +63,8 @@ test("admin catalog edits persist across public reads and fresh Worker isolates"
         assert.ok(html.includes(first[0].prompt), `${path} must initialize with the saved English prompt`);
         assert.ok(html.includes(first[0].options[0].label));
         assert.ok(!html.includes("短信显示"), `${path} must not inject the old Chinese question`);
-        assert.ok(!html.includes(first[0].options[0].meaning), "SSR must still hide paid interpretations");
+        assert.equal(first[0].options[0].meaning, "");
+        assert.ok(!html.includes("PRIVATE_ADMIN_MEANING"), "SSR must not invent paid interpretations");
       }
     });
 
@@ -79,7 +80,7 @@ test("admin catalog edits persist across public reads and fresh Worker isolates"
           assert.equal(actual.prompt, edited.prompt);
           assert.equal(actual.atlasPath, edited.atlasPath);
           assert.equal(actual.options[0].label, edited.options[0].label);
-          assert.equal(actual.options[0].microcopy, edited.options[0].microcopy);
+          assert.equal(actual.options[0].microcopy, "");
           assert.equal(actual.options[0].meaning, "");
           assert.equal(actual.options[0].projection, "");
         }
@@ -87,7 +88,7 @@ test("admin catalog edits persist across public reads and fresh Worker isolates"
       const response = await request("/api/questions");
       assert.equal(response.headers.get("cache-control"), "no-store");
       for (const bundle of readdirSync("dist/client", { recursive: true }).filter(p => p.endsWith(".js"))) {
-        assert.ok(!readFileSync(resolve("dist/client", bundle), "utf8").includes(first[0].options[0].meaning), "client bundles must not include paid meanings");
+        assert.ok(!readFileSync(resolve("dist/client", bundle), "utf8").includes("PRIVATE_ADMIN_MEANING"), "client bundles must not include paid meanings");
       }
     });
 
@@ -104,7 +105,7 @@ test("admin catalog edits persist across public reads and fresh Worker isolates"
       const detail = await (await editor.fetch(base + "/tests/attachment-style", { headers: { "accept-language": "en" } })).text();
       assert.ok(detail.includes(added.prompt), "SSR preview follows the first published question, even when its position is 0");
       assert.ok(detail.includes(added.atlasPath));
-      assert.ok(!detail.includes(edited.options[0].meaning));
+      assert.ok(!detail.includes("PRIVATE_ADMIN_MEANING"));
       assert.equal((await request("/api/questions?id=" + first.at(-1).id, { method: "DELETE", admin: true })).status, 200);
       for (let i = 0; i < 2; i++) assert.ok(!(await questions({ admin: true })).some(q => q.id === first.at(-1).id));
       await save({ ...edited, active: false });

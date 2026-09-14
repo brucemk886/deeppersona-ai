@@ -72,10 +72,10 @@ const funnelOrder = [
 type EmailLead = Stats["emails"][number];
 
 const blankOptions = [
-  { label: "选项 A", microcopy: "补充说明", meaning: "填写这个选项代表什么", projection: "填写用户选择后的心理投射解读" },
-  { label: "选项 B", microcopy: "补充说明", meaning: "填写这个选项代表什么", projection: "填写用户选择后的心理投射解读" },
-  { label: "选项 C", microcopy: "补充说明", meaning: "填写这个选项代表什么", projection: "填写用户选择后的心理投射解读" },
-  { label: "选项 D", microcopy: "补充说明", meaning: "填写这个选项代表什么", projection: "填写用户选择后的心理投射解读" },
+  { label: "选项 A", microcopy: "", meaning: "", projection: "", styleKey: "anxious" },
+  { label: "选项 B", microcopy: "", meaning: "", projection: "", styleKey: "avoidant" },
+  { label: "选项 C", microcopy: "", meaning: "", projection: "", styleKey: "secure" },
+  { label: "选项 D", microcopy: "", meaning: "", projection: "", styleKey: "fearful" },
 ];
 
 function formatDate(value: string) {
@@ -266,7 +266,7 @@ export function AdminDashboard({
   function updateOption(
     questionId: string,
     index: number,
-    next: { label?: string; meaning?: string; microcopy?: string; projection?: string },
+    next: { label?: string },
   ) {
     setQuestions((current) =>
       current.map((question) =>
@@ -976,13 +976,13 @@ function QuestionManager({
   setSelectedTestId: (value: string) => void;
   savingId: string;
   tests: QuizTest[];
-  updateOption: (id: string, index: number, next: { label?: string; meaning?: string; microcopy?: string; projection?: string }) => void;
+  updateOption: (id: string, index: number, next: { label?: string }) => void;
   updateQuestion: (id: string, next: Partial<QuizQuestion>) => void;
 }) {
   return (
     <>
       <div className="admin-page-heading question-heading-admin">
-        <div><span className="admin-kicker">测评内容</span><h1>题目管理</h1><p>管理题目、选项和对应解读。图片测验仍用四格拼图；文本测验只展示选项文字。保存后刷新前台即可查看；草稿不展示，排序决定出题顺序。修改只影响之后生成的报告。</p></div>
+        <div><span className="admin-kicker">测评内容</span><h1>题目管理</h1><p>管理题目和选项原文。图片测验仍用四格拼图；文本测验只展示选项文字。选择含义、补充说明和投射解读已去掉，新报告在用户提交后由 AI 直接生成。保存后刷新前台即可查看；草稿不展示，排序决定出题顺序。修改只影响之后生成的报告。</p></div>
         <button className="admin-primary-button" onClick={addQuestion}>＋ 新增题目</button>
       </div>
       <div className="test-filter-bar">
@@ -1024,9 +1024,6 @@ function QuestionManager({
                     <section key={optionIndex}>
                       <span>{String.fromCharCode(65 + optionIndex)}</span>
                       <label>选项标题<input value={option.label} onChange={(event) => updateOption(question.id, optionIndex, { label: event.target.value })} /></label>
-                      <label>补充说明<input value={option.microcopy} onChange={(event) => updateOption(question.id, optionIndex, { microcopy: event.target.value })} /></label>
-                      <label>选择含义<textarea rows={3} value={option.meaning} onChange={(event) => updateOption(question.id, optionIndex, { meaning: event.target.value })} /></label>
-                      <label>投射解读<textarea rows={4} value={option.projection} onChange={(event) => updateOption(question.id, optionIndex, { projection: event.target.value })} /></label>
                     </section>
                   ))}
                 </div>

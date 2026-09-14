@@ -185,7 +185,7 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
 
     await t.test("public APIs and client bundles contain no paid report copy", async () => {
       assert.ok(catalog.tests.every(item => item.results === undefined));
-      assert.ok(questions.every((q) => q.options.every((o) => !o.meaning && !o.projection)));
+      assert.ok(questions.every((q) => q.options.every((o) => !o.meaning && !o.projection && !o.microcopy)));
       const bundles = readdirSync("dist/client", { recursive: true }).filter((p) => p.endsWith(".js"));
       for (const bundle of bundles) {
         const text = readFileSync(resolve("dist/client", bundle), "utf8");
@@ -219,9 +219,10 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       assert.equal(state.data.preview.inclusions?.length, 3);
       assert.doesNotMatch(JSON.stringify(state.data.preview), /paid reading|Mother \(CG|Father \(CG|AT WORK|millions of users/i);
       const stored=JSON.parse((await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(report.id).first()).snapshot_json);
-      const leaked = stored.questions.flatMap((q) => q.options.map((option) => option.meaning)).filter((meaning) => JSON.stringify(state.data).includes(meaning));
-      assert.equal(leaked.length, 1, 'Unpaid response may unlock one sample interpretation only');
-      assert.equal(state.data.preview.sample.choice.meaning, leaked[0]);
+      const leaked = stored.questions.flatMap((q) => q.options.map((option) => option.meaning)).filter((meaning) => meaning && JSON.stringify(state.data).includes(meaning));
+      assert.equal(leaked.length, 0, 'Unpaid response must not leak canned option readings');
+      assert.equal(state.data.preview.sample.choice.meaning, "");
+      assert.ok(state.data.preview.sample.choice.label);
       assert.match(state.headers.get("cache-control"), /no-store/);
       assert.equal((await call(`/api/reports/${report.id}`)).status, 401);
       assert.equal((await call(`/api/reports/${report.id}`, { cookie: `dp_profile=${crypto.randomUUID()}` })).status, 404);
@@ -266,7 +267,7 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       assert.equal(await notify("checkout.session.completed", session), 200);
       assert.equal(await notify("checkout.session.completed", session), 200);
       const state = await reportState(report);
-      assert.equal(state.data.unlocked, true); assert.ok(state.data.deepResult); assert.ok(state.data.questions[0].options[0].meaning);
+      assert.equal(state.data.unlocked, true); assert.ok(state.data.deepResult); assert.equal(state.data.questions[0].options[0].meaning, "");
       assert.equal((await checkout(report, 999)).data.url, `/reports/${report.id}`);
     });
     await t.test("full refunds revoke access; late completed events cannot regrant it", async () => {

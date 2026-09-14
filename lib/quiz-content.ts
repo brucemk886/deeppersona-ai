@@ -1,5 +1,5 @@
+import { catalogQuestion } from "./public-quiz";
 import { relationshipQuestions } from "./relationship-content";
-import { readingThemes } from "./relationship-reading";
 import { type QuizQuestion, type QuizTest } from "./quiz";
 
 export const ATTACHMENT_TEST_ID = "attachment-style";
@@ -112,12 +112,7 @@ export const defaultTests: QuizTest[] = [
   },
 ];
 
-export const defaultQuestions: QuizQuestion[] = relationshipQuestions.map(question => ({
-  ...question, options: question.options.map(option => ({
-    ...option,
-    projection: option.projection || [readingThemes[option.readingFocus ?? '']?.watch, readingThemes[option.readingFocus ?? '']?.ask].filter(Boolean).join(' '),
-  })),
-}));
+export const defaultQuestions: QuizQuestion[] = relationshipQuestions.map(catalogQuestion);
 
 export const PUBLIC_QUESTION_IDS = new Set(defaultQuestions.map((question) => question.id));
 

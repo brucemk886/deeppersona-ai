@@ -68,8 +68,9 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.doesNotMatch(quiz, /className="hero-mosaic"/);
   assert.match(quiz, /HomeLanding/);
   assert.match(quiz, /Your choices, decoded/);
-  assert.match(quiz, /What this choice represents/);
-  assert.match(quiz, /Your projection/);
+  assert.match(quiz, /What this choice may be reflecting/);
+  assert.match(quiz, /aiReading/);
+  assert.doesNotMatch(quiz, /What this choice represents/);
   assert.match(quiz, /7-day micro practices/);
   assert.doesNotMatch(quiz, /30-day|Your four-choice pattern/);
   assert.doesNotMatch(quiz, /Natural strength|Start here/);
@@ -102,6 +103,8 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.equal((catalog.match(/id: ATTACHMENT_TEST_ID|id: "[a-z-]+",\r?\n    title:/g) ?? []).length, 8);
   assert.match(admin, /测试管理/);
   assert.match(admin, /题目管理/);
+  assert.doesNotMatch(admin, /<label>补充说明|<label>选择含义|<label>投射解读/);
+  assert.match(admin, /由 AI 直接生成/);
   assert.match(admin, /博客管理/);
   assert.match(admin, /addBlogPost/);
   assert.match(admin, /removeBlogPost/);
@@ -133,6 +136,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(store, /presentation_mode/);
   assert.match(store, /attachment-v12-text-2026-09/);
   assert.match(store, /attachment-v12-en-2026-09/);
+  assert.match(store, /strip-canned-option-readings-2026-09/);
   assert.match(homeLanding, /text left on Read/);
   assert.doesNotMatch(homeLanding, /weekend invite/);
   assert.match(catalog, /They invite you to spend a weekend together/);

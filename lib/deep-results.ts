@@ -1,9 +1,11 @@
+import type { AiReading } from "./ai-reading-parse";
 import { buildAttachmentResult, type DimensionScore, type WorthLevel } from "./attachment";
 import { buildAttachmentReport } from "./attachment-report";
 import { ATTACHMENT_TEST_ID } from "./quiz-content";
 import type { QuizQuestion, QuizTest, ResultProfile } from "./quiz";
 
 export type DeepResultContent = {
+  aiReading?: AiReading;
   modules?: { title: string; explanation: string; reflection: string }[];
   lens: { title: string; explanation: string; reflectionPrompt: string };
   // Present only in historical report snapshots.

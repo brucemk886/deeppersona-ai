@@ -1,4 +1,4 @@
-import { publicQuestion } from "@/lib/public-quiz";
+import { catalogOption, publicQuestion } from "@/lib/public-quiz";
 import { isAdminRequest } from "@/app/admin-auth";
 import { deleteQuestion, listQuestions, saveQuestion } from "@/db/quiz-store";
 import { type QuizQuestion } from "@/lib/quiz";
@@ -48,9 +48,6 @@ export async function PUT(request: Request) {
     body.options.every(
       (option) =>
         typeof option.label === "string" &&
-        typeof option.microcopy === "string" &&
-        typeof option.meaning === "string" &&
-        typeof option.projection === "string" &&
         [option.readingFocus, option.styleKey, option.cardTone].every((value) => value === undefined || typeof value === "string"),
     );
 
@@ -60,15 +57,7 @@ export async function PUT(request: Request) {
 
   await saveQuestion({
     ...body,
-    options: body.options.map(({ label, microcopy, meaning, projection, readingFocus, styleKey, cardTone }) => ({
-      label,
-      microcopy,
-      meaning,
-      projection,
-      ...(readingFocus ? { readingFocus } : {}),
-      ...(styleKey ? { styleKey } : {}),
-      ...(cardTone ? { cardTone } : {}),
-    })),
+    options: body.options.map((option, index) => catalogOption(option, index)),
   });
   return Response.json({ ok: true });
 }

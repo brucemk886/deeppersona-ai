@@ -2,7 +2,8 @@ import { getD1, getProfileSummary, listQuestions, listTests, submitQuiz } from "
 import { ensurePaymentSchema, type ReportRow } from "@/db/payment-store";
 import { validateEmailAddress } from "@/lib/email-validation";
 import { buildChoiceReport } from "@/lib/deep-results";
-import { publicTest } from "@/lib/public-quiz";
+import { generateAiReading } from "@/lib/ai-reading";
+import { catalogQuestion, publicTest } from "@/lib/public-quiz";
 import { createProfileId, profileCookie, readProfileId } from "@/lib/profile-cookie";
 import { PaymentError, paymentError, requireSameOrigin } from "@/lib/payment-http";
 
@@ -38,6 +39,14 @@ export async function POST(request: Request) {
     }
     const answers = Object.fromEntries(questions.map(q => [q.id, choices[q.id]]));
     const { result, deepResult } = buildChoiceReport(test, questions, choices);
+    const aiReading = await generateAiReading(test, questions, choices, result);
+    if (aiReading) {
+      deepResult.aiReading = aiReading;
+      deepResult.romanceEssay = aiReading.summary;
+      if (aiReading.reflectionPrompt) {
+        deepResult.lens = { ...deepResult.lens, reflectionPrompt: aiReading.reflectionPrompt };
+      }
+    }
     const reportId = crypto.randomUUID();
     const profile = await submitQuiz({
       sessionId: body.sessionId, profileId, email: email.normalized, marketingConsent: body.marketingConsent === true,
@@ -46,7 +55,7 @@ export async function POST(request: Request) {
       campaign: typeof body.campaign === "string" ? body.campaign.slice(0, 160) : undefined,
       relationshipId: typeof body.relationshipId === "string" ? body.relationshipId.slice(0, 100) : undefined,
       report: { id: reportId, free: test.reportPriceCents === 0, snapshotJson: JSON.stringify({
-        test: publicTest(test), result, questions, answerChoices: choices, deepResult,
+        test: publicTest(test), result, questions: questions.map(catalogQuestion), answerChoices: choices, deepResult,
       }) },
     });
     return Response.json({ ok: true, reportId, profile }, {

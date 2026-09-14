@@ -708,7 +708,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
                     </button>
                   ) : null}
                   <button aria-checked={selected} aria-label={`Choose ${letter}: ${option.label}`} className="option-select" disabled={isAdvancing} onClick={() => chooseAnswer(option.label, index)} role="radio" type="button">
-                    <span className="option-meta"><span className="option-letter">{letter}</span><span><strong>{option.label}</strong>{option.microcopy && option.microcopy !== option.label ? <small>{option.microcopy}</small> : null}</span><span className="selection-mark" aria-hidden="true">✓</span></span>
+                    <span className="option-meta"><span className="option-letter">{letter}</span><span><strong>{option.label}</strong></span><span className="selection-mark" aria-hidden="true">✓</span></span>
                   </button>
                 </article>
               );
@@ -821,7 +821,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
             <header>
               <span>Your choices, decoded</span>
               <h2 id="choice-review-title">{normalizePresentationMode(selectedTest.presentationMode) === "text" ? "What each choice may be reflecting back to you" : "What each image may be reflecting back to you"}</h2>
-              <p>This is the part that shaped your result: the interpretation associated with each option you selected.</p>
+              <p>{deepResult.aiReading ? "This reading was written from the option wording you chose, not from a prewritten meaning bank." : "This is the part that shaped your result: the interpretation associated with each option you selected."}</p>
             </header>
             <div className="choice-review-list">
               {answeredChoices.map(({ option, question, questionNumber, selectedIndex }) => (
@@ -835,8 +835,11 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
                     <div className="choice-review-meta"><span>Question {questionNumber}</span><strong>You chose {String.fromCharCode(65 + selectedIndex)}</strong></div>
                     <p className="choice-review-question">{question.prompt}</p>
                     <h3>{option.label}</h3>
-                    <div><strong>What this choice represents</strong><p>{option.meaning}</p></div>
-                    <div><strong>Your projection</strong><p>{option.projection}</p></div>
+                    {(() => {
+                      const reading = deepResult.aiReading?.choices.find((item) => item.questionId === question.id)?.reading || option.meaning;
+                      return reading ? <div><strong>What this choice may be reflecting</strong><p>{reading}</p></div> : null;
+                    })()}
+                    {!deepResult.aiReading && option.projection ? <div><strong>Your projection</strong><p>{option.projection}</p></div> : null}
                   </div>
                 </article>
               ))}

@@ -40,7 +40,7 @@ test("attachment quiz uses the V1.2 English text bank", () => {
     const item = ATTACHMENT_V12_BANK[index];
     assert.equal(question.prompt, item.prompt);
     assert.deepEqual(question.options.map((option) => option.label), [item.anxious, item.avoidant, item.secure, item.fearful]);
-    assert.deepEqual(question.options.map((option) => option.microcopy), [item.anxious, item.avoidant, item.secure, item.fearful]);
+    assert.deepEqual(question.options.map((option) => option.microcopy), ["", "", "", ""]);
     assert.equal(question.atlasPath, "");
     assert.equal(question.kicker, "First reaction");
   });
@@ -49,17 +49,17 @@ test("attachment quiz uses the V1.2 English text bank", () => {
   assert.doesNotMatch(relationshipQuestions.map((question) => question.prompt).join("\n"), /weekend together|new town|cinema|text shows Read/i);
 });
 
-test("public catalog contains twenty distinct text questions and eighty interpretations", async () => {
+test("public catalog contains twenty distinct text questions and no canned readings", async () => {
   const catalog = await readFile(new URL("../lib/quiz-content.ts", import.meta.url), "utf8");
   const live = catalog.slice(0, catalog.indexOf("RETIRED_QUESTION_PROMPTS"));
   assert.equal(relationshipQuestions.length, 20);
   assert.equal(new Set(relationshipQuestions.map(q => q.id)).size, 20);
   assert.deepEqual(new Set(relationshipQuestions.map(q => q.id)), PUBLIC_QUESTION_IDS);
-  assert.equal(new Set(relationshipQuestions.flatMap(q => q.options.map(o => o.meaning))).size, 80);
+  assert.equal(new Set(relationshipQuestions.flatMap(q => q.options.map(o => o.label))).size, 80);
   assert.deepEqual(relationshipQuestions.map(q => q.kicker), Array(20).fill("First reaction"));
   for (const q of relationshipQuestions) {
     assert.equal(q.options.length, 4);
-    assert.ok(q.options.every(o=>o.meaning.length>80 && o.readingFocus && o.styleKey && o.microcopy === o.label));
+    assert.ok(q.options.every(o=>o.label.length>4 && o.readingFocus && o.styleKey && !o.meaning && !o.projection && !o.microcopy));
     assert.deepEqual(q.options.map(o => o.styleKey), ["anxious", "avoidant", "secure", "fearful"]);
     assert.equal(q.atlasPath, "");
   }
