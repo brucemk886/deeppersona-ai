@@ -27,7 +27,6 @@ export type AiInsightReport = {
   toolkit: {
     brake: string[];
     scripts: string[];
-    weekPractice: string;
   };
 };
 
@@ -104,8 +103,7 @@ export function isInsightReport(value: unknown): value is AiInsightReport {
     && cleanText(defense?.fear)
     && cleanText(defense?.excuse)
     && cleanList(toolkit?.brake, 3, 3).length === 3
-    && cleanList(toolkit?.scripts, 2, 2).length === 2
-    && cleanText(toolkit?.weekPractice),
+    && cleanList(toolkit?.scripts, 2, 2).length === 2,
   );
 }
 
@@ -150,18 +148,17 @@ export function parseAiReading(raw: string): AiReading | null {
   const conflict = cleanScene(scenes?.conflict);
   const brake = cleanList(toolkit?.brake, 3, 3);
   const scripts = cleanList(toolkit?.scripts, 2, 2);
-  const weekPractice = cleanText(toolkit?.weekPractice);
   const paradox = cleanText(contradiction?.paradox);
   const selfSabotage = cleanText(contradiction?.selfSabotage);
   const fear = cleanText(defense?.fear);
   const excuse = cleanText(defense?.excuse);
-  if (!paradox || !selfSabotage || !closeness || !silence || !conflict || !fear || !excuse || brake.length !== 3 || scripts.length !== 2 || !weekPractice) {
+  if (!paradox || !selfSabotage || !closeness || !silence || !conflict || !fear || !excuse || brake.length !== 3 || scripts.length !== 2) {
     return null;
   }
   return {
     contradiction: { paradox, selfSabotage },
     scenes: { closeness, silence, conflict },
     defense: { fear, excuse },
-    toolkit: { brake, scripts, weekPractice },
+    toolkit: { brake, scripts },
   };
 }

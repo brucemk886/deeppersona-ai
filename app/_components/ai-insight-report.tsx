@@ -64,10 +64,6 @@ export function AiInsightReport({ reading }: { reading: AiInsightReport }) {
           <h3>免死金牌沟通话术</h3>
           {reading.toolkit.scripts.map((line) => <blockquote key={line}>{line}</blockquote>)}
         </article>
-        <article className="ai-insight-scene">
-          <h3>7天低成本脱敏练习</h3>
-          <p>{reading.toolkit.weekPractice}</p>
-        </article>
       </Block>
     </div>
   );

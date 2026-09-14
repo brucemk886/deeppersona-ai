@@ -20,7 +20,7 @@ export const CHILDHOOD_MODULE = "Childhood";
 export const REPORT_INCLUSIONS = [
   "底层自相矛盾画像",
   "三大高频暴击分镜与防御破译",
-  "急救刹车、沟通话术与7天脱敏练习",
+  "急救刹车与沟通话术",
 ];
 
 export const BLUR_FILLER =

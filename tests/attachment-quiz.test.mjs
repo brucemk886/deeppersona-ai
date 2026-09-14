@@ -196,7 +196,8 @@ test("paywall inclusions stay at three bullets without invented multi-context sc
   const quiz = await readFile(new URL("../app/_components/free-attachment-results.tsx", import.meta.url), "utf8");
   assert.match(report, /底层自相矛盾画像/);
   assert.match(report, /三大高频暴击分镜与防御破译/);
-  assert.match(report, /急救刹车、沟通话术与7天脱敏练习/);
+  assert.match(report, /急救刹车与沟通话术/);
+  assert.doesNotMatch(report + quiz, /7天脱敏|7-day practice/);
   assert.match(preview, /aiInsight/);
   assert.match(preview, /sample: undefined/);
   assert.match(report, /not blame statements about caregivers/);
