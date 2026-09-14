@@ -14,7 +14,7 @@ import {
   romanceEssay,
   selfWorthSentences,
 } from './attachment-report';
-import { isInsightReport } from './ai-reading-parse';
+import { publicInsightReport } from './ai-reading-parse';
 import type { ReportPreview, ReportSnapshot } from './payment-types';
 import type { ResultProfile } from './quiz';
 
@@ -58,7 +58,7 @@ export function reportPreview(snapshot: ReportSnapshot): ReportPreview {
   const answered = snapshot.questions.map((q, index) => ({ q, index, selectedIndex: snapshot.answerChoices[q.id] }))
     .filter((x) => Number.isInteger(x.selectedIndex) && x.q.options[x.selectedIndex]);
   const modules = snapshot.deepResult.modules ?? [];
-  const insight = isInsightReport(snapshot.deepResult.aiReading) ? snapshot.deepResult.aiReading : null;
+  const insight = publicInsightReport(snapshot.deepResult.aiReading);
   const scored = resolveAttachmentScores(snapshot.questions, snapshot.answerChoices, snapshot.result);
   const caregiverScored = scoreAttachmentSubset(snapshot.questions, snapshot.answerChoices, CHILDHOOD_MODULE);
   const worth = scored ? selfWorthSnapshot(snapshot.questions, snapshot.answerChoices) : undefined;

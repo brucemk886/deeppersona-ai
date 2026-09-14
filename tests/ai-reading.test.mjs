@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildAiReadingPrompt, hasLegacyChoiceReadings, isInsightReport, parseAiReading } from "../lib/ai-reading-parse.ts";
+import { buildAiReadingPrompt, hasCjkText, hasLegacyChoiceReadings, isInsightReport, parseAiReading, publicInsightReport } from "../lib/ai-reading-parse.ts";
 
 const questions = [{
   id: "attachment-style-v3-q01",
@@ -64,6 +64,20 @@ test("buildAiReadingPrompt sends style scores without option wording", () => {
   assert.doesNotMatch(built.user, /When their texting suddenly goes cold/);
   assert.doesNotMatch(built.user, /中文|焦虑型/);
   assert.doesNotMatch(built.user, /PRIVATE_ADMIN_MEANING/);
+});
+
+test("publicInsightReport hides Chinese insight copy from the English site", () => {
+  assert.equal(hasCjkText(insight), false);
+  assert.equal(publicInsightReport(insight)?.contradiction.paradox, insight.contradiction.paradox);
+  const chinese = {
+    ...insight,
+    contradiction: {
+      paradox: "你渴望被抱紧，却在对方向你伸手时一刀捅过去。",
+      selfSabotage: insight.contradiction.selfSabotage,
+    },
+  };
+  assert.equal(hasCjkText(chinese), true);
+  assert.equal(publicInsightReport(chinese), null);
 });
 
 test("legacy per-choice snapshots are detected without passing as insight reports", () => {

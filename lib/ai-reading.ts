@@ -1,5 +1,6 @@
 import { getRuntimeEnv } from "@/db/quiz-store";
-import { buildAiReadingPrompt, parseAiReading, type AiReading } from "./ai-reading-parse";
+import { buildAiReadingPrompt, hasCjkText, parseAiReading, type AiReading } from "./ai-reading-parse";
+import type { ReportSnapshot } from "./payment-types";
 import type { QuizQuestion, QuizTest, ResultProfile } from "./quiz";
 
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
@@ -67,4 +68,12 @@ export async function generateAiReading(
   } finally {
     clearTimeout(timer);
   }
+}
+
+export async function replaceCjkAiReading(snapshot: ReportSnapshot): Promise<boolean> {
+  if (!hasCjkText(snapshot.deepResult.aiReading)) return false;
+  const next = await generateAiReading(snapshot.test, snapshot.questions, snapshot.answerChoices, snapshot.result);
+  if (!next || hasCjkText(next)) return false;
+  snapshot.deepResult.aiReading = next;
+  return true;
 }

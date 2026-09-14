@@ -7,7 +7,7 @@ import { HomeLanding } from "@/app/_components/home-landing";
 import { AttachmentResult, HowYouScored, PatternLoop, SelfWorthRing, StyleBanner } from "@/app/_components/attachment-result";
 import { AiInsightReport } from "@/app/_components/ai-insight-report";
 import { FreeAttachmentResults } from "@/app/_components/free-attachment-results";
-import { isInsightReport } from "@/lib/ai-reading-parse";
+import { publicInsightReport } from "@/lib/ai-reading-parse";
 import { SceneCard, sceneKeyFromPath } from "@/app/_components/scene-card";
 import { SiteFooter, SiteNav } from "@/app/_components/site-chrome";
 import { ATTACHMENT_TEST_ID } from "@/lib/public-catalog";
@@ -747,7 +747,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
   }
 
   const deepResult = reportData?.deepResult ?? null;
-  const insightReading = deepResult && isInsightReport(deepResult.aiReading) ? deepResult.aiReading : null;
+  const insightReading = deepResult ? publicInsightReport(deepResult.aiReading) : null;
   const relatedInsights = selectedTest ? getInsightCardsForTest(selectedTest.id).slice(0, 2) : [];
   const answeredChoices = questions.flatMap((question, index) => {
     const selectedIndex = answerChoices[question.id];

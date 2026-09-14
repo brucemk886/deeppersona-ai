@@ -87,6 +87,14 @@ export function hasLegacyChoiceReadings(value: unknown): value is { choices: AiC
   });
 }
 
+export function hasCjkText(value: unknown): boolean {
+  return /[\u3400-\u9fff]/.test(typeof value === "string" ? value : JSON.stringify(value ?? ""));
+}
+
+export function publicInsightReport(value: unknown): AiInsightReport | null {
+  return isInsightReport(value) && !hasCjkText(value) ? value : null;
+}
+
 export function isInsightReport(value: unknown): value is AiInsightReport {
   const record = asRecord(value);
   if (!record) return false;

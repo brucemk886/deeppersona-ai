@@ -77,6 +77,12 @@ export function snapshotOf(report: ReportRow): ReportSnapshot {
   return JSON.parse(report.snapshot_json) as ReportSnapshot;
 }
 
+export async function saveReportSnapshot(id: string, snapshot: ReportSnapshot) {
+  await getD1().prepare("UPDATE quiz_reports SET snapshot_json = ? WHERE id = ?")
+    .bind(JSON.stringify(snapshot), id)
+    .run();
+}
+
 export async function createOrder(report: ReportRow, livemode: boolean, expectedAmount: number) {
   const existing = await reportOrder(report.id);
   if (existing) {
