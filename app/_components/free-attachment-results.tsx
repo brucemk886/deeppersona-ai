@@ -79,9 +79,9 @@ export function FreeAttachmentResults({
       {preview.aiInsight ? (
         <>
           <AiInsightPortrait paradox={preview.aiInsight.paradox} selfSabotage={preview.aiInsight.selfSabotage} />
-          <PremiumLock eyebrow="模块二" title="三大高频暴击分镜拆解" onUnlock={onCheckout} />
-          <PremiumLock eyebrow="模块三" title="防御机制心理破译" onUnlock={onCheckout} />
-          <PremiumLock eyebrow="模块四" title="自救破局实操工具箱" onUnlock={onCheckout} />
+          <PremiumLock eyebrow="Part 2" title="Three moments that blow up" onUnlock={onCheckout} />
+          <PremiumLock eyebrow="Part 3" title="What the defense is actually doing" onUnlock={onCheckout} />
+          <PremiumLock eyebrow="Part 4" title="What to do when it spikes" onUnlock={onCheckout} />
         </>
       ) : (
       <section className="ap-section" aria-labelledby="romance-title">

@@ -36,11 +36,11 @@ export type AiReading = AiInsightReport & {
   choices?: AiChoiceReading[];
 };
 
-const STYLE_ZH: Record<string, string> = {
-  anxious: "焦虑型（Anxious-Preoccupied）",
-  avoidant: "回避型（Dismissing-Avoidant）",
-  secure: "安全型（Secure）",
-  fearful: "恐惧回避型（Fearful-Avoidant / Disorganized）",
+const STYLE_EN: Record<string, string> = {
+  anxious: "Anxious-Preoccupied",
+  avoidant: "Dismissing-Avoidant",
+  secure: "Secure",
+  fearful: "Fearful-Avoidant / Disorganized",
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -120,12 +120,13 @@ export function buildAiReadingPrompt(
   }
   return {
     user: JSON.stringify({
-      style: STYLE_ZH[result.key] ?? result.title,
+      style: STYLE_EN[result.key] ?? result.title,
       styleKey: result.key,
       anxiety: result.anxiety ?? null,
       avoidance: result.avoidance ?? null,
       leanCounts: counts,
-      rule: "不要复述、罗列或引用任何题目或选项原文。只根据类型与倾向写四模块中文报告。",
+      language: "en",
+      rule: "Do not list, quote, or retell any quiz item or option. Write the four-part report in English from the style and leanings only.",
     }),
   };
 }

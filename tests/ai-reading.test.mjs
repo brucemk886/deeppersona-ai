@@ -17,23 +17,23 @@ const questions = [{
 
 const insight = {
   contradiction: {
-    paradox: "你越想被抱紧，身体越把靠近当成危险。",
-    selfSabotage: "喜欢上头时你会先刺对方一眼，确认对方会不会先走。",
+    paradox: "You want to be held tight, but your body treats closeness as a threat.",
+    selfSabotage: "The more you like them, the faster you pick a fight to see if they will leave first.",
   },
   scenes: {
-    closeness: { alarm: "他现在觉得我好，是还没看穿。", action: "约会后突然冷淡两天。" },
-    silence: { alarm: "不回就是在放弃我。", action: "已读不回，等对方先慌。" },
-    conflict: { alarm: "胸口发紧，手脚发冷。", action: "放狠话，或者直接想拉黑。" },
+    closeness: { alarm: "They like this version of me because they have not seen the rest.", action: "Go cold for two days after a good date." },
+    silence: { alarm: "A slow reply means they are already gone.", action: "Leave them on read and wait for them to panic." },
+    conflict: { alarm: "Chest tight, hands cold.", action: "Say something harsh, or reach for block." },
   },
   defense: {
-    fear: "怕被看穿后扔掉，所以先自己砸碎。",
-    excuse: "嘴上说谈恋爱麻烦，其实是不敢把自己交出去。",
+    fear: "If they see you clearly, they will drop you, so you smash it first.",
+    excuse: "You call it being rational. You are just afraid to hand yourself over.",
   },
   toolkit: {
-    brake: ["先把手机扣过去", "数四次呼吸", "告诉自己这是警报不是事实"],
+    brake: ["Put the phone face down", "Take four breaths", "Name this as an alarm, not a fact"],
     scripts: [
-      "我现在有点过载，想先躲一下。这不是不喜欢你。给我两小时，我回来找你。",
-      "我刚才那句狠话是害怕，不是结论。我想重新说一遍。",
+      "I am overloaded and want to pull back for a bit. This is not about liking you less. Give me two hours and I will come find you.",
+      "That last line was fear talking, not a verdict. I want to say it again.",
     ],
   },
 };
@@ -57,10 +57,12 @@ test("buildAiReadingPrompt sends style scores without option wording", () => {
     { "attachment-style-v3-q01": 0 },
     { key: "anxious", title: "Anxious-Preoccupied", summary: "You move toward the bond.", anxiety: 72, avoidance: 31 },
   );
-  assert.match(built.user, /焦虑型/);
+  assert.match(built.user, /Anxious-Preoccupied/);
+  assert.match(built.user, /"language":"en"/);
   assert.match(built.user, /"anxiety":72/);
   assert.doesNotMatch(built.user, /Did I say something wrong/);
   assert.doesNotMatch(built.user, /When their texting suddenly goes cold/);
+  assert.doesNotMatch(built.user, /中文|焦虑型/);
   assert.doesNotMatch(built.user, /PRIVATE_ADMIN_MEANING/);
 });
 
