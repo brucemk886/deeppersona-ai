@@ -7,7 +7,7 @@ export async function PATCH(request: Request) {
   if (!await isAdminRequest(request)) return privateJson({ error: 'Unauthorized' }, 401);
   const origin = request.headers.get('origin');
   if (origin && origin !== new URL(request.url).origin) return privateJson({ error: 'Invalid origin' }, 403);
-  const body = await request.json().catch(() => null);
+  const body = await request.json().catch(() => null) as { sessionId?: unknown; deleted?: unknown; isTest?: unknown } | null;
   if (!body || typeof body.sessionId !== 'string' || body.sessionId.length > 100 || (typeof body.deleted !== 'boolean' && typeof body.isTest !== 'boolean')) {
     return privateJson({ error: 'Invalid request' }, 400);
   }

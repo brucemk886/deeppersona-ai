@@ -313,10 +313,11 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
     profileRequested.current = true;
     void fetch("/api/profile", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
-      .then((data: InnerProfileSummary | null) => {
-        if (!data?.completedTestIds) return;
-        setProfile(data);
-        if (data.email) setEmail((current) => current || data.email || "");
+      .then((data) => {
+        const profile = data as InnerProfileSummary | null;
+        if (!profile?.completedTestIds) return;
+        setProfile(profile);
+        if (profile.email) setEmail((current) => current || profile.email || "");
       })
       .catch(() => undefined);
   }, [stage]);
@@ -324,7 +325,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
     if (stage !== 'result') return;
     void fetch("/api/affiliate-products", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
-      .then((data: { products?: AffiliateProduct[] } | null) => setAffiliateProducts(data?.products ?? []))
+      .then((data) => setAffiliateProducts((data as { products?: AffiliateProduct[] } | null)?.products ?? []))
       .catch(() => undefined);
   }, [stage]);
   useEffect(() => {
@@ -333,7 +334,8 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
     void fetch("/api/tests", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
-        if (data?.tests?.length) { setTests(data.tests); if (initialTestId) setSelectedTest(data.tests.find((test: QuizTest) => test.id === initialTestId) ?? null); }
+        const payload = data as { tests?: QuizTest[] } | null;
+        if (payload?.tests?.length) { setTests(payload.tests); if (initialTestId) setSelectedTest(payload.tests.find((test) => test.id === initialTestId) ?? null); }
       })
       .catch(() => undefined);
   }, [initialTestId, initialReportId, initialTests.length]);

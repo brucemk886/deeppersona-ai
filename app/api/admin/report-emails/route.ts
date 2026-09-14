@@ -40,8 +40,8 @@ export async function GET(request: Request) {
         COALESCE(SUM(${state} = 'delivered'),0) AS delivered,
         COALESCE(SUM(${state} IN ('pending','retry')),0) AS pending ${source}`),
     ]);
-    return privateJson({ rows: results[0].results, total: results[1].results[0].total, page,
-      summary: results[2].results[0], webhookConfigured: Boolean(getRuntimeEnv().RESEND_WEBHOOK_SECRET) });
+    return privateJson({ rows: results[0].results, total: (results[1].results[0] as { total: number }).total, page,
+      summary: results[2].results[0] as { total: number; attention: number; delivered: number; pending: number }, webhookConfigured: Boolean(getRuntimeEnv().RESEND_WEBHOOK_SECRET) });
   } catch (error) { return paymentError(error); }
 }
 
