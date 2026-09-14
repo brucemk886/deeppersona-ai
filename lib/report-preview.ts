@@ -72,7 +72,7 @@ export function reportPreview(snapshot: ReportSnapshot): ReportPreview {
       ? (snapshot.deepResult.romanceEssay ?? romanceEssay(snapshot.questions, snapshot.answerChoices, scored.style))
       : undefined,
     scores: scored ? dimensionScore(scored.anxiety, scored.avoidance) : undefined,
-    caregiver: scored ? {
+    caregiver: scored && caregiverScored.answered ? {
       intro: snapshot.deepResult.caregiver?.intro ?? caregiverIntro(snapshot.questions, snapshot.answerChoices, scored.style),
       ...dimensionScore(caregiverScored.anxiety, caregiverScored.avoidance),
     } : undefined,

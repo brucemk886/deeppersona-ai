@@ -341,6 +341,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .question-heading p { color: var(--muted); font-size: 14px; }
 
 .option-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.option-grid-text { grid-template-columns: 1fr; max-width: 760px; margin: 0 auto; gap: 12px; }
+.option-card-text { padding: 4px 6px; }
+.option-card-text .option-select { display: block; width: 100%; padding: 14px 12px; }
+.option-card-text .option-meta { padding: 0; align-items: flex-start; }
+.option-card-text .option-meta strong { font: 600 16px/1.45 "PingFang SC", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", Georgia, serif; }
+.question-section-text .question-heading h1 { font-size: clamp(22px, 3.2vw, 34px); line-height: 1.35; }
+.detail-stage-text { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 900px) { .option-grid-text { grid-template-columns: 1fr 1fr; } }
 .option-card {
   position: relative;
   overflow: hidden;
@@ -427,6 +435,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .choice-review > header p,.pattern-lens p { margin: 0; color: rgba(255,255,255,.72); font-size: 12px; line-height: 1.65; }
 .choice-review-list { display: grid; gap: 1px; overflow: hidden; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 24px 24px; background: var(--line); }
 .choice-review-card { padding: 24px; display: grid; grid-template-columns: 176px minmax(0,1fr); align-items: start; gap: 26px; background: #fff; }
+.choice-review-card:not(:has(.choice-review-image)) { grid-template-columns: minmax(0, 1fr); }
+.result-secondary { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
 .choice-review-image { width: 100%; aspect-ratio: 1; border-radius: 18px; background-color: #e3ded4; }
 .choice-review-copy { min-width: 0; }
 .choice-review-meta { display: flex; align-items: center; justify-content: space-between; gap: 14px; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
@@ -495,6 +505,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .hero { padding-top: 46px; }
   .how-it-works { grid-template-columns: auto 1fr; }
   .option-grid { grid-template-columns: repeat(2, 1fr); }
+  .option-grid-text { grid-template-columns: 1fr; }
   .email-gate { grid-template-columns: 0.8fr 1.2fr; }
   .result-teaser { min-height: 540px; }
   .admin-grid { grid-template-columns: 1fr; }

@@ -110,7 +110,7 @@ export default async function InsightArticlePage({ params }: { params: Promise<{
           </div>
           <aside className="article-test-card">
             <div className="article-test-image"><img alt={`Four visual choices from ${test.title}`} decoding="async" loading="lazy" src={testImage} /></div>
-            <span>Continue with images</span><h2>{test.title}</h2><p>{test.description}</p><Link href={testHref}>Start the free visual test <span aria-hidden="true">→</span></Link><small>Image-based self-reflection · not a diagnosis</small>
+            <span>Continue the quiz</span><h2>{test.title}</h2><p>{test.description}</p><Link href={testHref}>Start the free quiz <span aria-hidden="true">→</span></Link><small>Self-reflection · not a diagnosis</small>
           </aside>
         </div>
       </article>

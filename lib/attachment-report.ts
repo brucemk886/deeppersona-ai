@@ -18,7 +18,7 @@ export const SELF_ESTEEM_MODULE = "Self-esteem";
 export const CHILDHOOD_MODULE = "Childhood";
 
 export const REPORT_INCLUSIONS = [
-  "An interpretation of every image you selected",
+  "An interpretation of every choice you selected",
   "Pairing notes versus each of the four styles",
   "Seven-day micro practices",
 ];
@@ -187,8 +187,14 @@ export function sentenceCount(text: string): number {
     .filter((part) => part.length > 1).length;
 }
 
+function citedEntries(questions: QuizQuestion[], choices: Record<string, number>, kicker: string) {
+  const entries = selectedEntries(questions, choices);
+  const matched = entriesFor(entries, kicker);
+  return matched.length ? matched : entries;
+}
+
 export function romanceEssay(questions: QuizQuestion[], choices: Record<string, number>, style: AttachmentStyle) {
-  const romance = entriesFor(selectedEntries(questions, choices), ROMANCE_MODULE);
+  const romance = citedEntries(questions, choices, ROMANCE_MODULE);
   const labels = romance.slice(0, 3).map((entry) => entry.option.label);
   const [first, second, third] = labels;
   const pick = (label: string | undefined, fallback: string) => (label ? `“${label}”` : fallback);
@@ -196,7 +202,7 @@ export function romanceEssay(questions: QuizQuestion[], choices: Record<string, 
     anxious: [
       "When a bond feels unclear, your attention often goes to the relationship first.",
       "Silence, a cooler reply, or an unnamed status can pull the rest of the evening into the thread.",
-      `In one romance scene you chose ${pick(first, "a move that closes the gap")}.`,
+      `In one scene you chose ${pick(first, "a move that closes the gap")}.`,
       second ? `In another, ${pick(second, "a second reach")} felt closer to your first move.` : "You look for a visible sign that you still matter before the rest of the night can settle.",
       "That alertness is usually protecting a real wish to stay connected, not a wish to control the other person.",
       "The cost is that your body may start working on a problem that has not been stated yet.",
@@ -208,7 +214,7 @@ export function romanceEssay(questions: QuizQuestion[], choices: Record<string, 
     avoidant: [
       "When a relationship speeds up, you often reach for space, tasks, or self-reliance.",
       "More affection, a label, or three days in a row can make the air feel thinner.",
-      `In one romance scene you chose ${pick(first, "a move that protects pace")}.`,
+      `In one scene you chose ${pick(first, "a move that protects pace")}.`,
       second ? `In another, ${pick(second, "a quieter exit")} felt closer to your first move.` : "Distance can feel like the fastest way to get your mind back.",
       "That move is often protecting a mind that still wants the person — just not the merger.",
       "The cost is that the other person may only see the door, not the care on the other side of it.",
@@ -220,7 +226,7 @@ export function romanceEssay(questions: QuizQuestion[], choices: Record<string, 
     secure: [
       "You can want closeness and your own life in the same week.",
       "A warmer stretch, a calmer ask for clarity, and a few hours apart can all feel like ordinary weather.",
-      `In one romance scene you chose ${pick(first, "a steady check-in")}.`,
+      `In one scene you chose ${pick(first, "a steady check-in")}.`,
       second ? `In another, ${pick(second, "a paced return")} felt closer to your first move.` : "You tend to notice a shift, stay steady, and ask once.",
       "That balance is protecting a bond that can survive ordinary weather.",
       "The watch-out is under-asking: being “fine” can hide a preference that would help the other person.",
@@ -232,7 +238,7 @@ export function romanceEssay(questions: QuizQuestion[], choices: Record<string, 
     fearful: [
       "You tend to want the closeness and the exit in the same stretch of time.",
       "A good week can make you melt in tonight and go quiet tomorrow.",
-      `In one romance scene you chose ${pick(first, "a mixed reach-and-retreat")}.`,
+      `In one scene you chose ${pick(first, "a mixed reach-and-retreat")}.`,
       second ? `In another, ${pick(second, "a second mixed move")} felt closer to your first move.` : "An unnamed bond can make you want the label and fear the trap.",
       "Those mixed moves are protecting you from two losses at once: being left, and being locked in.",
       "The cost is that neither you nor the other person knows which hour they are in.",
@@ -263,7 +269,7 @@ export function selfWorthSentences(
     sentence,
     lead ? `On a self-esteem scene you chose “${lead}.”` : "",
     levelLine,
-    "This is a snapshot of how worth showed up in the pictures you picked, not a verdict on your value.",
+    "This is a snapshot of how worth showed up in the choices you picked, not a verdict on your value.",
   ]
     .filter(Boolean)
     .join(" ");
@@ -297,7 +303,7 @@ function moduleFrom(title: string, entries: ReturnType<typeof selectedEntries>, 
   const labels = entries.map((entry) => `“${entry.option.label}”`).join(", ");
   return {
     title,
-    explanation: `In these situations, you chose ${labels || "no images yet"}.\n\n${extra}`,
+    explanation: `In these situations, you chose ${labels || "no choices yet"}.\n\n${extra}`,
     reflection,
   };
 }
@@ -310,7 +316,7 @@ export function buildAttachmentReport(
   const profile = ATTACHMENT_RESULTS[scored.style];
   const meta = ATTACHMENT_STYLE_META[scored.style];
   const entries = selectedEntries(questions, choices);
-  const romance = entriesFor(entries, ROMANCE_MODULE);
+  const romance = citedEntries(questions, choices, ROMANCE_MODULE);
   const selfEsteem = entriesFor(entries, SELF_ESTEEM_MODULE);
   const childhood = entriesFor(entries, CHILDHOOD_MODULE);
   const loop = ATTACHMENT_LOOPS[scored.style];
@@ -323,18 +329,21 @@ export function buildAttachmentReport(
       ...profile,
       key: scored.style,
       title: meta.label,
-      themeTitle: meta.blurb,
+      themeTitle: scored.dualHigh && scored.secondary
+        ? `${meta.label} and ${ATTACHMENT_STYLE_META[scored.secondary].label} both scored highest.`
+        : meta.blurb,
       summary: profile.summary,
       anxiety: scored.anxiety,
       avoidance: scored.avoidance,
+      ...(scored.secondary ? { secondaryKey: scored.secondary, dualHigh: scored.dualHigh } : {}),
     },
     deepResult: {
       romanceEssay: romanceEssay(questions, choices, scored.style),
       scores: dimensionScore(scored.anxiety, scored.avoidance),
-      caregiver: {
+      caregiver: caregiverScored.answered ? {
         intro: caregiverIntro(questions, choices, scored.style),
         ...dimensionScore(caregiverScored.anxiety, caregiverScored.avoidance),
-      },
+      } : undefined,
       selfWorth: {
         ...worth,
         sentences: selfWorthSentences(questions, choices, scored.style),
@@ -347,32 +356,32 @@ export function buildAttachmentReport(
       triggers: profile.stuckPoints ?? [profile.watchout],
       modules: [
         moduleFrom(
-          ROMANCE_MODULE,
+          romance.length && romance.length === entriesFor(entries, ROMANCE_MODULE).length ? ROMANCE_MODULE : "First reactions",
           romance,
-          "These romance scenes follow your first move when closeness, silence, labels, or repair are on the table. Compare the picture you chose with what you actually do when the same moment happens.",
+          "These scenes follow your first move when closeness, silence, labels, or repair are on the table. Compare the wording you chose with what you actually do when the same moment happens.",
           "When the next pause or burst of closeness arrives, which of these first moves do you want to keep?",
         ),
-        moduleFrom(
+        ...(selfEsteem.length ? [moduleFrom(
           SELF_ESTEEM_MODULE,
           selfEsteem,
           "These self-esteem scenes follow what happens to your worth when you are praised, when you miss, when you compare, and when the night gets quiet. The full rewrite of that self-talk is in the paid module below.",
           "Which night-time sentence about deserving love still runs, and what would a kinder one sound like?",
-        ),
-        moduleFrom(
+        )] : []),
+        ...(childhood.length ? [moduleFrom(
           CHILDHOOD_MODULE,
           childhood,
           "These childhood scenes are not a diagnosis of your caregivers. They are a trail of how you learned to get comfort, show feeling, ask for help, and say goodbye. The longer reading sits in the paid childhood module.",
           "Where did today’s first move already exist in a smaller kitchen or doorway?",
-        ),
+        )] : []),
       ],
       lens: {
         title: "A pattern, not a verdict",
         explanation:
-          "These scores describe how often your image choices leaned toward reaching, stepping back, staying steady, or doing both. They are a reflection prompt for this moment, not a diagnosis, a disorder label, or a fixed identity. A picture preference can have several explanations; it cannot establish childhood facts or speak for another person.",
+          "These scores describe how often your choices leaned toward reaching, stepping back, staying steady, or doing both. They are a reflection prompt for this moment, not a diagnosis, a disorder label, or a fixed identity. A preference can have several explanations; it cannot establish childhood facts or speak for another person.",
         reflectionPrompt: loop.steps[0] ? `When ${loop.steps[0].toLowerCase()}, which next step would you rather practice?` : meta.blurb,
       },
       essay,
-      childhood: {
+      childhood: childhood.length ? {
         title: "Where this may have started",
         paragraphs: [
           childhoodTeaser(questions, choices, scored.style, false),
@@ -380,7 +389,7 @@ export function buildAttachmentReport(
           `What the pattern is protecting: a younger version of you who needed a predictable welcome. You can keep the wisdom of that protection and still try a smaller, present-tense ask.`,
         ],
         reflection: "If you could stand in that childhood doorway again, what would “help” have looked like in one sentence?",
-      },
+      } : undefined,
       selfEsteem: {
         title: "Your worth pattern",
         paragraphs: [

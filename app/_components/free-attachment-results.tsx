@@ -113,13 +113,15 @@ export function FreeAttachmentResults({
 
       {preview.sample ? (
         <section className="ap-section ap-sample" aria-labelledby="free-sample-title">
-          <span>One image from this quiz</span>
+          <span>{preview.sample.choice.atlasPath ? "One image from this quiz" : "One choice from this quiz"}</span>
           <h2 id="free-sample-title">{preview.sample.moduleTitle}</h2>
           <p>{preview.sample.explanation}</p>
           <article className="free-sample-choice">
-            {sceneKeyFromPath(preview.sample.choice.atlasPath)
-              ? <SceneCard className="choice-review-image" index={preview.sample.choice.selectedIndex} scene={sceneKeyFromPath(preview.sample.choice.atlasPath) ?? "phone"} />
-              : <AtlasThumb className="choice-review-image" index={preview.sample.choice.selectedIndex} path={preview.sample.choice.atlasPath} />}
+            {preview.sample.choice.atlasPath
+              ? (sceneKeyFromPath(preview.sample.choice.atlasPath)
+                ? <SceneCard className="choice-review-image" index={preview.sample.choice.selectedIndex} scene={sceneKeyFromPath(preview.sample.choice.atlasPath) ?? "phone"} />
+                : <AtlasThumb className="choice-review-image" index={preview.sample.choice.selectedIndex} path={preview.sample.choice.atlasPath} />)
+              : null}
             <div>
               <span>Question {preview.sample.choice.questionNumber}</span>
               <p className="choice-review-question">{preview.sample.choice.prompt}</p>

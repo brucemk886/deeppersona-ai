@@ -1,6 +1,20 @@
 export const TRAIT_KEYS = ["explorer", "connector", "architect", "creator"] as const;
+export const PRESENTATION_MODES = ["image", "text"] as const;
 
 export type TraitKey = (typeof TRAIT_KEYS)[number];
+export type PresentationMode = (typeof PRESENTATION_MODES)[number];
+
+export function normalizePresentationMode(value: unknown): PresentationMode {
+  return value === "text" ? "text" : "image";
+}
+
+/** Image tiles render only for image-mode quizzes that actually have an atlas. */
+export function showsOptionImages(
+  test?: { presentationMode?: string | null } | null,
+  atlasPath?: string | null,
+): boolean {
+  return normalizePresentationMode(test?.presentationMode) === "image" && Boolean(atlasPath);
+}
 
 export type QuizOption = {
   readingFocus?: string;
@@ -55,6 +69,8 @@ export type ResultProfile = {
   avoidance?: number;
   affiliateProductId?: string;
   affiliateRecommendation?: AffiliateRecommendation;
+  secondaryKey?: ResultProfile["key"];
+  dualHigh?: boolean;
 };
 
 export type QuizTest = {
@@ -68,6 +84,7 @@ export type QuizTest = {
   active: boolean;
   featured: boolean;
   reportPriceCents: number;
+  presentationMode?: PresentationMode;
   /** Legacy templates; new reports are built from selected options. */
   results?: Record<string, ResultProfile>;
   questionCount?: number;

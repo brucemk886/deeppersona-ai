@@ -294,7 +294,7 @@ export function AdminDashboard({
       testId: selectedTestId,
       kicker: "凭第一感觉选择",
       prompt: "在这里填写新题目",
-      atlasPath: "/quiz/landscapes.png",
+      atlasPath: tests.find((test) => test.id === selectedTestId)?.presentationMode === "text" ? "" : "/quiz/landscapes.png",
       position,
       active: false,
       options: blankOptions.map((option) => ({ ...option })),
@@ -925,9 +925,10 @@ function TestManager({
             </div>
             <div className="test-editor-fields">
               <div className="test-editor-status"><small>ID: {test.id}</small><label className="status-switch"><input checked={test.active} onChange={(event) => updateTest(test.id, { active: event.target.checked })} type="checkbox" /><i /><span>{test.active ? "已上线" : "草稿"}</span></label></div>
-              <label>英文标题<input value={test.title} onChange={(event) => updateTest(test.id, { title: event.target.value })} /></label>
-              <label>英文分类标签<input value={test.kicker} onChange={(event) => updateTest(test.id, { kicker: event.target.value })} /></label>
-              <label>英文简介<textarea rows={3} value={test.description} onChange={(event) => updateTest(test.id, { description: event.target.value })} /></label>
+              <label>标题<input value={test.title} onChange={(event) => updateTest(test.id, { title: event.target.value })} /></label>
+              <label>分类标签<input value={test.kicker} onChange={(event) => updateTest(test.id, { kicker: event.target.value })} /></label>
+              <label>简介<textarea rows={3} value={test.description} onChange={(event) => updateTest(test.id, { description: event.target.value })} /></label>
+              <label>前台展示方式<select value={test.presentationMode === "text" ? "text" : "image"} onChange={(event) => updateTest(test.id, { presentationMode: event.target.value === "text" ? "text" : "image" })}><option value="image">图片选项（四格卡片）</option><option value="text">纯文本选项（无图片）</option></select></label>
               <div className="field-row two"><label>封面拼图地址<input list="atlas-paths" value={test.coverAtlasPath} onChange={(event) => updateTest(test.id, { coverAtlasPath: event.target.value })} /></label><label>排序<input min="1" type="number" value={test.position} onChange={(event) => updateTest(test.id, { position: Number(event.target.value) })} /></label></div>
               <label>完整解析价格（USD，填 0 为免费且前台不展示价格）<input min="0" step="0.01" type="number" value={(test.reportPriceCents / 100).toFixed(2)} onChange={(event) => updateTest(test.id, { reportPriceCents: Math.max(0, Math.round(Number(event.target.value || 0) * 100)) })} /></label>
               <label className="featured-checkbox"><input checked={test.featured} onChange={(event) => updateTest(test.id, { featured: event.target.checked })} type="checkbox" />设为首页主推测试</label>
@@ -981,18 +982,18 @@ function QuestionManager({
   return (
     <>
       <div className="admin-page-heading question-heading-admin">
-        <div><span className="admin-kicker">测评内容</span><h1>题目管理</h1><p>管理题目、四格图片、选项和对应解读。保存后刷新前台即可查看；草稿不展示，排序决定出题顺序。修改只影响之后生成的报告。</p></div>
+        <div><span className="admin-kicker">测评内容</span><h1>题目管理</h1><p>管理题目、选项和对应解读。图片测验仍用四格拼图；文本测验只展示选项文字。保存后刷新前台即可查看；草稿不展示，排序决定出题顺序。修改只影响之后生成的报告。</p></div>
         <button className="admin-primary-button" onClick={addQuestion}>＋ 新增题目</button>
       </div>
       <div className="test-filter-bar">
         <label>当前测试<select value={selectedTestId} onChange={(event) => setSelectedTestId(event.target.value)}>{tests.map((test) => <option key={test.id} value={test.id}>{test.title}（{test.questionCount ?? 0} 题）</option>)}</select></label>
-        <span>下方只显示当前测试的题目；所有面向用户的文案请填写英文。</span>
+        <span>下方只显示当前测试的题目；用户文案按该测试语言原样展示。</span>
       </div>
       <div className="question-summary-strip">
         <span><strong>{questions.length}</strong>全部题目</span>
         <span><strong>{questions.filter((item) => item.active).length}</strong>已上线</span>
         <span><strong>{questions.filter((item) => !item.active).length}</strong>草稿</span>
-        <small>图片使用一张 2×2 拼图，A/B/C/D 对应四个象限。</small>
+        <small>{tests.find((test) => test.id === selectedTestId)?.presentationMode === "text" ? "当前测试为纯文本模式，前台不展示图片占位。" : "图片测验使用一张 2×2 拼图，A/B/C/D 对应四个象限。"}</small>
       </div>
       <div className="question-editor-list">
         {questions.map((question, questionIndex) => (
@@ -1007,9 +1008,11 @@ function QuestionManager({
             </header>
             <div className="question-editor-body">
               <aside>
-                <div className="question-atlas-preview">
-                  {[0, 1, 2, 3].map((index) => <span className={`atlas-image atlas-${index}`} key={index} style={{ backgroundImage: `url(${question.atlasPath})` }} />)}
-                </div>
+                {question.atlasPath && tests.find((test) => test.id === selectedTestId)?.presentationMode !== "text" ? (
+                  <div className="question-atlas-preview">
+                    {[0, 1, 2, 3].map((index) => <span className={`atlas-image atlas-${index}`} key={index} style={{ backgroundImage: `url(${question.atlasPath})` }} />)}
+                  </div>
+                ) : <p className="question-text-mode-note">文本模式：无图片预览</p>}
                 <label>排序<input min="1" type="number" value={question.position} onChange={(event) => updateQuestion(question.id, { position: Number(event.target.value) })} /></label>
               </aside>
               <div className="question-form-fields">

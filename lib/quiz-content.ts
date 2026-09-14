@@ -8,15 +8,16 @@ export const FULL_REPORT_PRICE_CENTS = 999;
 export const defaultTests: QuizTest[] = [
   {
     id: ATTACHMENT_TEST_ID,
-    title: "Attachment Style Quiz",
-    kicker: "Free · 20 image choices",
-    description: "See how you move toward or away from closeness when a relationship feels uncertain.",
+    title: "依恋风格自测：20个真实暴击瞬间",
+    kicker: "Free · 20 first-reaction questions",
+    description: "回想那段最折磨你的关系。不要选「成熟体面的做法」，只选你身体最诚实的第一反应。",
     coverAtlasPath: "/quiz/relationship-v7/q01.webp",
     accent: "#9b4f5e",
     position: 1,
     active: true,
     featured: true,
     reportPriceCents: FULL_REPORT_PRICE_CENTS,
+    presentationMode: "text",
   },
   {
     id: "emotional-needs",
@@ -29,6 +30,7 @@ export const defaultTests: QuizTest[] = [
     active: false,
     featured: false,
     reportPriceCents: FULL_REPORT_PRICE_CENTS,
+    presentationMode: "image",
   },
   {
     id: "conflict-style",
@@ -41,6 +43,7 @@ export const defaultTests: QuizTest[] = [
     active: false,
     featured: false,
     reportPriceCents: FULL_REPORT_PRICE_CENTS,
+    presentationMode: "image",
   },
   {
     id: "social-energy",
@@ -53,6 +56,7 @@ export const defaultTests: QuizTest[] = [
     active: false,
     featured: false,
     reportPriceCents: FULL_REPORT_PRICE_CENTS,
+    presentationMode: "image",
   },
   {
     id: "love-language",
@@ -65,6 +69,7 @@ export const defaultTests: QuizTest[] = [
     active: false,
     featured: false,
     reportPriceCents: FULL_REPORT_PRICE_CENTS,
+    presentationMode: "image",
   },
   {
     id: "stress-reset",
@@ -77,6 +82,7 @@ export const defaultTests: QuizTest[] = [
     active: false,
     featured: false,
     reportPriceCents: FULL_REPORT_PRICE_CENTS,
+    presentationMode: "image",
   },
   {
     id: "boundary-style",
@@ -89,6 +95,7 @@ export const defaultTests: QuizTest[] = [
     active: false,
     featured: false,
     reportPriceCents: FULL_REPORT_PRICE_CENTS,
+    presentationMode: "image",
   },
   {
     id: "hidden-strength",
@@ -101,6 +108,7 @@ export const defaultTests: QuizTest[] = [
     active: false,
     featured: false,
     reportPriceCents: FULL_REPORT_PRICE_CENTS,
+    presentationMode: "image",
   },
 ];
 

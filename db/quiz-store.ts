@@ -2,12 +2,14 @@ import { answerRecords } from '@/lib/admin-answer-records';
 import { ensureTrafficSchema } from './traffic-store';
 import { productionSession } from './traffic-stats';
 import {
+  ATTACHMENT_TEST_ID,
   defaultQuestions,
   defaultTests,
   FULL_REPORT_PRICE_CENTS,
 } from "@/lib/quiz-content";
 import { env } from "cloudflare:workers";
 import {
+  normalizePresentationMode,
   type QuizOption,
   type AffiliateProduct,
   type QuizQuestion,
@@ -62,6 +64,7 @@ type TestRow = {
   description: string;
   featured: number;
   report_price_cents: number;
+  presentation_mode?: string | null;
   id: string;
   kicker: string;
   position: number;
@@ -147,6 +150,7 @@ async function createSchema(): Promise<void> {
       active INTEGER NOT NULL DEFAULT 1,
       featured INTEGER NOT NULL DEFAULT 0,
       report_price_cents INTEGER NOT NULL DEFAULT ${FULL_REPORT_PRICE_CENTS},
+      presentation_mode TEXT NOT NULL DEFAULT 'image',
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
     db.prepare(`CREATE TABLE IF NOT EXISTS quiz_questions (
@@ -213,9 +217,16 @@ async function createSchema(): Promise<void> {
   await db.prepare(`ALTER TABLE quiz_tests ADD COLUMN report_price_cents INTEGER NOT NULL DEFAULT ${FULL_REPORT_PRICE_CENTS}`).run().catch((error: unknown) => {
     if (!(error instanceof Error) || !/duplicate column name/i.test(error.message)) throw error;
   });
+  await db.prepare("ALTER TABLE quiz_tests ADD COLUMN presentation_mode TEXT NOT NULL DEFAULT 'image'").run().catch((error: unknown) => {
+    if (!(error instanceof Error) || !/duplicate column name/i.test(error.message)) throw error;
+  });
   await db.prepare("ALTER TABLE quiz_sessions ADD COLUMN profile_id TEXT").run().catch((error: unknown) => {
     if (!(error instanceof Error) || !/duplicate column name/i.test(error.message)) throw error;
   });
+  await db.prepare(`CREATE TABLE IF NOT EXISTS quiz_catalog_migrations (
+    id TEXT PRIMARY KEY,
+    applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`).run();
 
   await db.batch([
     db.prepare("CREATE INDEX IF NOT EXISTS affiliate_products_active_idx ON affiliate_products(active, position)"),
@@ -281,6 +292,7 @@ function rowToTest(row: TestRow): QuizTest {
     active: Boolean(row.active),
     featured: Boolean(row.featured),
     reportPriceCents: Number(row.report_price_cents ?? FULL_REPORT_PRICE_CENTS),
+    presentationMode: normalizePresentationMode(row.presentation_mode),
     questionCount: Number(row.question_count ?? 0),
   };
 }
@@ -339,10 +351,10 @@ async function initializeCatalog(): Promise<void> {
       SELECT 1, NOT EXISTS (SELECT 1 FROM quiz_tests) AND NOT EXISTS (SELECT 1 FROM quiz_questions)`),
     ...defaultTests.map((test) =>
       db.prepare(`INSERT OR IGNORE INTO quiz_tests
-        (id, title, kicker, description, cover_atlas_path, accent, results_json, position, active, featured, report_price_cents)
-        SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        (id, title, kicker, description, cover_atlas_path, accent, results_json, position, active, featured, report_price_cents, presentation_mode)
+        SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         WHERE (SELECT seed_defaults FROM quiz_catalog_state WHERE id = 1) = 1`)
-        .bind(test.id, test.title, test.kicker, test.description, test.coverAtlasPath, test.accent, JSON.stringify(test.results ?? {}), test.position, test.active ? 1 : 0, test.featured ? 1 : 0, test.reportPriceCents),
+        .bind(test.id, test.title, test.kicker, test.description, test.coverAtlasPath, test.accent, JSON.stringify(test.results ?? {}), test.position, test.active ? 1 : 0, test.featured ? 1 : 0, test.reportPriceCents, normalizePresentationMode(test.presentationMode)),
     ),
     ...defaultQuestions.map((question) =>
       db.prepare(`INSERT OR IGNORE INTO quiz_questions
@@ -355,12 +367,65 @@ async function initializeCatalog(): Promise<void> {
   ]);
 }
 
+const ATTACHMENT_V12_MIGRATION = "attachment-v12-text-2026-09";
+
+async function applyScopedCatalogMigrations(): Promise<void> {
+  const db = getD1();
+  const applied = await db.prepare("SELECT id FROM quiz_catalog_migrations WHERE id = ?")
+    .bind(ATTACHMENT_V12_MIGRATION)
+    .first();
+  if (applied) return;
+
+  const existing = await db.prepare("SELECT id FROM quiz_tests WHERE id = ?")
+    .bind(ATTACHMENT_TEST_ID)
+    .first();
+  if (!existing) {
+    await db.prepare("INSERT OR IGNORE INTO quiz_catalog_migrations (id) VALUES (?)")
+      .bind(ATTACHMENT_V12_MIGRATION)
+      .run();
+    return;
+  }
+
+  const attachment = defaultTests.find((test) => test.id === ATTACHMENT_TEST_ID);
+  const questions = defaultQuestions.filter((question) => question.testId === ATTACHMENT_TEST_ID);
+  if (!attachment || !questions.length) return;
+
+  await db.batch([
+    db.prepare(`UPDATE quiz_tests
+      SET title = ?, kicker = ?, description = ?, presentation_mode = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?`)
+      .bind(attachment.title, attachment.kicker, attachment.description, normalizePresentationMode(attachment.presentationMode), ATTACHMENT_TEST_ID),
+    ...questions.map((question) =>
+      db.prepare(`INSERT INTO quiz_questions
+        (id, test_id, kicker, prompt, atlas_path, options_json, position, active, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(id) DO UPDATE SET
+          test_id = excluded.test_id,
+          kicker = excluded.kicker,
+          prompt = excluded.prompt,
+          atlas_path = excluded.atlas_path,
+          options_json = excluded.options_json,
+          position = excluded.position,
+          active = excluded.active,
+          updated_at = CURRENT_TIMESTAMP`)
+        .bind(question.id, question.testId, question.kicker, question.prompt, question.atlasPath, JSON.stringify(question.options), question.position, question.active ? 1 : 0),
+    ),
+    db.prepare(`UPDATE quiz_questions SET active = 0, updated_at = CURRENT_TIMESTAMP
+      WHERE test_id = ? AND id NOT IN (${questions.map(() => "?").join(",")})`)
+      .bind(ATTACHMENT_TEST_ID, ...questions.map((question) => question.id)),
+    db.prepare("INSERT OR IGNORE INTO quiz_catalog_migrations (id) VALUES (?)")
+      .bind(ATTACHMENT_V12_MIGRATION),
+  ]);
+}
+
 async function ensureCatalog(): Promise<void> {
   await ensureQuizSchema();
-  catalogReady ??= initializeCatalog().catch((error) => {
-    catalogReady = undefined;
-    throw error;
-  });
+  catalogReady ??= initializeCatalog()
+    .then(() => applyScopedCatalogMigrations())
+    .catch((error) => {
+      catalogReady = undefined;
+      throw error;
+    });
   await catalogReady;
 }
 
@@ -380,8 +445,8 @@ export async function listTests(includeInactive = false): Promise<QuizTest[]> {
 export async function saveTest(test: QuizTest): Promise<void> {
   await ensureCatalog();
   await getD1().prepare(`INSERT INTO quiz_tests
-    (id, title, kicker, description, cover_atlas_path, accent, results_json, position, active, featured, report_price_cents, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    (id, title, kicker, description, cover_atlas_path, accent, results_json, position, active, featured, report_price_cents, presentation_mode, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(id) DO UPDATE SET
       title = excluded.title,
       kicker = excluded.kicker,
@@ -393,8 +458,9 @@ export async function saveTest(test: QuizTest): Promise<void> {
       active = excluded.active,
       featured = excluded.featured,
       report_price_cents = excluded.report_price_cents,
+      presentation_mode = excluded.presentation_mode,
       updated_at = CURRENT_TIMESTAMP`)
-    .bind(test.id, test.title, test.kicker, test.description, test.coverAtlasPath, test.accent, JSON.stringify(test.results ?? {}), test.position, test.active ? 1 : 0, test.featured ? 1 : 0, test.reportPriceCents)
+    .bind(test.id, test.title, test.kicker, test.description, test.coverAtlasPath, test.accent, JSON.stringify(test.results ?? {}), test.position, test.active ? 1 : 0, test.featured ? 1 : 0, test.reportPriceCents, normalizePresentationMode(test.presentationMode))
     .run();
 }
 

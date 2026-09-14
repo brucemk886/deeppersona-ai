@@ -57,6 +57,9 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(quiz, /email_submitted|\/api\/submit/);
   assert.match(quiz, /upgrade_clicked/);
   assert.match(quiz, /Choose \$\{letter\}/);
+  assert.match(quiz, /option-grid-text/);
+  assert.match(quiz, /showsOptionImages/);
+  assert.match(quiz, /presentationMode/);
   assert.doesNotMatch(quiz, /image_zoomed|image-lightbox/);
   assert.match(quiz, /srcSet/);
   assert.match(quiz, /preloadAtlas/);
@@ -94,6 +97,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(choiceInsights, /getOptionInsight/);
   assert.match(choiceInsights, /attachment-style/);
   assert.match(catalog, /attachment-style/);
+  assert.match(catalog, /presentationMode: "text"/);
   assert.match(catalog, /hidden-strength/);
   assert.equal((catalog.match(/id: ATTACHMENT_TEST_ID|id: "[a-z-]+",\r?\n    title:/g) ?? []).length, 8);
   assert.match(admin, /测试管理/);
@@ -126,6 +130,8 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(store, /prompt = excluded.prompt/);
   assert.match(store, /kicker = excluded.kicker/);
   assert.match(store, /atlas_path = excluded.atlas_path/);
+  assert.match(store, /presentation_mode/);
+  assert.match(store, /attachment-v12-text-2026-09/);
   assert.match(homeLanding, /text left on Read/);
   assert.doesNotMatch(homeLanding, /weekend invite/);
   assert.match(catalog, /They invite you to spend a weekend together/);

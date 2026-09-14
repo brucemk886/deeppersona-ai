@@ -32,10 +32,10 @@ export function HomeLanding({
 
       <section className="attach-hero" id="top">
         <div className="attach-hero-copy">
-          <span className="editorial-kicker">A visual quiz for real relationships</span>
+          <span className="editorial-kicker">A first-reaction quiz for real relationships</span>
           <h1>Do you know your attachment style?</h1>
           <p className="hero-lede">
-            Explore the patterns behind how you connect, receive care, and find your way back to each other through {featuredTest?.questionCount || "intuitive"} visual choices.
+            Explore the patterns behind how you connect, receive care, and find your way back to each other through {featuredTest?.questionCount || "20"} first-reaction questions.
           </p>
           <div className="attach-hero-actions">
             <button
@@ -70,7 +70,7 @@ export function HomeLanding({
           <p>
             Researchers often talk about two leanings: how strongly you seek reassurance,
             and how strongly you protect independence. Those leanings can combine into four
-            familiar styles: anxious, avoidant, secure, and fearful-avoidant. Our visual quiz explores your preferences across everyday situations; it does not measure or diagnose those styles.
+            familiar styles: anxious, avoidant, secure, and fearful-avoidant. This quiz explores your first reactions across everyday situations; it does not measure or diagnose those styles.
           </p>
         </div>
         <div className="attach-points">

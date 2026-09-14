@@ -60,7 +60,7 @@ export default async function InsightTopicPage({ params }: { params: Promise<{ s
         <div>
           {tests.map((test) => (
             <Link href={`/tests/${test.id}?utm_source=insights&utm_medium=topic&utm_campaign=${cluster.slug}`} key={test.id}>
-              <span>{test.kicker}</span><h3>{test.title}</h3><p>{test.description}</p><strong>Explore the visual test →</strong>
+              <span>{test.kicker}</span><h3>{test.title}</h3><p>{test.description}</p><strong>Explore the quiz →</strong>
             </Link>
           ))}
         </div>

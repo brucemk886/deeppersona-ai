@@ -37,6 +37,10 @@ test("admin catalog edits persist across public reads and fresh Worker isolates"
     const [catalog, first] = await Promise.all([request("/api/tests"), questions({ admin: true })]);
     assert.equal(first.length, 20);
     const originalTest = catalog.data.tests.find(item => item.id === "attachment-style");
+    assert.ok(originalTest);
+    assert.equal(originalTest.presentationMode, "text");
+    assert.equal(first[0].prompt, "对方聊天突然冷淡、字数变少，你第一瞬间的感觉是？");
+    assert.equal(first[0].atlasPath, "");
     const edited = structuredClone(first[0]);
     Object.assign(edited, { prompt: "ADMIN: Which scene would you choose?", atlasPath: first[1].atlasPath, position: 7 });
     Object.assign(edited.options[0], { label: "A freshly edited image", microcopy: "Edited caption", meaning: "PRIVATE_ADMIN_MEANING", projection: "PRIVATE_ADMIN_PROJECTION", readingFocus: "repair", styleKey: "secure", cardTone: "warm" });

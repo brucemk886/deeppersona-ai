@@ -73,7 +73,7 @@ export default function InsightsPage() {
       <section className="insights-method">
         <div><span>Our approach</span><h2>Reflection without pretending to diagnose you.</h2></div>
         <p>
-          We use psychological research to frame possibilities, not to turn one feeling or image choice into a clinical
+          We use psychological research to frame possibilities, not to turn one feeling or quiz choice into a clinical
           conclusion. Every guide separates evidence from interpretation and links its sources.
         </p>
         <Link href="/disclaimer">Read our self-reflection limits →</Link>

@@ -9,11 +9,13 @@ import { FreeAttachmentResults } from "@/app/_components/free-attachment-results
 import { SceneCard, sceneKeyFromPath } from "@/app/_components/scene-card";
 import { SiteFooter, SiteNav } from "@/app/_components/site-chrome";
 import { ATTACHMENT_TEST_ID } from "@/lib/public-catalog";
-import { QUIZ_HELPER_EN } from "@/lib/quiz-copy";
+import { QUIZ_HELPER_EN, QUIZ_HELPER_TEXT } from "@/lib/quiz-copy";
 import { currentAttribution } from "@/lib/traffic";
 import { requestJson } from '@/lib/browser-request';
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  normalizePresentationMode,
+  showsOptionImages,
   type QuizQuestion,
   type AffiliateProduct,
   type QuizTest,
@@ -439,7 +441,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
       void loadQuestions(featuredTest.id)
         .then((loadedQuestions) => {
           const first = loadedQuestions[0];
-          if (first && !sceneKeyFromPath(first.atlasPath)) preloadAtlas(first.atlasPath);
+          if (first && showsOptionImages(featuredTest, first.atlasPath) && !sceneKeyFromPath(first.atlasPath)) preloadAtlas(first.atlasPath);
         })
         .catch(() => undefined);
     }, 900);
@@ -449,7 +451,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
   useEffect(() => {
     if (stage !== "quiz") return;
     const nextQuestion = questions[questionIndex + 1];
-    if (nextQuestion && !sceneKeyFromPath(nextQuestion.atlasPath)) preloadAtlas(nextQuestion.atlasPath);
+    if (nextQuestion && showsOptionImages(selectedTest, nextQuestion.atlasPath) && !sceneKeyFromPath(nextQuestion.atlasPath)) preloadAtlas(nextQuestion.atlasPath);
   }, [questionIndex, questions, stage]);
 
   function detailHref(test: QuizTest, content?: string) {
@@ -462,7 +464,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
   }
 
   function prepareDetail(test: QuizTest) {
-    if (!sceneKeyFromPath(test.coverAtlasPath)) preloadAtlas(test.coverAtlasPath);
+    if (showsOptionImages(test, test.coverAtlasPath) && !sceneKeyFromPath(test.coverAtlasPath)) preloadAtlas(test.coverAtlasPath);
     void loadQuestions(test.id).catch(() => undefined);
   }
 
@@ -478,7 +480,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
       const readyQuestions = await loadQuestions(test.id);
       if (!readyQuestions.length) throw new Error("This quiz is being prepared. The older question set has been removed.");
       const firstScene = sceneKeyFromPath(readyQuestions[0].atlasPath);
-      if (!firstScene) preloadAtlas(readyQuestions[0].atlasPath);
+      if (showsOptionImages(test, readyQuestions[0].atlasPath) && !firstScene) preloadAtlas(readyQuestions[0].atlasPath);
       const nextSession = crypto.randomUUID();
       setSessionId(nextSession);
       setSelectedTest(test);
@@ -634,29 +636,33 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
     const detailQuestions = initialQuestions.filter((question) => question.testId === selectedTest.id && question.active)
       .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
     const detailQuestion = detailQuestions[0];
-    const detailPrompt = detailQuestion?.prompt ?? "Choose the scene that matches your first move.";
+    const textMode = normalizePresentationMode(selectedTest.presentationMode) === "text";
+    const detailPrompt = textMode ? selectedTest.title : (detailQuestion?.prompt ?? "Choose the scene that matches your first move.");
     const questionCount = detailQuestions.length;
     const previewScene = detailQuestion ? sceneKeyFromPath(detailQuestion.atlasPath) : "phone";
     const quizReady = questionCount > 0;
+    const showGallery = quizReady && showsOptionImages(selectedTest, detailQuestion?.atlasPath ?? selectedTest.coverAtlasPath);
     return (
       <main className="test-detail-shell">
         <SiteNav active="quiz" />
-        <section className="detail-stage" style={{ "--test-accent": selectedTest.accent } as React.CSSProperties}>
-          <div className="detail-gallery" aria-label="Four visual choices preview">
-            {previewScene
-              ? [0, 1, 2, 3].map((index) => <SceneCard index={index} key={index} scene={previewScene} />)
-              : [0, 1, 2, 3].map((index) => <AtlasImage index={index} key={index} loading="eager" path={detailQuestion?.atlasPath ?? selectedTest.coverAtlasPath} priority={index === 0} sizes="(max-width: 640px) 50vw, 340px" />)}
-            <span className="detail-gallery-tag">Choose the one you feel first</span>
-          </div>
+        <section className={`detail-stage ${textMode ? "detail-stage-text" : ""}`} style={{ "--test-accent": selectedTest.accent } as React.CSSProperties}>
+          {showGallery ? (
+            <div className="detail-gallery" aria-label="Four visual choices preview">
+              {previewScene
+                ? [0, 1, 2, 3].map((index) => <SceneCard index={index} key={index} scene={previewScene} />)
+                : [0, 1, 2, 3].map((index) => <AtlasImage index={index} key={index} loading="eager" path={detailQuestion?.atlasPath ?? selectedTest.coverAtlasPath} priority={index === 0} sizes="(max-width: 640px) 50vw, 340px" />)}
+              <span className="detail-gallery-tag">Choose the one you feel first</span>
+            </div>
+          ) : null}
           <div className="detail-story">
             <span className="detail-category">{selectedTest.kicker}</span>
-            <p className="detail-count">{quizReady ? `${questionCount} image choices · about 4 minutes` : "This older item bank has been removed"}</p>
+            <p className="detail-count">{quizReady ? `${questionCount} ${textMode ? "questions" : "image choices"} · about 4 minutes` : "This older item bank has been removed"}</p>
             <h1>{quizReady ? detailPrompt : "This quiz is being prepared."}</h1>
-            <p className="detail-intro">{quizReady ? "There is no right answer. Pick the scene that matches your first move when closeness feels uncertain." : "The previous question set is no longer offered. Start the free attachment quiz when you are ready."}</p>
+            <p className="detail-intro">{quizReady ? (textMode ? selectedTest.description : "There is no right answer. Pick the scene that matches your first move when closeness feels uncertain.") : "The previous question set is no longer offered. Start the free attachment quiz when you are ready."}</p>
             <p className="service-context">For entertainment and self-reflection, not diagnosis or treatment. <Link href="/disclaimer">Read the limitations</Link></p>
-            {quizReady ? <div className="detail-reveal"><span>YOUR FREE RESULT INCLUDES</span><div><p>A primary style label, anxiety × avoidance map, and a type overview.</p><p>Your common loop, a childhood teaser, and a worth-pattern snapshot.</p><p>A full reading with every selected image unpacked.</p></div></div> : null}
+            {quizReady ? <div className="detail-reveal"><span>YOUR FREE RESULT INCLUDES</span><div><p>A primary style label, anxiety × avoidance map, and a type overview.</p><p>Your common loop, and a worth-pattern snapshot.</p><p>A full reading that can quote the option wording you chose.</p></div></div> : null}
             <button className="primary-button detail-cta" disabled={!quizReady || loadingTest === selectedTest.id} onClick={() => void startTest(selectedTest)}>{!quizReady ? "Quiz items coming next" : loadingTest === selectedTest.id ? "Opening…" : "Start the free quiz"} <span aria-hidden="true">→</span></button>
-            <div className="detail-assurance"><span>Free visual test</span><i /> <span>Private by design</span>{selectedTest.reportPriceCents > 0 ? <><i /> <span>Optional report: USD {(selectedTest.reportPriceCents / 100).toFixed(2)}</span></> : null}</div>
+            <div className="detail-assurance"><span>{textMode ? "Free first-reaction quiz" : "Free visual test"}</span><i /> <span>Private by design</span>{selectedTest.reportPriceCents > 0 ? <><i /> <span>Optional report: USD {(selectedTest.reportPriceCents / 100).toFixed(2)}</span></> : null}</div>
             {selectedTest.reportPriceCents > 0 ? <p className="detail-purchase-note">The type is free. A longer reading is a one-time optional payment. No subscription.</p> : null}
             {error ? <p className="form-error" role="alert">{error}</p> : null}
           </div>
@@ -677,6 +683,8 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
   }
 
   if (stage === "quiz" && activeQuestion && selectedTest) {
+    const textMode = normalizePresentationMode(selectedTest.presentationMode) === "text";
+    const showImages = showsOptionImages(selectedTest, activeQuestion.atlasPath);
     return (
       <main className="quiz-shell">
         <header className="quiz-header">
@@ -684,20 +692,22 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
           <div className="progress-copy"><span>{relationshipContext ? `With ${relationshipContext.nickname} · ${selectedTest.title}` : selectedTest.title} · {questionIndex + 1} of {questions.length}</span><span>{Math.round(progress)}%</span></div>
           <div className="progress-track"><span style={{ width: `${progress}%`, background: selectedTest.accent }} /></div>
         </header>
-        <section className="question-section">
-          <div className="question-heading"><span>{relationshipContext ? `Thinking of ${relationshipContext.nickname}` : activeQuestion.kicker}</span><h1>{activeQuestion.prompt}</h1><p>{relationshipContext ? `Keep ${relationshipContext.nickname} in mind. Notice the first response this relationship brings up.` : QUIZ_HELPER_EN}</p></div>
-          <div className="option-grid" role="radiogroup" aria-label={activeQuestion.prompt}>
+        <section className={`question-section ${textMode ? "question-section-text" : ""}`}>
+          <div className="question-heading"><span>{relationshipContext ? `Thinking of ${relationshipContext.nickname}` : activeQuestion.kicker}</span><h1>{activeQuestion.prompt}</h1><p>{relationshipContext ? `Keep ${relationshipContext.nickname} in mind. Notice the first response this relationship brings up.` : (textMode ? QUIZ_HELPER_TEXT : QUIZ_HELPER_EN)}</p></div>
+          <div className={`option-grid ${showImages ? "" : "option-grid-text"}`} role="radiogroup" aria-label={activeQuestion.prompt}>
             {activeQuestion.options.map((option, index) => {
               const selected = selectedOptionIndex === index;
               const letter = String.fromCharCode(65 + index);
               return (
-                <article className={`option-card ${selected ? "selected" : ""} ${isAdvancing && selected ? "is-confirming" : ""}`} key={`${activeQuestion.id}-${index}`}>
-                  <button aria-label={`Choose ${letter}: ${option.label}`} className="option-image-trigger" disabled={isAdvancing} onClick={() => chooseAnswer(option.label, index)} type="button">
-                    {sceneKeyFromPath(activeQuestion.atlasPath)
-                      ? <SceneCard className="option-image" index={index} scene={sceneKeyFromPath(activeQuestion.atlasPath) ?? "phone"} />
-                      : <AtlasImage className="option-image" index={index} loading="eager" path={activeQuestion.atlasPath} priority={index === 0} />}
-                  </button>
-                  <button aria-checked={selected} className="option-select" disabled={isAdvancing} onClick={() => chooseAnswer(option.label, index)} role="radio" type="button">
+                <article className={`option-card ${showImages ? "" : "option-card-text"} ${selected ? "selected" : ""} ${isAdvancing && selected ? "is-confirming" : ""}`} key={`${activeQuestion.id}-${index}`}>
+                  {showImages ? (
+                    <button aria-label={`Choose ${letter}: ${option.label}`} className="option-image-trigger" disabled={isAdvancing} onClick={() => chooseAnswer(option.label, index)} type="button">
+                      {sceneKeyFromPath(activeQuestion.atlasPath)
+                        ? <SceneCard className="option-image" index={index} scene={sceneKeyFromPath(activeQuestion.atlasPath) ?? "phone"} />
+                        : <AtlasImage className="option-image" index={index} loading="eager" path={activeQuestion.atlasPath} priority={index === 0} />}
+                    </button>
+                  ) : null}
+                  <button aria-checked={selected} aria-label={`Choose ${letter}: ${option.label}`} className="option-select" disabled={isAdvancing} onClick={() => chooseAnswer(option.label, index)} role="radio" type="button">
                     <span className="option-meta"><span className="option-letter">{letter}</span><span><strong>{option.label}</strong>{option.microcopy && option.microcopy !== option.label ? <small>{option.microcopy}</small> : null}</span><span className="selection-mark" aria-hidden="true">✓</span></span>
                   </button>
                 </article>
@@ -718,9 +728,11 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
         <section className="email-gate">
           <div className="result-teaser"><span className="result-seal">Choices complete</span><div className="blurred-result"><span>{selectedTest.title}</span><h2>{preview.title}</h2><p>{preview.summary}</p></div></div>
           <form className="email-form" onSubmit={unlockResult}>
-            <span className="pill">Your visual choices are complete</span>
+            <span className="pill">{normalizePresentationMode(selectedTest.presentationMode) === "text" ? "Your choices are complete" : "Your visual choices are complete"}</span>
             <h1>See your relationship patterns.</h1>
-            <p>You have completed the image choices. Enter your email to save your result and see your free summary. A longer written report with five themes and an interpretation of each selected image is optional.</p>
+            <p>{normalizePresentationMode(selectedTest.presentationMode) === "text"
+              ? "You have completed the questions. Enter your email to save your result and see your free summary. A longer written report that can quote the option wording you chose is optional."
+              : "You have completed the image choices. Enter your email to save your result and see your free summary. A longer written report with five themes and an interpretation of each selected image is optional."}</p>
             {profile.email ? <div className="saved-profile-email"><span>Saving this reflection to</span><strong>{profile.email}</strong></div> : <><label htmlFor="email">Email address</label><input aria-invalid={Boolean(error)} autoComplete="email" id="email" onBlur={(event) => { const validation = validateEmailAddress(event.target.value); if (!validation.valid) setError(validation.message); }} onChange={(event) => { setEmail(event.target.value); setError(""); }} placeholder="name@gmail.com" required type="email" value={email} /><small className="email-hint">Use an email you can access. Test, placeholder, and malformed addresses are not accepted.</small></>}            {error ? <p className="form-error" role="alert">{error}</p> : null}
             <button className="primary-button full-button" disabled={submitting} type="submit">{submitting ? "Saving your result…" : "See my result →"}</button>
             <small className="privacy-note">No password is needed on this device. By continuing, you acknowledge our <Link href="/privacy">Privacy Policy</Link> and <Link href="/terms">Terms</Link>.</small>
@@ -745,9 +757,10 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
         <article className="result-card result-card-expanded ap-paid">
           <header className="ap-hero">
             <p className="ap-kicker">{selectedTest.title}</p>
-            <span className="result-basis">Based on {answeredChoices.length} visual choices</span>
+            <span className="result-basis">Based on {answeredChoices.length} {normalizePresentationMode(selectedTest.presentationMode) === "text" ? "choices" : "visual choices"}</span>
             <h1>{result.title}</h1>
             {result.themeTitle ? <p className="ap-hero-sub">{result.themeTitle}</p> : null}
+            {result.secondaryKey ? <p className="result-secondary">{result.dualHigh ? "Dual-high" : "Also high"}: {result.secondaryKey === "fearful" ? "Fearful-Avoidant" : result.secondaryKey}</p> : null}
             <p className="result-summary">{result.summary}</p>
             <StyleBanner styleKey={result.key} />
           </header>
@@ -807,15 +820,17 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
           <section className="choice-review" aria-labelledby="choice-review-title">
             <header>
               <span>Your choices, decoded</span>
-              <h2 id="choice-review-title">What each image may be reflecting back to you</h2>
-              <p>This is the part that shaped your result: the interpretation associated with each image you selected.</p>
+              <h2 id="choice-review-title">{normalizePresentationMode(selectedTest.presentationMode) === "text" ? "What each choice may be reflecting back to you" : "What each image may be reflecting back to you"}</h2>
+              <p>This is the part that shaped your result: the interpretation associated with each option you selected.</p>
             </header>
             <div className="choice-review-list">
               {answeredChoices.map(({ option, question, questionNumber, selectedIndex }) => (
                 <article className="choice-review-card" key={question.id}>
-                  {sceneKeyFromPath(question.atlasPath)
-                    ? <SceneCard className="choice-review-image" index={selectedIndex} scene={sceneKeyFromPath(question.atlasPath) ?? "phone"} />
-                    : <AtlasImage className="choice-review-image" index={selectedIndex} loading="eager" path={question.atlasPath} sizes="180px" />}
+                  {showsOptionImages(selectedTest, question.atlasPath)
+                    ? (sceneKeyFromPath(question.atlasPath)
+                      ? <SceneCard className="choice-review-image" index={selectedIndex} scene={sceneKeyFromPath(question.atlasPath) ?? "phone"} />
+                      : <AtlasImage className="choice-review-image" index={selectedIndex} loading="eager" path={question.atlasPath} sizes="180px" />)
+                    : null}
                   <div className="choice-review-copy">
                     <div className="choice-review-meta"><span>Question {questionNumber}</span><strong>You chose {String.fromCharCode(65 + selectedIndex)}</strong></div>
                     <p className="choice-review-question">{question.prompt}</p>
@@ -887,7 +902,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
           </div> : null}
 
           <section className="reflection-card"><span>A question worth keeping</span><p>“{deepResult.lens.reflectionPrompt}”</p></section>
-          {initialReportId ? <p><Link href="/recover">Find my paid reports / Resend report email</Link></p> : null}<p className="result-disclaimer">This is a self-reflection tool based on your image choices, not a clinical assessment or diagnosis.</p>          {relationshipContext ? <section className="relationship-saved"><span>Relationship map updated</span><h2>This reflection now belongs to your connection with {relationshipContext.nickname}.</h2><p>It records your experience in this relationship, not a conclusion about the other person. Return to your map to keep adding context over time.</p></section> : null}
+          {initialReportId ? <p><Link href="/recover">Find my paid reports / Resend report email</Link></p> : null}<p className="result-disclaimer">This is a self-reflection tool based on your choices, not a clinical assessment or diagnosis.</p>          {relationshipContext ? <section className="relationship-saved"><span>Relationship map updated</span><h2>This reflection now belongs to your connection with {relationshipContext.nickname}.</h2><p>It records your experience in this relationship, not a conclusion about the other person. Return to your map to keep adding context over time.</p></section> : null}
 
           {RESULT_MAP_ENABLED ? <>
             <section className="map-unlock-copy"><span>New dimension added</span><h2>{TEST_DIMENSIONS[selectedTest.id] ? `${mapDimensions.find((dimension) => dimension.id === TEST_DIMENSIONS[selectedTest.id])?.label} is now part of your map.` : "Your Inner Map has started."}</h2><p>This is not a fixed label. Every future reflection adds context and can make the pattern more precise.</p></section>

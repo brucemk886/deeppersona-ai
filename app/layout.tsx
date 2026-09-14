@@ -19,7 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase,
     title: "DeepPersona AI — Free Attachment Style Quiz",
     description:
-      "A free 12-image attachment quiz for adult relationships. See whether you lean anxious, avoidant, secure, or fearful-avoidant. Educational self-reflection, not a diagnosis.",
+      "A free 20-question attachment quiz for adult relationships. See whether you lean anxious, avoidant, secure, or fearful-avoidant. Educational self-reflection, not a diagnosis.",
     applicationName: "DeepPersona AI",
     icons: {
       icon: [
@@ -31,14 +31,14 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     openGraph: {
       title: "Do you know your attachment style?",
-      description: "Take the free 12-image quiz from DeepPersona AI. Educational self-reflection, not a diagnosis.",
+      description: "Take the free 20-question quiz from DeepPersona AI. Educational self-reflection, not a diagnosis.",
       type: "website",
       images: metadataBase ? [{ url: new URL("/og-deep-persona.png", metadataBase) }] : undefined,
     },
     twitter: {
       card: "summary_large_image",
       title: "Do you know your attachment style?",
-      description: "Take the free 12-image quiz from DeepPersona AI. Educational self-reflection, not a diagnosis.",
+      description: "Take the free 20-question quiz from DeepPersona AI. Educational self-reflection, not a diagnosis.",
       images: metadataBase ? [new URL("/og-deep-persona.png", metadataBase)] : undefined,
     },
     robots: { index: true, follow: true },

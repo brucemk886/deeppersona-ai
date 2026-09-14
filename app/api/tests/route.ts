@@ -2,7 +2,7 @@ import { publicTest } from "@/lib/public-quiz";
 import { isAdminRequest } from "@/app/admin-auth";
 import { deleteTest, listTests, saveTest } from "@/db/quiz-store";
 import { paymentError, requireSameOrigin } from "@/lib/payment-http";
-import { type QuizTest } from "@/lib/quiz";
+import { normalizePresentationMode, type QuizTest } from "@/lib/quiz";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +46,7 @@ export async function PUT(request: Request) {
     Number.isFinite(body.position);
 
   if (!valid) return Response.json({ error: "Invalid test payload" }, { status: 400 });
-  await saveTest(body);
+  await saveTest({ ...body, presentationMode: normalizePresentationMode(body.presentationMode) });
   return Response.json({ ok: true });
 }
 

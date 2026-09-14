@@ -106,7 +106,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
             <span>Continue with images</span>
             <h2>{test?.title ?? "Attachment Style Quiz"}</h2>
             <p>{BLOG_CTA_COPY}</p>
-            <Link href={quizHref}>Start the free visual quiz <span aria-hidden="true">→</span></Link>
+            <Link href={quizHref}>Start the free quiz <span aria-hidden="true">→</span></Link>
             <small>Image-based self-reflection · not a diagnosis</small>
           </aside>
         </div>

@@ -13,8 +13,10 @@ import {
   scoreOnSeven,
   STYLE_DIMENSIONS,
 } from "../lib/attachment.ts";
-import { relationshipQuestions } from '../lib/relationship-content.ts';
+import { ATTACHMENT_V12_BANK, relationshipQuestions } from '../lib/relationship-content.ts';
 import { PUBLIC_QUESTION_IDS } from '../lib/public-catalog.ts';
+import { defaultTests } from '../lib/quiz-content.ts';
+import { normalizePresentationMode, showsOptionImages } from '../lib/quiz.ts';
 
 const questions = [1, 2, 3, 4].map((position) => ({
   id: `q${position}`,
@@ -32,66 +34,62 @@ const questions = [1, 2, 3, 4].map((position) => ({
   ],
 }));
 
-const SHORT_QUIZ_BANK = [
-  ["Your text shows Read — 2 hours, no reply. What do you do first?", ["Refresh the chat", "Phone face-down", "Wait, then text once", "Draft, delete, redraft"]],
-  ["Replies are just \"k\" / \"busy\" / \"later.\" You…", ["Spiral on old chats", "Match the chill", "Stay steady, ask once", "Double-text, then go cold"]],
-  ["They say they need tonight alone. You…", ["Push to FaceTime / come over", "Feel relief; reply tomorrow", "\"Cool — talk tomorrow?\"", "Say OK, then check if online"]],
-  ["You're exclusive but never defined it. Friend asks if you're official. You…", ["Bring it up tonight", "Dodge the label", "Ask calmly this weekend", "Want it and fear the cage"]],
-  ["After a good week they get more affectionate. You…", ["Lean in harder", "Pull back a notch", "Enjoy it, keep your pace", "Melt in, cool off tomorrow"]],
-  ["Rough day. They ask what's wrong. You…", ["Spill everything", "Say you're fine", "Share the headline + ask", "Start, then shut down"]],
-  ["Three days together. Sunday afternoon you want…", ["One more plan together", "Real alone time", "Hours apart, dinner later", "Ask for space, then cling"]],
-  ["After a fight, silence. First move?", ["Text / call to fix it", "Leave to cool off", "\"20 minutes, then talk\"", "Push away, then panic"]],
-  ["They apologize — not with every detail you wanted. You…", ["Keep pressing", "Say it's fine; stay cold", "Name what's missing once", "Accept, then bring it up later"]],
-  ["Same fight, third time. You…", ["Protest harder", "Shut down", "Own your part + one change", "Explode, then ghost"]],
-  ["They tear up sharing something hard. You…", ["Jump in / rush to fix", "Joke or intellectualize", "Listen; ask what they need", "Feel close, then need air"]],
-  ["Morning after a really close night. You…", ["Need texts and plans", "Need quiet space", "Warm and normal", "Close at night, distant by noon"]],
-  ["They sincerely compliment you. You…", ["Ask if they mean it", "Deflect / change subject", "Take it in, say thanks", "Feel good, then unworthy"]],
-  ["You replied late or said the wrong thing. You…", ["Over-apologize", "Act like nothing happened", "Own it once, move on", "Want to explain and disappear"]],
-  ["Someone in their world seems \"better.\" You…", ["Seek reassurance you're chosen", "Cool off; say you don't care", "Feel a flicker, stay grounded", "Look fine; spiral later"]],
-  ["Late night: do I deserve steady love?", ["Fear the answer is no", "Prefer self-reliance", "Mostly believe you do", "Sometimes yes, sometimes ruin it"]],
-  ["As a kid, when scared or upset, you usually…", ["Cling for promises", "Hide; say you're fine", "Tell someone + take space", "Freeze at the door"]],
-  ["When you cried or got angry as a kid…", ["Soothed — still feared annoyance", "Told to hide it", "Listened to, no shame", "Sometimes held, sometimes yelled at"]],
-  ["When you needed help as a kid, you…", ["Kept calling until someone came", "Tough it out alone", "Asked clearly when you could", "Called out, then said never mind"]],
-  ["Goodbye for school / parent leaving. You were…", ["Hard to separate", "Leave fast; look unfazed", "Feel it, then trust return", "Say go — panic inside"]],
-];
-
-test("public catalog uses the short v7 prompts and option labels", () => {
-  assert.equal(relationshipQuestions.length, SHORT_QUIZ_BANK.length);
+test("attachment quiz uses the V1.2 Chinese text bank", () => {
+  assert.equal(relationshipQuestions.length, ATTACHMENT_V12_BANK.length);
+  assert.equal(relationshipQuestions.length, 20);
   relationshipQuestions.forEach((question, index) => {
-    const [prompt, labels] = SHORT_QUIZ_BANK[index];
-    assert.equal(question.prompt, prompt);
-    assert.deepEqual(question.options.map((option) => option.label), labels);
-    assert.deepEqual(question.options.map((option) => option.microcopy), labels);
-    assert.equal(question.atlasPath, `/quiz/relationship-v7/q${String(index + 1).padStart(2, "0")}.webp`);
+    const item = ATTACHMENT_V12_BANK[index];
+    assert.equal(question.prompt, item.prompt);
+    assert.deepEqual(question.options.map((option) => option.label), [item.anxious, item.avoidant, item.secure, item.fearful]);
+    assert.deepEqual(question.options.map((option) => option.microcopy), [item.anxious, item.avoidant, item.secure, item.fearful]);
+    assert.equal(question.atlasPath, "");
+    assert.equal(question.kicker, "第一反应");
   });
-  assert.match(relationshipQuestions[0].prompt, /text shows Read/);
-  assert.doesNotMatch(relationshipQuestions[0].prompt, /email|Left on read|left you on read/i);
-  assert.doesNotMatch(relationshipQuestions.map((question) => question.prompt).join("\n"), /weekend together|new town|cinema/i);
+  assert.match(relationshipQuestions[0].prompt, /对方聊天突然冷淡/);
+  assert.match(relationshipQuestions[0].options[0].label, /我是不是哪句话说错了/);
+  assert.doesNotMatch(relationshipQuestions.map((question) => question.prompt).join("\n"), /weekend together|new town|cinema|text shows Read/i);
 });
 
-test("public catalog contains twenty distinct image scenarios and eighty interpretations", async () => {
+test("public catalog contains twenty distinct text questions and eighty interpretations", async () => {
   const catalog = await readFile(new URL("../lib/quiz-content.ts", import.meta.url), "utf8");
   const live = catalog.slice(0, catalog.indexOf("RETIRED_QUESTION_PROMPTS"));
   assert.equal(relationshipQuestions.length, 20);
   assert.equal(new Set(relationshipQuestions.map(q => q.id)).size, 20);
   assert.deepEqual(new Set(relationshipQuestions.map(q => q.id)), PUBLIC_QUESTION_IDS);
   assert.equal(new Set(relationshipQuestions.flatMap(q => q.options.map(o => o.meaning))).size, 80);
-  const kickers = relationshipQuestions.map(q => q.kicker);
-  assert.deepEqual(kickers.slice(0, 12), Array(12).fill("Romance"));
-  assert.deepEqual(kickers.slice(12, 16), Array(4).fill("Self-esteem"));
-  assert.deepEqual(kickers.slice(16), Array(4).fill("Childhood"));
+  assert.deepEqual(relationshipQuestions.map(q => q.kicker), Array(20).fill("第一反应"));
   for (const q of relationshipQuestions) {
     assert.equal(q.options.length, 4);
     assert.ok(q.options.every(o=>o.meaning.length>80 && o.readingFocus && o.styleKey && o.microcopy === o.label));
     assert.deepEqual(q.options.map(o => o.styleKey), ["anxious", "avoidant", "secure", "fearful"]);
-    await readFile(new URL('../public'+q.atlasPath, import.meta.url));
+    assert.equal(q.atlasPath, "");
   }
+  const attachment = defaultTests.find((test) => test.id === "attachment-style");
+  assert.equal(attachment?.presentationMode, "text");
+  assert.equal(attachment?.title, "依恋风格自测：20个真实暴击瞬间");
+  assert.match(attachment?.description ?? "", /不要选「成熟体面的做法」/);
+  assert.ok(defaultTests.filter((test) => test.id !== "attachment-style").every((test) => test.presentationMode === "image"));
   assert.doesNotMatch(live, /They suddenly go quiet/);
   assert.doesNotMatch(live, /Which room feels safest to share/);
   assert.doesNotMatch(live, /Move toward it/);
   assert.doesNotMatch(catalog, /id: "attachment-style-1"/);
   assert.match(catalog, /RETIRED_QUESTION_PROMPTS/);
   assert.doesNotMatch(live, /scene:/);
+});
+
+test("presentationMode keeps image quizzes available", () => {
+  assert.equal(normalizePresentationMode("text"), "text");
+  assert.equal(normalizePresentationMode("image"), "image");
+  assert.equal(normalizePresentationMode(undefined), "image");
+  assert.equal(showsOptionImages({ presentationMode: "text" }, "/quiz/relationship-v7/q01.webp"), false);
+  assert.equal(showsOptionImages({ presentationMode: "image" }, ""), false);
+  assert.equal(showsOptionImages({ presentationMode: "image" }, "/quiz/doors.png"), true);
+  const imageFixture = {
+    id: "image-fixture",
+    atlasPath: "scene:phone",
+    options: questions[0].options,
+  };
+  assert.equal(showsOptionImages({ presentationMode: "image" }, imageFixture.atlasPath), true);
 });
 
 test("selected option labels and style keys travel with the option, not the slot", () => {
@@ -103,14 +101,10 @@ test("selected option labels and style keys travel with the option, not the slot
   assert.deepEqual(again.map((option) => option.label), selected.map((option) => option.label));
   assert.deepEqual(again.map((option) => option.styleKey), selected.map((option) => option.styleKey));
   assert.equal(scoreAttachment(relationshipQuestions, choices).style, scoreAttachment(reversed, remapped).style);
-  assert.deepEqual(relationshipQuestions.map((q) => q.kicker), [
-    ...Array(12).fill("Romance"),
-    ...Array(4).fill("Self-esteem"),
-    ...Array(4).fill("Childhood"),
-  ]);
+  assert.deepEqual(relationshipQuestions.map((q) => q.kicker), Array(20).fill("第一反应"));
 });
 
-test("relationship image choices map onto the four attachment styles", () => {
+test("relationship text choices map onto the four attachment styles", () => {
   const pick = (index) => Object.fromEntries(relationshipQuestions.map((question) => [question.id, index]));
   assert.equal(scoreAttachment(relationshipQuestions, pick(0)).style, "anxious");
   assert.equal(scoreAttachment(relationshipQuestions, pick(1)).style, "avoidant");
@@ -177,30 +171,36 @@ test("how-you-scored uses a 0-7 scale with Low to Very High labels", () => {
   assert.equal(intensityLabel(80), "Very High");
 });
 
-test("caregiver scores come from childhood items only, not invented Mother/Father/Work dots", () => {
+test("V1.2 has no childhood subset, so caregiver scoring stays unanswered", () => {
   const anxious = Object.fromEntries(relationshipQuestions.map((question) => [question.id, 0]));
   const childhoodAnxious = scoreAttachmentSubset(relationshipQuestions, anxious, "Childhood");
   const overall = scoreAttachment(relationshipQuestions, anxious);
-  assert.equal(childhoodAnxious.answered, 4);
-  assert.equal(childhoodAnxious.style, "anxious");
+  assert.equal(childhoodAnxious.answered, 0);
   assert.equal(overall.answered, 20);
-  const mixed = Object.fromEntries(relationshipQuestions.map((question, index) => [question.id, index < 16 ? 2 : 0]));
-  const caregiver = scoreAttachmentSubset(relationshipQuestions, mixed, "Childhood");
-  const romance = scoreAttachmentSubset(relationshipQuestions, mixed, "Romance");
-  assert.equal(caregiver.style, "anxious");
-  assert.equal(romance.style, "secure");
-  assert.notEqual(caregiver.anxiety, romance.anxiety);
+  assert.equal(overall.style, "anxious");
+});
+
+test("majority vote surfaces a secondary style on ties", () => {
+  const indexes = [...Array(10).fill(0), ...Array(10).fill(1)];
+  const choices = Object.fromEntries(relationshipQuestions.map((question, index) => [question.id, indexes[index]]));
+  const scored = scoreAttachment(relationshipQuestions, choices);
+  assert.equal(scored.dualHigh, true);
+  assert.ok(scored.secondary);
+  assert.notEqual(scored.secondary, scored.style);
+  const result = buildAttachmentResult(relationshipQuestions, choices);
+  assert.equal(result.dualHigh, true);
+  assert.ok(result.secondaryKey);
 });
 
 test("paywall inclusions stay at three bullets without invented multi-context scores", async () => {
   const report = await readFile(new URL("../lib/attachment-report.ts", import.meta.url), "utf8");
   const preview = await readFile(new URL("../lib/report-preview.ts", import.meta.url), "utf8");
   const quiz = await readFile(new URL("../app/_components/free-attachment-results.tsx", import.meta.url), "utf8");
-  assert.match(report, /An interpretation of every image you selected/);
+  assert.match(report, /An interpretation of every choice you selected/);
   assert.match(report, /Pairing notes versus each of the four styles/);
   assert.match(report, /Seven-day micro practices/);
   assert.match(report, /not blame statements about caregivers/);
-  assert.match(report, /In one romance scene you chose/);
+  assert.match(report, /In one scene you chose/);
   assert.doesNotMatch(report + preview + quiz, /Mother \(CG|Father \(CG|AT WORK|millions of users/);
   assert.doesNotMatch(report, /The full self-talk rewrite sits in the paid reading/);
 });

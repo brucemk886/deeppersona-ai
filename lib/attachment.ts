@@ -380,7 +380,15 @@ export function selfWorthSnapshot(
 export function scoreAttachment(
   questions: QuizQuestion[],
   choices: Record<string, number>,
-): { anxiety: number; avoidance: number; style: AttachmentStyle; answered: number } {
+): {
+  anxiety: number;
+  avoidance: number;
+  style: AttachmentStyle;
+  answered: number;
+  secondary?: AttachmentStyle;
+  dualHigh: boolean;
+  tally: Record<AttachmentStyle, number>;
+} {
   let anxiety = 0;
   let avoidance = 0;
   let answered = 0;
@@ -401,15 +409,23 @@ export function scoreAttachment(
   const max = Math.max(answered * 2, 1);
   const anxietyScore = Math.round((anxiety / max) * 100);
   const avoidanceScore = Math.round((avoidance / max) * 100);
-  const top = Math.max(...ATTACHMENT_STYLES.map((key) => tally[key]));
-  const tied = ATTACHMENT_STYLES.filter((key) => tally[key] === top && top > 0);
-  const style = tied.length === 1 ? tied[0] : classifyAttachment(anxietyScore, avoidanceScore);
+  const ranked = ATTACHMENT_STYLES
+    .map((key) => ({ key, count: tally[key] }))
+    .sort((a, b) => b.count - a.count || ATTACHMENT_STYLES.indexOf(a.key) - ATTACHMENT_STYLES.indexOf(b.key));
+  const top = ranked[0]?.count ?? 0;
+  const tied = ranked.filter((item) => item.count === top && top > 0);
+  const dualHigh = tied.length > 1;
+  const style = tied.length === 1 ? tied[0].key : classifyAttachment(anxietyScore, avoidanceScore);
+  const secondary = (dualHigh ? tied.find((item) => item.key !== style) : ranked[1]?.count ? ranked[1] : undefined)?.key;
 
   return {
     anxiety: anxietyScore,
     avoidance: avoidanceScore,
     style,
     answered,
+    ...(secondary ? { secondary } : {}),
+    dualHigh,
+    tally,
   };
 }
 
@@ -417,14 +433,17 @@ export function buildAttachmentResult(
   questions: QuizQuestion[],
   choices: Record<string, number>,
 ): ResultProfile {
-  const { anxiety, avoidance, style } = scoreAttachment(questions, choices);
+  const { anxiety, avoidance, style, secondary, dualHigh } = scoreAttachment(questions, choices);
   const profile = ATTACHMENT_RESULTS[style];
   return {
     key: style,
     ...profile,
-    themeTitle: ATTACHMENT_STYLE_META[style].blurb,
+    themeTitle: dualHigh && secondary
+      ? `${ATTACHMENT_STYLE_META[style].label} and ${ATTACHMENT_STYLE_META[secondary].label} both scored highest.`
+      : ATTACHMENT_STYLE_META[style].blurb,
     anxiety,
     avoidance,
+    ...(secondary ? { secondaryKey: secondary, dualHigh } : {}),
   };
 }
 
@@ -442,7 +461,7 @@ export function applyAttachmentStyle(
       key: scored.style,
       title: styleLabel,
       themeTitle: ATTACHMENT_STYLE_META[scored.style].blurb,
-      summary: `Your image choices land closest to ${styleLabel}. ${profile.summary}`,
+      summary: `Your choices land closest to ${styleLabel}. ${profile.summary}`,
       anxiety: scored.anxiety,
       avoidance: scored.avoidance,
     } satisfies ResultProfile,

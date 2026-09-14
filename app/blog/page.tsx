@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Attachment Blog — DeepPersona AI",
-    description: "Original guides on attachment patterns, paired with a short visual quiz.",
+    description: "Original guides on attachment patterns, paired with a short attachment quiz.",
     images: ["/og-deep-persona.png"],
   },
 };
