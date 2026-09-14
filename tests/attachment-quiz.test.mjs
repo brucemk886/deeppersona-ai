@@ -194,9 +194,11 @@ test("paywall inclusions stay at three bullets without invented multi-context sc
   const report = await readFile(new URL("../lib/attachment-report.ts", import.meta.url), "utf8");
   const preview = await readFile(new URL("../lib/report-preview.ts", import.meta.url), "utf8");
   const quiz = await readFile(new URL("../app/_components/free-attachment-results.tsx", import.meta.url), "utf8");
-  assert.match(report, /An interpretation of every choice you selected/);
-  assert.match(report, /Pairing notes versus each of the four styles/);
-  assert.match(report, /Seven-day micro practices/);
+  assert.match(report, /底层自相矛盾画像/);
+  assert.match(report, /三大高频暴击分镜与防御破译/);
+  assert.match(report, /急救刹车、沟通话术与7天脱敏练习/);
+  assert.match(preview, /aiInsight/);
+  assert.match(preview, /sample: undefined/);
   assert.match(report, /not blame statements about caregivers/);
   assert.match(report, /In one scene you chose/);
   assert.doesNotMatch(report + preview + quiz, /Mother \(CG|Father \(CG|AT WORK|millions of users/);

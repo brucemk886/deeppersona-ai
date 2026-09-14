@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildAiReadingPrompt, mergeAiReadings, parseAiReading } from "../lib/ai-reading-parse.ts";
+import { buildAiReadingPrompt, hasLegacyChoiceReadings, isInsightReport, parseAiReading } from "../lib/ai-reading-parse.ts";
 
 const questions = [{
   id: "attachment-style-v3-q01",
@@ -15,51 +15,62 @@ const questions = [{
   ],
 }];
 
-test("parseAiReading accepts fenced JSON and ignores unknown question ids", () => {
-  const parsed = parseAiReading(`Here you go
-\`\`\`json
-{"summary":"You reach first.","reflectionPrompt":"What would a calmer hour do?","choices":[{"questionId":"attachment-style-v3-q01","reading":"The dry texts land as a threat to the bond."},{"questionId":"other","reading":"skip me"}]}
-\`\`\``, ["attachment-style-v3-q01"]);
-  assert.deepEqual(parsed, {
-    summary: "You reach first.",
-    reflectionPrompt: "What would a calmer hour do?",
-    choices: [{ questionId: "attachment-style-v3-q01", reading: "The dry texts land as a threat to the bond." }],
-  });
+const insight = {
+  contradiction: {
+    paradox: "你越想被抱紧，身体越把靠近当成危险。",
+    selfSabotage: "喜欢上头时你会先刺对方一眼，确认对方会不会先走。",
+  },
+  scenes: {
+    closeness: { alarm: "他现在觉得我好，是还没看穿。", action: "约会后突然冷淡两天。" },
+    silence: { alarm: "不回就是在放弃我。", action: "已读不回，等对方先慌。" },
+    conflict: { alarm: "胸口发紧，手脚发冷。", action: "放狠话，或者直接想拉黑。" },
+  },
+  defense: {
+    fear: "怕被看穿后扔掉，所以先自己砸碎。",
+    excuse: "嘴上说谈恋爱麻烦，其实是不敢把自己交出去。",
+  },
+  toolkit: {
+    brake: ["先把手机扣过去", "数四次呼吸", "告诉自己这是警报不是事实"],
+    scripts: [
+      "我现在有点过载，想先躲一下。这不是不喜欢你。给我两小时，我回来找你。",
+      "我刚才那句狠话是害怕，不是结论。我想重新说一遍。",
+    ],
+    weekPractice: "连续七天，每天只把一个小需要说出口，不解释、不收回。",
+  },
+};
+
+test("parseAiReading accepts the four-module insight JSON", () => {
+  const parsed = parseAiReading(`Here you go\n\`\`\`json\n${JSON.stringify(insight)}\n\`\`\``);
+  assert.deepEqual(parsed, insight);
+  assert.equal(isInsightReport(parsed), true);
 });
 
-test("parseAiReading rejects missing summary or empty choices", () => {
-  assert.equal(parseAiReading('{"summary":"","choices":[{"questionId":"q1","reading":"ok"}]}'), null);
-  assert.equal(parseAiReading('{"summary":"ok","choices":[]}'), null);
+test("parseAiReading rejects incomplete insight reports", () => {
+  assert.equal(parseAiReading('{"contradiction":{"paradox":"x","selfSabotage":"y"}}'), null);
+  assert.equal(parseAiReading('{"summary":"You reach first.","choices":[{"questionId":"q1","reading":"ok"}]}'), null);
   assert.equal(parseAiReading("not json"), null);
 });
 
-test("buildAiReadingPrompt lists only the selected option wording", () => {
+test("buildAiReadingPrompt sends style scores without option wording", () => {
   const built = buildAiReadingPrompt(
     { id: "attachment-style", title: "Attachment Style Quiz" },
     questions,
     { "attachment-style-v3-q01": 0 },
-    { title: "Anxious-Preoccupied", summary: "You move toward the bond." },
+    { key: "anxious", title: "Anxious-Preoccupied", summary: "You move toward the bond.", anxiety: 72, avoidance: 31 },
   );
-  assert.deepEqual(built.questionIds, ["attachment-style-v3-q01"]);
-  assert.match(built.user, /Did I say something wrong/);
-  assert.match(built.user, /Include every questionId/);
+  assert.match(built.user, /焦虑型/);
+  assert.match(built.user, /"anxiety":72/);
+  assert.doesNotMatch(built.user, /Did I say something wrong/);
+  assert.doesNotMatch(built.user, /When their texting suddenly goes cold/);
   assert.doesNotMatch(built.user, /PRIVATE_ADMIN_MEANING/);
 });
 
-test("mergeAiReadings fills missing question ids without dropping the summary", () => {
-  const merged = mergeAiReadings(
-    { summary: "You reach first.", choices: [{ questionId: "q1", reading: "first" }] },
-    { summary: "", choices: [{ questionId: "q2", reading: "second" }] },
-    ["q1", "q2"],
-  );
-  assert.deepEqual(merged, {
+test("legacy per-choice snapshots are detected without passing as insight reports", () => {
+  const legacy = {
     summary: "You reach first.",
-    choices: [
-      { questionId: "q1", reading: "first" },
-      { questionId: "q2", reading: "second" },
-    ],
-  });
-  assert.deepEqual(parseAiReading('{"summary":"","choices":[{"questionId":"q2","reading":"second"}]}', ["q2"], { requireSummary: false })?.choices, [
-    { questionId: "q2", reading: "second" },
-  ]);
+    choices: [{ questionId: "attachment-style-v3-q01", reading: "The dry texts land as a threat to the bond." }],
+  };
+  assert.equal(isInsightReport(legacy), false);
+  assert.equal(hasLegacyChoiceReadings(legacy), true);
+  assert.equal(hasLegacyChoiceReadings(insight), false);
 });

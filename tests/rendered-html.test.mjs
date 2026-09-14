@@ -71,7 +71,8 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(quiz, /What this choice may be reflecting/);
   assert.match(quiz, /aiReading/);
   assert.doesNotMatch(quiz, /What this choice represents/);
-  assert.match(quiz, /7-day micro practices/);
+  assert.match(quiz, /AiInsightReport/);
+  assert.match(quiz, /7-day practice/);
   assert.doesNotMatch(quiz, /30-day|Your four-choice pattern/);
   assert.doesNotMatch(quiz, /Natural strength|Start here/);
   assert.match(quiz, /marketingConsent: false/);

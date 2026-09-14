@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AiInsightPortrait } from "@/app/_components/ai-insight-report";
 import {
   HowYouScored,
   LockedInsightCard,
@@ -75,6 +76,14 @@ export function FreeAttachmentResults({
 
       <HowYouScored anxiety={scores.anxiety} avoidance={scores.avoidance} />
 
+      {preview.aiInsight ? (
+        <>
+          <AiInsightPortrait paradox={preview.aiInsight.paradox} selfSabotage={preview.aiInsight.selfSabotage} />
+          <PremiumLock eyebrow="模块二" title="三大高频暴击分镜拆解" onUnlock={onCheckout} />
+          <PremiumLock eyebrow="模块三" title="防御机制心理破译" onUnlock={onCheckout} />
+          <PremiumLock eyebrow="模块四" title="自救破局实操工具箱" onUnlock={onCheckout} />
+        </>
+      ) : (
       <section className="ap-section" aria-labelledby="romance-title">
         <h2 id="romance-title">Your romantic patterns</h2>
         {preview.romanceEssay ? <p className="ap-essay">{preview.romanceEssay}</p> : null}
@@ -87,8 +96,9 @@ export function FreeAttachmentResults({
           <LockedInsightCard kind="trigger" title="Your triggers in romance" onUnlock={onCheckout} />
         </div>
       </section>
+      )}
 
-      {preview.caregiver ? (
+      {!preview.aiInsight && preview.caregiver ? (
         <section className="ap-section" aria-labelledby="caregiver-title">
           <StyleBanner styleKey={result.key} />
           <h2 id="caregiver-title">Your caregiver attachment patterns</h2>
@@ -102,7 +112,7 @@ export function FreeAttachmentResults({
         </section>
       ) : null}
 
-      {preview.selfWorth ? (
+      {!preview.aiInsight && preview.selfWorth ? (
         <section className="ap-section" aria-labelledby="self-worth-title">
           <h2 id="self-worth-title">How you see yourself</h2>
           <SelfWorthRing level={preview.selfWorth.level} percent={preview.selfWorth.percent} />

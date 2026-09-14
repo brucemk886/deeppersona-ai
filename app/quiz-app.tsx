@@ -5,7 +5,9 @@ import { BrandLogo, BrandMark } from "@/app/_components/brand";
 import Link from "next/link";
 import { HomeLanding } from "@/app/_components/home-landing";
 import { AttachmentResult, HowYouScored, PatternLoop, SelfWorthRing, StyleBanner } from "@/app/_components/attachment-result";
+import { AiInsightReport } from "@/app/_components/ai-insight-report";
 import { FreeAttachmentResults } from "@/app/_components/free-attachment-results";
+import { isInsightReport } from "@/lib/ai-reading-parse";
 import { SceneCard, sceneKeyFromPath } from "@/app/_components/scene-card";
 import { SiteFooter, SiteNav } from "@/app/_components/site-chrome";
 import { ATTACHMENT_TEST_ID } from "@/lib/public-catalog";
@@ -660,7 +662,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
             <h1>{quizReady ? detailPrompt : "This quiz is being prepared."}</h1>
             <p className="detail-intro">{quizReady ? (textMode ? selectedTest.description : "There is no right answer. Pick the scene that matches your first move when closeness feels uncertain.") : "The previous question set is no longer offered. Start the free attachment quiz when you are ready."}</p>
             <p className="service-context">For entertainment and self-reflection, not diagnosis or treatment. <Link href="/disclaimer">Read the limitations</Link></p>
-            {quizReady ? <div className="detail-reveal"><span>YOUR FREE RESULT INCLUDES</span><div><p>A primary style label, anxiety × avoidance map, and a type overview.</p><p>Your common loop, and a worth-pattern snapshot.</p><p>A full reading that can quote the option wording you chose.</p></div></div> : null}
+            {quizReady ? <div className="detail-reveal"><span>YOUR FREE RESULT INCLUDES</span><div><p>A primary style label and anxiety × avoidance map.</p><p>A first-look portrait of the contradiction underneath this style.</p><p>The optional full reading covers scenes, defenses, scripts, and a 7-day practice.</p></div></div> : null}
             <button className="primary-button detail-cta" disabled={!quizReady || loadingTest === selectedTest.id} onClick={() => void startTest(selectedTest)}>{!quizReady ? "Quiz items coming next" : loadingTest === selectedTest.id ? "Opening…" : "Start the free quiz"} <span aria-hidden="true">→</span></button>
             <div className="detail-assurance"><span>{textMode ? "Free first-reaction quiz" : "Free visual test"}</span><i /> <span>Private by design</span>{selectedTest.reportPriceCents > 0 ? <><i /> <span>Optional report: USD {(selectedTest.reportPriceCents / 100).toFixed(2)}</span></> : null}</div>
             {selectedTest.reportPriceCents > 0 ? <p className="detail-purchase-note">The type is free. A longer reading is a one-time optional payment. No subscription.</p> : null}
@@ -731,7 +733,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
             <span className="pill">{normalizePresentationMode(selectedTest.presentationMode) === "text" ? "Your choices are complete" : "Your visual choices are complete"}</span>
             <h1>See your relationship patterns.</h1>
             <p>{normalizePresentationMode(selectedTest.presentationMode) === "text"
-              ? "You have completed the questions. Enter your email to save your result and see your free summary. A longer written report that can quote the option wording you chose is optional."
+              ? "You have completed the questions. Enter your email to save your result and see your free summary. A longer four-part reading is optional."
               : "You have completed the image choices. Enter your email to save your result and see your free summary. A longer written report with five themes and an interpretation of each selected image is optional."}</p>
             {profile.email ? <div className="saved-profile-email"><span>Saving this reflection to</span><strong>{profile.email}</strong></div> : <><label htmlFor="email">Email address</label><input aria-invalid={Boolean(error)} autoComplete="email" id="email" onBlur={(event) => { const validation = validateEmailAddress(event.target.value); if (!validation.valid) setError(validation.message); }} onChange={(event) => { setEmail(event.target.value); setError(""); }} placeholder="name@gmail.com" required type="email" value={email} /><small className="email-hint">Use an email you can access. Test, placeholder, and malformed addresses are not accepted.</small></>}            {error ? <p className="form-error" role="alert">{error}</p> : null}
             <button className="primary-button full-button" disabled={submitting} type="submit">{submitting ? "Saving your result…" : "See my result →"}</button>
@@ -743,12 +745,21 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
   }
 
   const deepResult = reportData?.deepResult ?? null;
+  const insightReading = deepResult && isInsightReport(deepResult.aiReading) ? deepResult.aiReading : null;
   const relatedInsights = selectedTest ? getInsightCardsForTest(selectedTest.id).slice(0, 2) : [];
   const answeredChoices = questions.flatMap((question, index) => {
     const selectedIndex = answerChoices[question.id];
     const option = selectedIndex === undefined ? undefined : question.options[selectedIndex];
     return option ? [{ option, question, questionNumber: index + 1, selectedIndex }] : [];
   });
+  const showChoiceReview = Boolean(
+    deepResult
+    && !insightReading
+    && answeredChoices.some(({ option, question }) =>
+      option.meaning
+      || deepResult.aiReading?.choices?.some((item) => item.questionId === question.id && item.reading),
+    ),
+  );
 
   return (
     <main className="result-shell ap-result-shell">
@@ -765,7 +776,8 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
             <StyleBanner styleKey={result.key} />
           </header>
           <AttachmentResult result={result} />
-          {deepResult.romanceEssay ? <section className="ap-section" aria-labelledby="paid-romance-title">
+          {insightReading ? <AiInsightReport reading={insightReading} /> : null}
+          {!insightReading && deepResult.romanceEssay ? <section className="ap-section" aria-labelledby="paid-romance-title">
             <h2 id="paid-romance-title">Your romantic patterns</h2>
             <p className="ap-essay">{deepResult.romanceEssay}</p>
             {deepResult.characteristics?.length ? <article className="ap-unlocked-block">
@@ -777,18 +789,18 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
               {deepResult.triggers?.length ? <article><h3>Your triggers in romance</h3><ul>{deepResult.triggers.map((item) => <li key={item}>{item}</li>)}</ul></article> : null}
             </div> : null}
           </section> : null}
-          {deepResult.caregiver ? <section className="ap-section" aria-labelledby="paid-caregiver-title">
+          {!insightReading && deepResult.caregiver ? <section className="ap-section" aria-labelledby="paid-caregiver-title">
             <StyleBanner styleKey={result.key} />
             <h2 id="paid-caregiver-title">Your caregiver attachment patterns</h2>
             <p className="ap-essay">{deepResult.caregiver.intro}</p>
             <HowYouScored anxiety={deepResult.caregiver.anxiety} avoidance={deepResult.caregiver.avoidance} />
           </section> : null}
-          {deepResult.selfWorth ? <section className="ap-section" aria-labelledby="paid-worth-title">
+          {!insightReading && deepResult.selfWorth ? <section className="ap-section" aria-labelledby="paid-worth-title">
             <h2 id="paid-worth-title">How you see yourself</h2>
             <SelfWorthRing level={deepResult.selfWorth.level} percent={deepResult.selfWorth.percent} />
             <p className="ap-essay">{deepResult.selfWorth.sentences}</p>
           </section> : null}
-          {deepResult.overview?.length ? <section className="free-overview overview-columns" aria-labelledby="paid-overview-title">
+          {!insightReading && deepResult.overview?.length ? <section className="free-overview overview-columns" aria-labelledby="paid-overview-title">
             <h2 id="paid-overview-title">Type overview</h2>
             <div className="overview-grid">
               {deepResult.overview.map((item) => (
@@ -799,9 +811,9 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
               ))}
             </div>
           </section> : null}
-          {deepResult.loop ? <PatternLoop name={deepResult.loop.name} steps={deepResult.loop.steps} /> : null}
+          {!insightReading && deepResult.loop ? <PatternLoop name={deepResult.loop.name} steps={deepResult.loop.steps} /> : null}
 
-          {deepResult.essay ? <section className="type-essay" aria-labelledby="type-essay-title">
+          {!insightReading && deepResult.essay ? <section className="type-essay" aria-labelledby="type-essay-title">
             <span>Longer type essay</span>
             <h2 id="type-essay-title">Dating, conflict, and what you need</h2>
             <article><h3>In dating</h3><p>{deepResult.essay.dating}</p></article>
@@ -809,15 +821,15 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
             <article><h3>What you need</h3><p>{deepResult.essay.need}</p></article>
           </section> : null}
 
-          {deepResult.modules?.map(module => (
+          {!insightReading ? deepResult.modules?.map(module => (
             <section className="pattern-lens" key={module.title}>
               <h2>{module.title}</h2>
               {module.explanation.split('\n\n').map((paragraph, index) => <p key={index}>{paragraph}</p>)}
               <p>{module.reflection}</p>
             </section>
-          ))}
+          )) : null}
 
-          <section className="choice-review" aria-labelledby="choice-review-title">
+          {showChoiceReview ? <section className="choice-review" aria-labelledby="choice-review-title">
             <header>
               <span>Your choices, decoded</span>
               <h2 id="choice-review-title">{normalizePresentationMode(selectedTest.presentationMode) === "text" ? "What each choice may be reflecting back to you" : "What each image may be reflecting back to you"}</h2>
@@ -836,7 +848,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
                     <p className="choice-review-question">{question.prompt}</p>
                     <h3>{option.label}</h3>
                     {(() => {
-                      const reading = deepResult.aiReading?.choices.find((item) => item.questionId === question.id)?.reading || option.meaning;
+                      const reading = deepResult.aiReading?.choices?.find((item) => item.questionId === question.id)?.reading || option.meaning;
                       return reading ? <div><strong>What this choice may be reflecting</strong><p>{reading}</p></div> : null;
                     })()}
                     {!deepResult.aiReading && option.projection ? <div><strong>Your projection</strong><p>{option.projection}</p></div> : null}
@@ -844,16 +856,16 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
                 </article>
               ))}
             </div>
-          </section>
+          </section> : null}
 
-          {deepResult.childhood ? <section className="paid-module" aria-labelledby="childhood-module-title">
+          {!insightReading && deepResult.childhood ? <section className="paid-module" aria-labelledby="childhood-module-title">
             <span>Childhood module</span>
             <h2 id="childhood-module-title">{deepResult.childhood.title}</h2>
             {deepResult.childhood.paragraphs.map((paragraph) => <p key={paragraph.slice(0, 48)}>{paragraph}</p>)}
             <p className="free-sample-prompt">{deepResult.childhood.reflection}</p>
           </section> : null}
 
-          {deepResult.selfEsteem ? <section className="paid-module" aria-labelledby="self-esteem-module-title">
+          {!insightReading && deepResult.selfEsteem ? <section className="paid-module" aria-labelledby="self-esteem-module-title">
             <span>Self-esteem module</span>
             <h2 id="self-esteem-module-title">{deepResult.selfEsteem.title}</h2>
             {deepResult.selfEsteem.paragraphs.map((paragraph) => <p key={paragraph.slice(0, 48)}>{paragraph}</p>)}
@@ -868,7 +880,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
             </div>
           </section> : null}
 
-          {deepResult.pairing?.length ? <section className="paid-module" aria-labelledby="pairing-title">
+          {!insightReading && deepResult.pairing?.length ? <section className="paid-module" aria-labelledby="pairing-title">
             <span>Pairing notes</span>
             <h2 id="pairing-title">How this style meets the other three</h2>
             {deepResult.pairing.map((item) => (
@@ -879,32 +891,19 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
             ))}
           </section> : null}
 
-          {deepResult.practices?.length ? <section className="paid-module seven-day" aria-labelledby="practices-title">
-            <span>7-day micro practices</span>
-            <h2 id="practices-title">A smaller move for each day</h2>
-            <ol>
-              {deepResult.practices.map((item) => (
-                <li key={item.day}>
-                  <strong>Day {item.day}. {item.title}</strong>
-                  <p>{item.body}</p>
-                </li>
-              ))}
-            </ol>
-          </section> : null}
-
-          <section className="pattern-lens">
+          {!insightReading ? <section className="pattern-lens">
             <span>What this test is actually noticing</span>
             <h2>{deepResult.lens.title}</h2>
             <p>{deepResult.lens.explanation}</p>
-          </section>
+          </section> : null}
 
-          {deepResult.depth ? <div className="deep-insight-grid">
+          {!insightReading && deepResult.depth ? <div className="deep-insight-grid">
             <section><span>Core motivation</span><h3>What sits underneath the pattern</h3><p>{deepResult.depth.coreDrive}</p></section>
             <section><span>In relationships</span><h3>What other people may experience</h3><p>{deepResult.depth.inRelationships}</p></section>
             <section><span>Under pressure</span><h3>When the strength becomes protection</h3><p>{deepResult.depth.underPressure}</p></section>
           </div> : null}
 
-          <section className="reflection-card"><span>A question worth keeping</span><p>“{deepResult.lens.reflectionPrompt}”</p></section>
+          {!insightReading ? <section className="reflection-card"><span>A question worth keeping</span><p>“{deepResult.lens.reflectionPrompt}”</p></section> : null}
           {initialReportId ? <p><Link href="/recover">Find my paid reports / Resend report email</Link></p> : null}<p className="result-disclaimer">This is a self-reflection tool based on your choices, not a clinical assessment or diagnosis.</p>          {relationshipContext ? <section className="relationship-saved"><span>Relationship map updated</span><h2>This reflection now belongs to your connection with {relationshipContext.nickname}.</h2><p>It records your experience in this relationship, not a conclusion about the other person. Return to your map to keep adding context over time.</p></section> : null}
 
           {RESULT_MAP_ENABLED ? <>

@@ -204,25 +204,24 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       assert.equal(state.data.deepResult, undefined);
       assert.equal(state.data.questions, undefined);
       assert.equal(state.data.preview.totalChoices,20);
-      assert.equal(state.data.preview.modules.length,1);
+      assert.equal(state.data.preview.modules.length, 0);
       assert.equal(state.data.preview.choices,undefined);
       assert.equal(state.data.preview.overview, undefined);
       assert.equal(state.data.preview.loop, undefined);
       assert.equal(state.data.preview.childhoodTeaser, undefined);
       assert.equal(state.data.preview.worthPattern, undefined);
-      assert.ok(state.data.preview.sample?.moduleTitle);
+      assert.equal(state.data.preview.sample, undefined);
       assert.ok((state.data.preview.romanceEssay || "").split(/(?<=[.!?])\s+/).filter(Boolean).length >= 8);
       assert.ok((state.data.preview.romanceEssay || "").split(/(?<=[.!?])\s+/).filter(Boolean).length <= 12);
       assert.equal(state.data.preview.caregiver, undefined);
       assert.equal(typeof state.data.preview.scores?.anxietySeven, "number");
       assert.ok(["Low", "Medium", "High"].includes(state.data.preview.selfWorth.level));
       assert.equal(state.data.preview.inclusions?.length, 3);
+      assert.match(state.data.preview.inclusions.join("\n"), /底层自相矛盾画像/);
       assert.doesNotMatch(JSON.stringify(state.data.preview), /paid reading|Mother \(CG|Father \(CG|AT WORK|millions of users/i);
       const stored=JSON.parse((await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(report.id).first()).snapshot_json);
       const leaked = stored.questions.flatMap((q) => q.options.map((option) => option.meaning)).filter((meaning) => meaning && JSON.stringify(state.data).includes(meaning));
       assert.equal(leaked.length, 0, 'Unpaid response must not leak canned option readings');
-      assert.equal(state.data.preview.sample.choice.meaning, "");
-      assert.ok(state.data.preview.sample.choice.label);
       assert.match(state.headers.get("cache-control"), /no-store/);
       assert.equal((await call(`/api/reports/${report.id}`)).status, 401);
       assert.equal((await call(`/api/reports/${report.id}`, { cookie: `dp_profile=${crypto.randomUUID()}` })).status, 404);
@@ -375,7 +374,7 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       assert.equal((await call('/api/checkout',{cookie:other.cookie,body:{reportId:other.id}})).status,200);
     });
 
-    await t.test("new reports use selected option text while legacy purchased snapshots remain readable", async () => {
+    await t.test("new reports keep type scores while legacy purchased snapshots remain readable", async () => {
       const fresh = await save(0);
       const state = (await reportState(fresh)).data;
       assert.ok(["anxious", "avoidant", "secure", "fearful"].includes(state.result.key));
@@ -384,8 +383,8 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       assert.ok(state.result.title.length > 0);
       assert.ok(state.result.themeTitle);
       assert.equal(typeof state.result.anxiety, "number");
-      assert.equal(state.deepResult.modules.length,1);
-      assert.ok(state.deepResult.modules[0].explanation.includes(state.questions[0].options[0].label));
+      assert.equal(state.deepResult.modules.length, 0);
+      assert.doesNotMatch(JSON.stringify(state.deepResult.modules), new RegExp(state.questions[0].options[0].label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
       const saved = await db.prepare('SELECT answers_json,result_type FROM quiz_sessions WHERE id=?').bind(fresh.body.sessionId).first();
       assert.equal(saved.result_type,'choices');
       assert.equal(JSON.parse(saved.answers_json)[questions[0].id],0);

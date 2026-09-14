@@ -42,10 +42,6 @@ export async function POST(request: Request) {
     const aiReading = await generateAiReading(test, questions, choices, result);
     if (aiReading) {
       deepResult.aiReading = aiReading;
-      deepResult.romanceEssay = aiReading.summary;
-      if (aiReading.reflectionPrompt) {
-        deepResult.lens = { ...deepResult.lens, reflectionPrompt: aiReading.reflectionPrompt };
-      }
     }
     const reportId = crypto.randomUUID();
     const profile = await submitQuiz({

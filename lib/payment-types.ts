@@ -18,6 +18,10 @@ export type ReportPreview = {
   caregiver?: { intro: string } & DimensionScore;
   selfWorth?: { level: WorthLevel; percent: number; sentences: string };
   inclusions?: string[];
+  aiInsight?: {
+    paradox: string;
+    selfSabotage: string;
+  };
   sample?: {
     moduleTitle: string;
     explanation: string;

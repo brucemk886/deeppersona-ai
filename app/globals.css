@@ -1488,6 +1488,36 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .ap-section > .ap-banner { margin-bottom: 28px; }
 .ap-section h2 { margin: 0 0 18px; font: 500 clamp(32px, 5vw, 48px)/1.1 Georgia, serif; letter-spacing: -.03em; }
 .ap-essay { margin: 0 0 28px; color: #4f5b54; font: 17px/1.75 Georgia, serif; }
+.ai-insight-kicker {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--wine);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.ai-insight-scene {
+  margin: 0 0 22px;
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: #fff;
+}
+.ai-insight-scene h3 { margin: 0 0 12px; font: 500 22px/1.25 Georgia, serif; }
+.ai-insight-scene p { margin: 0 0 12px; color: #4f5b54; line-height: 1.7; }
+.ai-insight-scene p:last-child { margin-bottom: 0; }
+.ai-insight-scene strong { display: block; margin-bottom: 4px; color: #17221d; font-size: 13px; }
+.ai-insight-scene ol { margin: 0; padding-left: 18px; color: #4f5b54; line-height: 1.7; }
+.ai-insight-scene blockquote {
+  margin: 0 0 12px;
+  padding: 14px 16px;
+  border-left: 3px solid #f0b429;
+  background: #fff8e8;
+  color: #17221d;
+  font: 16px/1.65 Georgia, serif;
+}
+.ai-insight-scene blockquote:last-child { margin-bottom: 0; }
 .ap-premium-block {
   position: relative;
   margin: 28px 0;

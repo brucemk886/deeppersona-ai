@@ -5,10 +5,43 @@ export type AiChoiceReading = {
   reading: string;
 };
 
-export type AiReading = {
-  summary: string;
+export type AiScene = {
+  alarm: string;
+  action: string;
+};
+
+export type AiInsightReport = {
+  contradiction: {
+    paradox: string;
+    selfSabotage: string;
+  };
+  scenes: {
+    closeness: AiScene;
+    silence: AiScene;
+    conflict: AiScene;
+  };
+  defense: {
+    fear: string;
+    excuse: string;
+  };
+  toolkit: {
+    brake: string[];
+    scripts: string[];
+    weekPractice: string;
+  };
+};
+
+export type AiReading = AiInsightReport & {
+  summary?: string;
   reflectionPrompt?: string;
-  choices: AiChoiceReading[];
+  choices?: AiChoiceReading[];
+};
+
+const STYLE_ZH: Record<string, string> = {
+  anxious: "焦虑型（Anxious-Preoccupied）",
+  avoidant: "回避型（Dismissing-Avoidant）",
+  secure: "安全型（Secure）",
+  fearful: "恐惧回避型（Fearful-Avoidant / Disorganized）",
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -17,6 +50,19 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 
 function cleanText(value: unknown): string {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+}
+
+function cleanList(value: unknown, min: number, max: number): string[] {
+  const rows = Array.isArray(value) ? value.map(cleanText).filter(Boolean) : [];
+  return rows.slice(0, max).length >= min ? rows.slice(0, max) : [];
+}
+
+function cleanScene(value: unknown): AiScene | null {
+  const record = asRecord(value);
+  if (!record) return null;
+  const alarm = cleanText(record.alarm);
+  const action = cleanText(record.action);
+  return alarm && action ? { alarm, action } : null;
 }
 
 function extractJsonObject(raw: string): unknown {
@@ -33,41 +79,60 @@ function extractJsonObject(raw: string): unknown {
   }
 }
 
+export function hasLegacyChoiceReadings(value: unknown): value is { choices: AiChoiceReading[] } {
+  const record = asRecord(value);
+  if (!record || !Array.isArray(record.choices)) return false;
+  return record.choices.some((item) => {
+    const row = asRecord(item);
+    return Boolean(cleanText(row?.questionId) && cleanText(row?.reading));
+  });
+}
+
+export function isInsightReport(value: unknown): value is AiInsightReport {
+  const record = asRecord(value);
+  if (!record) return false;
+  const contradiction = asRecord(record.contradiction);
+  const scenes = asRecord(record.scenes);
+  const defense = asRecord(record.defense);
+  const toolkit = asRecord(record.toolkit);
+  return Boolean(
+    cleanText(contradiction?.paradox)
+    && cleanText(contradiction?.selfSabotage)
+    && cleanScene(scenes?.closeness)
+    && cleanScene(scenes?.silence)
+    && cleanScene(scenes?.conflict)
+    && cleanText(defense?.fear)
+    && cleanText(defense?.excuse)
+    && cleanList(toolkit?.brake, 3, 3).length === 3
+    && cleanList(toolkit?.scripts, 2, 2).length === 2
+    && cleanText(toolkit?.weekPractice),
+  );
+}
+
 export function buildAiReadingPrompt(
-  test: QuizTest,
+  _test: QuizTest,
   questions: QuizQuestion[],
   choices: Record<string, number>,
   result: ResultProfile,
-): { questionIds: string[]; user: string } {
-  const selected = questions.flatMap((question, index) => {
-    const option = question.options[choices[question.id]];
-    if (!option) return [];
-    return [{
-      questionId: question.id,
-      number: index + 1,
-      prompt: question.prompt,
-      label: option.label,
-      styleKey: option.styleKey ?? "",
-    }];
-  });
+): { user: string } {
+  const counts = { anxious: 0, avoidant: 0, secure: 0, fearful: 0 };
+  for (const question of questions) {
+    const key = question.options[choices[question.id]]?.styleKey;
+    if (key && key in counts) counts[key as keyof typeof counts] += 1;
+  }
   return {
-    questionIds: selected.map((item) => item.questionId),
     user: JSON.stringify({
-      testTitle: test.title,
-      resultTitle: result.title,
-      resultSummary: result.summary,
-      instruction: "Write a reflection-only reading from the chosen option wording. Include every questionId in choices. Do not diagnose, pathologize, or invent facts that are not in the choices. Quote or paraphrase the selected wording. Return JSON only.",
-      choices: selected,
+      style: STYLE_ZH[result.key] ?? result.title,
+      styleKey: result.key,
+      anxiety: result.anxiety ?? null,
+      avoidance: result.avoidance ?? null,
+      leanCounts: counts,
+      rule: "不要复述、罗列或引用任何题目或选项原文。只根据类型与倾向写四模块中文报告。",
     }),
   };
 }
 
-export function parseAiReading(
-  raw: string,
-  questionIds: string[] = [],
-  options: { requireSummary?: boolean } = {},
-): AiReading | null {
-  const allowed = new Set(questionIds);
+export function parseAiReading(raw: string): AiReading | null {
   let parsed: unknown;
   try {
     parsed = extractJsonObject(raw);
@@ -76,45 +141,27 @@ export function parseAiReading(
   }
   const record = asRecord(parsed);
   if (!record) return null;
-  const summary = cleanText(record.summary);
-  if (!summary && options.requireSummary !== false) return null;
-  const reflectionPrompt = cleanText(record.reflectionPrompt);
-  const rows = Array.isArray(record.choices) ? record.choices : [];
-  const seen = new Set<string>();
-  const choices: AiChoiceReading[] = [];
-  for (const row of rows) {
-    const item = asRecord(row);
-    if (!item) continue;
-    const questionId = cleanText(item.questionId);
-    const reading = cleanText(item.reading);
-    if (!questionId || !reading || seen.has(questionId)) continue;
-    if (allowed.size && !allowed.has(questionId)) continue;
-    seen.add(questionId);
-    choices.push({ questionId, reading });
+  const contradiction = asRecord(record.contradiction);
+  const scenes = asRecord(record.scenes);
+  const defense = asRecord(record.defense);
+  const toolkit = asRecord(record.toolkit);
+  const closeness = cleanScene(scenes?.closeness);
+  const silence = cleanScene(scenes?.silence);
+  const conflict = cleanScene(scenes?.conflict);
+  const brake = cleanList(toolkit?.brake, 3, 3);
+  const scripts = cleanList(toolkit?.scripts, 2, 2);
+  const weekPractice = cleanText(toolkit?.weekPractice);
+  const paradox = cleanText(contradiction?.paradox);
+  const selfSabotage = cleanText(contradiction?.selfSabotage);
+  const fear = cleanText(defense?.fear);
+  const excuse = cleanText(defense?.excuse);
+  if (!paradox || !selfSabotage || !closeness || !silence || !conflict || !fear || !excuse || brake.length !== 3 || scripts.length !== 2 || !weekPractice) {
+    return null;
   }
-  if (!choices.length) return null;
   return {
-    summary,
-    ...(reflectionPrompt ? { reflectionPrompt } : {}),
-    choices,
-  };
-}
-
-export function mergeAiReadings(base: AiReading | null, next: AiReading, questionIds: string[]): AiReading | null {
-  const byId = new Map((base?.choices ?? []).map((item) => [item.questionId, item]));
-  for (const item of next.choices) {
-    if (!byId.has(item.questionId)) byId.set(item.questionId, item);
-  }
-  const choices = questionIds.flatMap((questionId) => {
-    const item = byId.get(questionId);
-    return item ? [item] : [];
-  });
-  const summary = cleanText(base?.summary) || cleanText(next.summary);
-  if (!summary || !choices.length) return null;
-  const reflectionPrompt = cleanText(base?.reflectionPrompt) || cleanText(next.reflectionPrompt);
-  return {
-    summary,
-    ...(reflectionPrompt ? { reflectionPrompt } : {}),
-    choices,
+    contradiction: { paradox, selfSabotage },
+    scenes: { closeness, silence, conflict },
+    defense: { fear, excuse },
+    toolkit: { brake, scripts, weekPractice },
   };
 }

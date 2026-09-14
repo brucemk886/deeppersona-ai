@@ -18,9 +18,9 @@ export const SELF_ESTEEM_MODULE = "Self-esteem";
 export const CHILDHOOD_MODULE = "Childhood";
 
 export const REPORT_INCLUSIONS = [
-  "An interpretation of every choice you selected",
-  "Pairing notes versus each of the four styles",
-  "Seven-day micro practices",
+  "底层自相矛盾画像",
+  "三大高频暴击分镜与防御破译",
+  "急救刹车、沟通话术与7天脱敏练习",
 ];
 
 export const BLUR_FILLER =
@@ -299,15 +299,6 @@ export function worthPattern(questions: QuizQuestion[], choices: Record<string, 
   return { sentence, bullets: bullets.slice(0, 2) };
 }
 
-function moduleFrom(title: string, entries: ReturnType<typeof selectedEntries>, extra: string, reflection: string) {
-  const labels = entries.map((entry) => `“${entry.option.label}”`).join(", ");
-  return {
-    title,
-    explanation: `In these situations, you chose ${labels || "no choices yet"}.\n\n${extra}`,
-    reflection,
-  };
-}
-
 export function buildAttachmentReport(
   questions: QuizQuestion[],
   choices: Record<string, number>,
@@ -316,7 +307,6 @@ export function buildAttachmentReport(
   const profile = ATTACHMENT_RESULTS[scored.style];
   const meta = ATTACHMENT_STYLE_META[scored.style];
   const entries = selectedEntries(questions, choices);
-  const romance = citedEntries(questions, choices, ROMANCE_MODULE);
   const selfEsteem = entriesFor(entries, SELF_ESTEEM_MODULE);
   const childhood = entriesFor(entries, CHILDHOOD_MODULE);
   const loop = ATTACHMENT_LOOPS[scored.style];
@@ -354,26 +344,7 @@ export function buildAttachmentReport(
       ],
       superpowers: profile.strengths ?? [profile.strength],
       triggers: profile.stuckPoints ?? [profile.watchout],
-      modules: [
-        moduleFrom(
-          romance.length && romance.length === entriesFor(entries, ROMANCE_MODULE).length ? ROMANCE_MODULE : "First reactions",
-          romance,
-          "These scenes follow your first move when closeness, silence, labels, or repair are on the table. Compare the wording you chose with what you actually do when the same moment happens.",
-          "When the next pause or burst of closeness arrives, which of these first moves do you want to keep?",
-        ),
-        ...(selfEsteem.length ? [moduleFrom(
-          SELF_ESTEEM_MODULE,
-          selfEsteem,
-          "These self-esteem scenes follow what happens to your worth when you are praised, when you miss, when you compare, and when the night gets quiet. The full rewrite of that self-talk is in the paid module below.",
-          "Which night-time sentence about deserving love still runs, and what would a kinder one sound like?",
-        )] : []),
-        ...(childhood.length ? [moduleFrom(
-          CHILDHOOD_MODULE,
-          childhood,
-          "These childhood scenes are not a diagnosis of your caregivers. They are a trail of how you learned to get comfort, show feeling, ask for help, and say goodbye. The longer reading sits in the paid childhood module.",
-          "Where did today’s first move already exist in a smaller kitchen or doorway?",
-        )] : []),
-      ],
+      modules: [],
       lens: {
         title: "A pattern, not a verdict",
         explanation:
@@ -402,7 +373,6 @@ export function buildAttachmentReport(
         style: ATTACHMENT_STYLE_META[item.style].label,
         note: item.note,
       })),
-      practices: PRACTICES[scored.style],
       loop,
       overview: [
         { title: "In dating", points: ATTACHMENT_OVERVIEWS[scored.style].dating },

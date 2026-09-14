@@ -15,6 +15,7 @@ import {
   romanceEssay,
   selfWorthSentences,
 } from './attachment-report';
+import { isInsightReport } from './ai-reading-parse';
 import type { ReportPreview, ReportSnapshot } from './payment-types';
 import type { ResultProfile } from './quiz';
 
@@ -58,11 +59,7 @@ export function reportPreview(snapshot: ReportSnapshot): ReportPreview {
   const answered = snapshot.questions.map((q, index) => ({ q, index, selectedIndex: snapshot.answerChoices[q.id] }))
     .filter((x) => Number.isInteger(x.selectedIndex) && x.q.options[x.selectedIndex]);
   const modules = snapshot.deepResult.modules ?? [];
-  const sampleModule = modules.find((module) => module.title === FREE_SAMPLE_MODULE) ?? modules[0];
-  const sampleEntry = answered.find((item) => item.q.kicker === (sampleModule?.title ?? FREE_SAMPLE_MODULE)) ?? answered[0];
-  const selected = sampleEntry?.q.options[sampleEntry.selectedIndex];
-  const aiSample = snapshot.deepResult.aiReading?.choices.find((item) => item.questionId === sampleEntry?.q.id)?.reading
-    || snapshot.deepResult.aiReading?.summary;
+  const insight = isInsightReport(snapshot.deepResult.aiReading) ? snapshot.deepResult.aiReading : null;
   const scored = resolveAttachmentScores(snapshot.questions, snapshot.answerChoices, snapshot.result);
   const caregiverScored = scoreAttachmentSubset(snapshot.questions, snapshot.answerChoices, CHILDHOOD_MODULE);
   const worth = scored ? selfWorthSnapshot(snapshot.questions, snapshot.answerChoices) : undefined;
@@ -70,10 +67,9 @@ export function reportPreview(snapshot: ReportSnapshot): ReportPreview {
   return {
     totalChoices: answered.length,
     modules: modules.map((module) => module.title),
-    romanceEssay: snapshot.deepResult.aiReading?.summary
-      ?? (scored
-        ? (snapshot.deepResult.romanceEssay ?? romanceEssay(snapshot.questions, snapshot.answerChoices, scored.style))
-        : undefined),
+    romanceEssay: insight || !scored
+      ? undefined
+      : (snapshot.deepResult.romanceEssay ?? romanceEssay(snapshot.questions, snapshot.answerChoices, scored.style)),
     scores: scored ? dimensionScore(scored.anxiety, scored.avoidance) : undefined,
     caregiver: scored && caregiverScored.answered ? {
       intro: snapshot.deepResult.caregiver?.intro ?? caregiverIntro(snapshot.questions, snapshot.answerChoices, scored.style),
@@ -84,18 +80,10 @@ export function reportPreview(snapshot: ReportSnapshot): ReportPreview {
       sentences: snapshot.deepResult.selfWorth?.sentences ?? selfWorthSentences(snapshot.questions, snapshot.answerChoices, scored.style),
     } : undefined,
     inclusions: REPORT_INCLUSIONS,
-    sample: sampleModule && selected && sampleEntry ? {
-      moduleTitle: sampleModule.title,
-      explanation: sampleModule.explanation.split('\n\n')[0] ?? sampleModule.explanation,
-      reflection: sampleModule.reflection,
-      choice: {
-        questionNumber: sampleEntry.index + 1,
-        prompt: sampleEntry.q.prompt,
-        label: selected.label,
-        meaning: aiSample || selected.meaning,
-        atlasPath: sampleEntry.q.atlasPath,
-        selectedIndex: sampleEntry.selectedIndex,
-      },
+    aiInsight: insight ? {
+      paradox: insight.contradiction.paradox,
+      selfSabotage: insight.contradiction.selfSabotage,
     } : undefined,
+    sample: undefined,
   };
 }
