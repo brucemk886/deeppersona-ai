@@ -4,6 +4,7 @@ import { type QuizQuestion, type QuizTest } from "./quiz";
 
 export const ATTACHMENT_TEST_ID = "attachment-style";
 export const FULL_REPORT_PRICE_CENTS = 999;
+export const DEEP_REPORT_PRICE_CENTS = 1999;
 
 export const defaultTests: QuizTest[] = [
   {

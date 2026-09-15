@@ -1,6 +1,6 @@
 import type Stripe from "stripe";
 import { getD1 } from "@/db/quiz-store";
-import { ensurePaymentSchema, type OrderRow } from "@/db/payment-store";
+import { ensurePaymentSchema, findOrderById } from "@/db/payment-store";
 import { PaymentError } from "./payment-http";
 import { stripeClient } from "./stripe";
 import { enqueueReportEmail } from './report-email';
@@ -11,7 +11,7 @@ export async function fulfillSession(session: Stripe.Checkout.Session) {
   await ensurePaymentSchema();
   const orderId = session.metadata?.order_id;
   if (!orderId) return;
-  const order = await getD1().prepare("SELECT * FROM payment_orders WHERE id = ?").bind(orderId).first<OrderRow>();
+  const order = await findOrderById(orderId);
   if (!order) throw new PaymentError("Order not found.", 409);
   if (session.id !== order.stripe_session_id || session.mode !== "payment" ||
       session.amount_total !== order.amount_cents || session.currency !== order.currency ||
@@ -25,9 +25,15 @@ export async function fulfillSession(session: Stripe.Checkout.Session) {
   const intent = await stripeClient().paymentIntents.retrieve(intentId, { expand: ["latest_charge"] });
   const charge = typeof intent.latest_charge === "object" ? intent.latest_charge : null;
   const refunded = Boolean(charge && charge.amount_refunded >= order.amount_cents);
-  await getD1().prepare(`UPDATE payment_orders SET status = ?, payment_intent_id = ?,
-    paid_at = COALESCE(paid_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP
-    WHERE id = ? AND status NOT IN ('refunded')`)
-    .bind(refunded ? "refunded" : "paid", intentId, order.id).run();
+  await getD1().batch([
+    getD1().prepare(`UPDATE payment_orders SET status = ?, payment_intent_id = ?,
+      paid_at = COALESCE(paid_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND status NOT IN ('refunded')`)
+      .bind(refunded ? "refunded" : "paid", intentId, order.id),
+    getD1().prepare(`UPDATE deep_orders SET status = ?, payment_intent_id = ?,
+      paid_at = COALESCE(paid_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND status NOT IN ('refunded')`)
+      .bind(refunded ? "refunded" : "paid", intentId, order.id),
+  ]);
   await enqueueReportEmail(order.report_id, `purchase-${order.id}`);
 }

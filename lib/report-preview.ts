@@ -14,7 +14,6 @@ import {
   romanceEssay,
   selfWorthSentences,
 } from './attachment-report';
-import { publicAttachmentModules } from './ai-reading-parse';
 import type { ReportPreview, ReportSnapshot } from './payment-types';
 import type { ResultProfile } from './quiz';
 
@@ -58,7 +57,6 @@ export function reportPreview(snapshot: ReportSnapshot): ReportPreview {
   const answered = snapshot.questions.map((q, index) => ({ q, index, selectedIndex: snapshot.answerChoices[q.id] }))
     .filter((x) => Number.isInteger(x.selectedIndex) && x.q.options[x.selectedIndex]);
   const modules = snapshot.deepResult.modules ?? [];
-  const modulesReading = publicAttachmentModules(snapshot.deepResult.aiReading);
   const scored = resolveAttachmentScores(snapshot.questions, snapshot.answerChoices, snapshot.result);
   const caregiverScored = scoreAttachmentSubset(snapshot.questions, snapshot.answerChoices, CHILDHOOD_MODULE);
   const worth = scored ? selfWorthSnapshot(snapshot.questions, snapshot.answerChoices) : undefined;
@@ -66,23 +64,15 @@ export function reportPreview(snapshot: ReportSnapshot): ReportPreview {
   return {
     totalChoices: answered.length,
     modules: modules.map((module) => module.title),
-    romanceEssay: !scored
-      ? undefined
-      : (modulesReading?.romanceEssay
-        ?? snapshot.deepResult.romanceEssay
-        ?? romanceEssay(snapshot.questions, snapshot.answerChoices, scored.style)),
+    romanceEssay: scored ? romanceEssay(snapshot.questions, snapshot.answerChoices, scored.style) : undefined,
     scores: scored ? dimensionScore(scored.anxiety, scored.avoidance) : undefined,
     caregiver: scored && caregiverScored.answered ? {
-      intro: modulesReading?.caregiverIntro
-        ?? snapshot.deepResult.caregiver?.intro
-        ?? caregiverIntro(snapshot.questions, snapshot.answerChoices, scored.style),
+      intro: caregiverIntro(snapshot.questions, snapshot.answerChoices, scored.style),
       ...dimensionScore(caregiverScored.anxiety, caregiverScored.avoidance),
     } : undefined,
     selfWorth: scored && worth ? {
       ...worth,
-      sentences: modulesReading?.selfWorthSentences
-        ?? snapshot.deepResult.selfWorth?.sentences
-        ?? selfWorthSentences(snapshot.questions, snapshot.answerChoices, scored.style),
+      sentences: selfWorthSentences(snapshot.questions, snapshot.answerChoices, scored.style),
     } : undefined,
     sample: undefined,
   };

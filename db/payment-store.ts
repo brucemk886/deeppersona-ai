@@ -1,6 +1,7 @@
 import { ensureQuizSchema, getD1, listTests } from "./quiz-store";
 import { PaymentError } from "@/lib/payment-http";
 import type { ReportSnapshot } from "@/lib/payment-types";
+import { DEEP_REPORT_PRICE_CENTS } from "@/lib/quiz-content";
 import { CURRENT_REFUND_POLICY } from '@/lib/refund-policy';
 
 export type ReportRow = { id: string; session_id: string; profile_id: string; test_id: string; email: string; snapshot_json: string; free: number };
@@ -28,6 +29,14 @@ async function createPaymentSchema() {
     )`),
     getD1().prepare("CREATE INDEX IF NOT EXISTS quiz_reports_profile_idx ON quiz_reports(profile_id)"),
     getD1().prepare("CREATE INDEX IF NOT EXISTS payment_orders_intent_idx ON payment_orders(payment_intent_id)"),
+    getD1().prepare(`CREATE TABLE IF NOT EXISTS deep_orders (
+      id TEXT PRIMARY KEY, report_id TEXT NOT NULL UNIQUE, amount_cents INTEGER NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'usd', status TEXT NOT NULL DEFAULT 'pending',
+      stripe_session_id TEXT UNIQUE, payment_intent_id TEXT, attempt INTEGER NOT NULL DEFAULT 0,
+      livemode INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      paid_at TEXT, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    getD1().prepare("CREATE INDEX IF NOT EXISTS deep_orders_intent_idx ON deep_orders(payment_intent_id)"),
     getD1().prepare("CREATE TABLE IF NOT EXISTS payment_order_policies (order_id TEXT PRIMARY KEY, version TEXT NOT NULL, recorded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"),
     getD1().prepare(`CREATE TABLE IF NOT EXISTS report_emails (
       id TEXT PRIMARY KEY, report_id TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE,
@@ -67,6 +76,19 @@ export async function reportOrder(reportId: string) {
   return getD1().prepare("SELECT * FROM payment_orders WHERE report_id = ?").bind(reportId).first<OrderRow>();
 }
 
+export async function deepOrder(reportId: string) {
+  return getD1().prepare("SELECT * FROM deep_orders WHERE report_id = ?").bind(reportId).first<OrderRow>();
+}
+
+export async function findOrderById(orderId: string) {
+  return (await getD1().prepare("SELECT * FROM payment_orders WHERE id = ?").bind(orderId).first<OrderRow>())
+    ?? (await getD1().prepare("SELECT * FROM deep_orders WHERE id = ?").bind(orderId).first<OrderRow>());
+}
+
+export function currentDeepPrice() {
+  return DEEP_REPORT_PRICE_CENTS;
+}
+
 export async function currentPrice(report: ReportRow) {
   const test = (await listTests(true)).find((item) => item.id === report.test_id);
   if (!test) throw new PaymentError("This test is unavailable.", 404);
@@ -102,4 +124,37 @@ export async function createOrder(report: ReportRow, livemode: boolean, expected
       .bind(id, CURRENT_REFUND_POLICY, id),
   ]);
   return (await reportOrder(report.id))!;
+}
+
+export async function createDeepOrder(report: ReportRow, livemode: boolean, expectedAmount: number) {
+  const existing = await deepOrder(report.id);
+  if (existing) {
+    if (Boolean(existing.livemode) !== livemode) throw new PaymentError("This order belongs to a different payment environment. Please take a new test.", 409);
+    return existing;
+  }
+  const amount = currentDeepPrice();
+  if (amount !== expectedAmount) throw new PaymentError("The price has changed. Refresh this page before purchasing.", 409);
+  if (!Number.isSafeInteger(amount) || amount < 50 || amount > 99999999) {
+    throw new PaymentError("The report price is unavailable. Please contact support.");
+  }
+  const id = crypto.randomUUID();
+  await getD1().batch([
+    getD1().prepare(`INSERT OR IGNORE INTO deep_orders (id, report_id, amount_cents, livemode) VALUES (?, ?, ?, ?)`)
+      .bind(id, report.id, amount, livemode ? 1 : 0),
+    getD1().prepare('INSERT OR IGNORE INTO payment_order_policies (order_id, version) SELECT ?, ? WHERE EXISTS (SELECT 1 FROM deep_orders WHERE id = ?)')
+      .bind(id, CURRENT_REFUND_POLICY, id),
+  ]);
+  return (await deepOrder(report.id))!;
+}
+
+export async function saveCheckoutSession(order: OrderRow, sessionId: string, table: "payment_orders" | "deep_orders") {
+  await getD1().prepare(`UPDATE ${table} SET stripe_session_id = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ? AND attempt = ? AND (stripe_session_id IS NULL OR stripe_session_id = ?)`)
+    .bind(sessionId, order.id, order.attempt, sessionId).run();
+}
+
+export async function clearExpiredCheckout(order: OrderRow, sessionId: string, table: "payment_orders" | "deep_orders") {
+  await getD1().prepare(`UPDATE ${table} SET stripe_session_id = NULL, attempt = attempt + 1,
+    status = 'pending', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND stripe_session_id = ? AND status != 'paid'`)
+    .bind(order.id, sessionId).run();
 }

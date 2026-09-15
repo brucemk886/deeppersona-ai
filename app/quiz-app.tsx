@@ -6,7 +6,7 @@ import Link from "next/link";
 import { HomeLanding } from "@/app/_components/home-landing";
 import { AttachmentResult, HowYouScored, PatternLoop, SelfWorthRing, StyleBanner } from "@/app/_components/attachment-result";
 import { FreeAttachmentResults } from "@/app/_components/free-attachment-results";
-import { hasLegacyChoiceReadings } from "@/lib/ai-reading-parse";
+import { hasLegacyChoiceReadings, paidAttachmentCopy } from "@/lib/ai-reading-parse";
 import { SceneCard, sceneKeyFromPath } from "@/app/_components/scene-card";
 import { SiteFooter, SiteNav } from "@/app/_components/site-chrome";
 import { ATTACHMENT_TEST_ID } from "@/lib/public-catalog";
@@ -377,15 +377,15 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
   }, [sessionId, stage, track]);
 
   const refreshReport = useCallback(async (sync = false) => {
-    if (!initialReportId) return false;
-    const data = await requestJson<ReportResponse>(`/api/reports/${encodeURIComponent(initialReportId)}${sync ? "?sync=1" : ""}`, { cache: "no-store" });
+    if (!initialReportId) throw new Error("Report unavailable.");
+    const data = await requestJson<ReportResponse>(`/api/reports/${encodeURIComponent(initialReportId)}${sync ? "?sync=1" : ""}`, { cache: "no-store" }, 35000);
     setReportData(data);
     setSelectedTest(data.test);
     setResult(data.result);
     setQuestions(data.questions ?? []);
     setAnswerChoices(data.answerChoices ?? {});
     setReportLoading(false);
-    return data.unlocked;
+    return data;
   }, [initialReportId]);
 
   useEffect(() => {
@@ -393,12 +393,15 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
     let attempts = 0;
-    const returning = new URLSearchParams(window.location.search).get("payment") === "success";
+    const params = new URLSearchParams(window.location.search);
+    const returning = params.get("payment") === "success";
+    const returningDeep = params.get("tier") === "deep";
     const load = async () => {
       try {
-        const unlocked = await refreshReport(returning);
+        const data = await refreshReport(returning);
         if (!stopped) setError('');
-        if (!stopped && returning && !unlocked && ++attempts < 8) timer = setTimeout(() => void load(), 2500);
+        const waiting = returning && (!data.unlocked || (returningDeep && !data.deepUnlocked));
+        if (!stopped && waiting && ++attempts < 8) timer = setTimeout(() => void load(), 2500);
       } catch (loadError) {
         if (!stopped) {
           setError(loadError instanceof Error ? loadError.message : "Unable to load report.");
@@ -410,13 +413,20 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
     return () => { stopped = true; clearTimeout(timer); };
   }, [initialReportId, refreshReport]);
 
-  async function beginCheckout() {
+  async function beginCheckout(tier: "basic" | "deep" = "basic") {
     if (!reportData) return;
     setSubmitting(true);
     setError("");
     try {
+      const amount = tier === "deep" ? reportData.deepAmountCents : reportData.amountCents;
+      const policy = tier === "deep" ? reportData.deepRefundPolicy : reportData.refundPolicy;
       const data = await requestJson<{ url?: string }>("/api/checkout", { method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ reportId: reportData.id, expectedAmountCents: reportData.amountCents, expectedRefundPolicy: reportData.refundPolicy }) }, 25000);
+        body: JSON.stringify({
+          reportId: reportData.id,
+          expectedAmountCents: amount,
+          expectedRefundPolicy: policy,
+          ...(tier === "deep" ? { tier: "deep" } : {}),
+        }) }, 25000);
       if (!data.url) throw new Error("Unable to open checkout.");
       window.location.assign(data.url);
     } catch (checkoutError) {
@@ -605,7 +615,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
         amountCents={reportData.amountCents}
         checkoutReady={reportData.checkoutReady}
         error={error}
-        onCheckout={() => void beginCheckout()}
+        onCheckout={() => void beginCheckout("basic")}
         onRefresh={() => { setError(""); void refreshReport(true).catch((err: Error) => setError(err.message)); }}
         paymentQuery={typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("payment") : null}
         preview={reportData.preview ?? { totalChoices: 0, modules: [] }}
@@ -663,7 +673,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
             <h1>{quizReady ? detailPrompt : "This quiz is being prepared."}</h1>
             <p className="detail-intro">{quizReady ? (textMode ? selectedTest.description : "There is no right answer. Pick the scene that matches your first move when closeness feels uncertain.") : "The previous question set is no longer offered. Start the free attachment quiz when you are ready."}</p>
             <p className="service-context">For entertainment and self-reflection, not diagnosis or treatment. <Link href="/disclaimer">Read the limitations</Link></p>
-            {quizReady ? <div className="detail-reveal"><span>YOUR FREE RESULT INCLUDES</span><div><p>A primary style label and anxiety × avoidance map.</p><p>Your romantic patterns, written from the first-reaction answers you picked.</p><p>The optional full reading covers romantic characteristics, superpowers, triggers, and self-talk.</p></div></div> : null}
+            {quizReady ? <div className="detail-reveal"><span>YOUR FREE RESULT INCLUDES</span><div><p>A primary style label and anxiety × avoidance map.</p><p>A short fixed preview of this style’s romantic patterns.</p><p>Unlock the $9.99 report for the full style reading. A deeper reading written from your answers is optional after that.</p></div></div> : null}
             <button className="primary-button detail-cta" disabled={!quizReady || loadingTest === selectedTest.id} onClick={() => void startTest(selectedTest)}>{!quizReady ? "Quiz items coming next" : loadingTest === selectedTest.id ? "Opening…" : "Start the free quiz"} <span aria-hidden="true">→</span></button>
             <div className="detail-assurance"><span>{textMode ? "Free first-reaction quiz" : "Free visual test"}</span><i /> <span>Private by design</span>{selectedTest.reportPriceCents > 0 ? <><i /> <span>Optional report: USD {(selectedTest.reportPriceCents / 100).toFixed(2)}</span></> : null}</div>
             {selectedTest.reportPriceCents > 0 ? <p className="detail-purchase-note">The type is free. A longer reading is a one-time optional payment. No subscription.</p> : null}
@@ -760,6 +770,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
       || legacyChoices.some((item) => item.questionId === question.id && item.reading),
     ),
   );
+  const paidCopy = deepResult ? paidAttachmentCopy(deepResult, Boolean(reportData?.deepUnlocked)) : null;
 
   return (
     <main className="result-shell ap-result-shell">
@@ -776,28 +787,48 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
             <StyleBanner styleKey={result.key} />
           </header>
           <AttachmentResult result={result} />
-          {deepResult.romanceEssay ? <section className="ap-section" aria-labelledby="paid-romance-title">
+          {reportData && !reportData.deepUnlocked && (reportData.deepAmountCents ?? 0) > 0 ? (
+            <section className="ap-paywall ap-deep-upsell" id="deep-reading">
+              <span className="ai-insight-kicker">Optional next step</span>
+              <h2>Deep reading · ${((reportData.deepAmountCents ?? 0) / 100).toFixed(2)}</h2>
+              <p>This page is the fixed reading for your style. The deep reading is written from the 20 first-reaction answers you picked — including the mix and the exceptions.</p>
+              <button
+                className="unlock-button unlock-button-primary"
+                disabled={submitting || !reportData.checkoutReady}
+                onClick={() => void beginCheckout("deep")}
+                type="button"
+              >
+                {submitting ? "Opening checkout…" : `Unlock the deep reading · $${((reportData.deepAmountCents ?? 0) / 100).toFixed(2)}`}
+              </button>
+              {error ? <p className="form-error" role="alert">{error}</p> : null}
+            </section>
+          ) : null}
+          {reportData?.deepUnlocked && !paidCopy?.fromAnswers ? (
+            <p className="ai-insight-tease">Your deep reading is being written from your answers. Refresh this page if it has not appeared yet.</p>
+          ) : null}
+          {paidCopy?.romanceEssay ? <section className="ap-section" aria-labelledby="paid-romance-title">
             <h2 id="paid-romance-title">Your romantic patterns</h2>
-            <p className="ap-essay">{deepResult.romanceEssay}</p>
-            {deepResult.characteristics?.length ? <article className="ap-unlocked-block">
+            {paidCopy.fromAnswers ? <span className="ai-insight-kicker">Written from your answers</span> : null}
+            <p className="ap-essay">{paidCopy.romanceEssay}</p>
+            {paidCopy.characteristics?.length ? <article className="ap-unlocked-block">
               <h3>{result.title} (Romantic) Characteristics</h3>
-              <ul>{deepResult.characteristics.map((point) => <li key={point}>{point}</li>)}</ul>
+              <ul>{paidCopy.characteristics.map((point) => <li key={point}>{point}</li>)}</ul>
             </article> : null}
-            {deepResult.superpowers?.length || deepResult.triggers?.length ? <div className="ap-card-pair ap-card-pair-open">
-              {deepResult.superpowers?.length ? <article><h3>Your superpowers in romance</h3><ul>{deepResult.superpowers.map((item) => <li key={item}>{item}</li>)}</ul></article> : null}
-              {deepResult.triggers?.length ? <article><h3>Your triggers in romance</h3><ul>{deepResult.triggers.map((item) => <li key={item}>{item}</li>)}</ul></article> : null}
+            {paidCopy.superpowers?.length || paidCopy.triggers?.length ? <div className="ap-card-pair ap-card-pair-open">
+              {paidCopy.superpowers?.length ? <article><h3>Your superpowers in romance</h3><ul>{paidCopy.superpowers.map((item) => <li key={item}>{item}</li>)}</ul></article> : null}
+              {paidCopy.triggers?.length ? <article><h3>Your triggers in romance</h3><ul>{paidCopy.triggers.map((item) => <li key={item}>{item}</li>)}</ul></article> : null}
             </div> : null}
           </section> : null}
           { deepResult.caregiver ? <section className="ap-section" aria-labelledby="paid-caregiver-title">
             <StyleBanner styleKey={result.key} />
             <h2 id="paid-caregiver-title">Your caregiver attachment patterns</h2>
-            <p className="ap-essay">{deepResult.caregiver.intro}</p>
+            <p className="ap-essay">{paidCopy?.caregiverIntro ?? deepResult.caregiver.intro}</p>
             <HowYouScored anxiety={deepResult.caregiver.anxiety} avoidance={deepResult.caregiver.avoidance} />
           </section> : null}
           { deepResult.selfWorth ? <section className="ap-section" aria-labelledby="paid-worth-title">
             <h2 id="paid-worth-title">How you see yourself</h2>
             <SelfWorthRing level={deepResult.selfWorth.level} percent={deepResult.selfWorth.percent} />
-            <p className="ap-essay">{deepResult.selfWorth.sentences}</p>
+            <p className="ap-essay">{paidCopy?.selfWorthSentences ?? deepResult.selfWorth.sentences}</p>
           </section> : null}
           { deepResult.overview?.length ? <section className="free-overview overview-columns" aria-labelledby="paid-overview-title">
             <h2 id="paid-overview-title">Type overview</h2>
@@ -812,12 +843,12 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
           </section> : null}
           { deepResult.loop ? <PatternLoop name={deepResult.loop.name} steps={deepResult.loop.steps} /> : null}
 
-          { deepResult.essay ? <section className="type-essay" aria-labelledby="type-essay-title">
+          { paidCopy?.essay ? <section className="type-essay" aria-labelledby="type-essay-title">
             <span>Longer type essay</span>
             <h2 id="type-essay-title">Dating, conflict, and what you need</h2>
-            <article><h3>In dating</h3><p>{deepResult.essay.dating}</p></article>
-            <article><h3>In conflict</h3><p>{deepResult.essay.conflict}</p></article>
-            <article><h3>What you need</h3><p>{deepResult.essay.need}</p></article>
+            <article><h3>In dating</h3><p>{paidCopy.essay.dating}</p></article>
+            <article><h3>In conflict</h3><p>{paidCopy.essay.conflict}</p></article>
+            <article><h3>What you need</h3><p>{paidCopy.essay.need}</p></article>
           </section> : null}
 
           {deepResult.modules?.map(module => (
@@ -870,7 +901,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
             {deepResult.selfEsteem.paragraphs.map((paragraph) => <p key={paragraph.slice(0, 48)}>{paragraph}</p>)}
             <div className="self-talk-rewrites">
               <h3>Self-talk rewrites</h3>
-              {deepResult.selfEsteem.rewrites.map((rewrite) => (
+              {(paidCopy?.rewrites ?? deepResult.selfEsteem.rewrites).map((rewrite) => (
                 <article key={rewrite.from}>
                   <p><span>You tend to hear</span>{rewrite.from}</p>
                   <p><span>Try</span>{rewrite.to}</p>
@@ -879,10 +910,10 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
             </div>
           </section> : null}
 
-          { deepResult.pairing?.length ? <section className="paid-module" aria-labelledby="pairing-title">
+          { paidCopy?.pairing?.length ? <section className="paid-module" aria-labelledby="pairing-title">
             <span>Pairing notes</span>
             <h2 id="pairing-title">How this style meets the other three</h2>
-            {deepResult.pairing.map((item) => (
+            {paidCopy.pairing.map((item) => (
               <article key={item.style}>
                 <h3>With {item.style}</h3>
                 <p>{item.note}</p>

@@ -64,23 +64,6 @@ export function hasAiKey(): boolean {
 export function applyAiModules(deepResult: DeepResultContent, reading: AiAttachmentModules) {
   deepResult.aiReading = reading;
   deepResult.aiReadingVersion = 3;
-  deepResult.romanceEssay = reading.romanceEssay;
-  deepResult.characteristics = reading.characteristics;
-  deepResult.superpowers = reading.superpowers;
-  deepResult.triggers = reading.triggers;
-  deepResult.essay = reading.essay;
-  deepResult.pairing = reading.pairing;
-  if (deepResult.selfWorth) {
-    deepResult.selfWorth = { ...deepResult.selfWorth, sentences: reading.selfWorthSentences };
-  }
-  deepResult.selfEsteem = {
-    title: deepResult.selfEsteem?.title ?? "Your worth pattern",
-    paragraphs: [reading.selfWorthSentences, ...(deepResult.selfEsteem?.paragraphs.slice(1) ?? [])].filter(Boolean),
-    rewrites: reading.rewrites,
-  };
-  if (reading.caregiverIntro && deepResult.caregiver) {
-    deepResult.caregiver = { ...deepResult.caregiver, intro: reading.caregiverIntro };
-  }
 }
 
 export async function generateAiReading(
@@ -124,7 +107,7 @@ export async function generateAiReading(
   }
 }
 
-// Runs at most once per stored report, then the reading is fixed. Returns true when the snapshot changed.
+// Paid / already-free reports only. One attempt, then the reading is fixed.
 export async function upgradeAiReading(snapshot: ReportSnapshot): Promise<boolean> {
   if (!hasAiKey() || !ATTACHMENT_KEYS.has(snapshot.result.key)) return false;
   if (!needsAiUpgrade(snapshot.deepResult)) return false;

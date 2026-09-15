@@ -234,6 +234,36 @@ export function publicAttachmentModules(value: unknown): AiAttachmentModules | n
   return report && !hasCjkText(report) ? report : null;
 }
 
+export function paidAttachmentCopy(
+  deepResult: {
+    aiReading?: unknown;
+    romanceEssay?: string;
+    characteristics?: string[];
+    superpowers?: string[];
+    triggers?: string[];
+    essay?: { dating: string; conflict: string; need: string };
+    pairing?: { style: string; note: string }[];
+    caregiver?: { intro: string };
+    selfWorth?: { sentences: string };
+    selfEsteem?: { rewrites: { from: string; to: string }[] };
+  },
+  deepUnlocked: boolean,
+) {
+  const ai = deepUnlocked ? publicAttachmentModules(deepResult.aiReading) : null;
+  return {
+    romanceEssay: ai?.romanceEssay ?? deepResult.romanceEssay,
+    characteristics: ai?.characteristics ?? deepResult.characteristics,
+    superpowers: ai?.superpowers ?? deepResult.superpowers,
+    triggers: ai?.triggers ?? deepResult.triggers,
+    essay: ai?.essay ?? deepResult.essay,
+    pairing: ai?.pairing ?? deepResult.pairing,
+    caregiverIntro: ai?.caregiverIntro ?? deepResult.caregiver?.intro,
+    selfWorthSentences: ai?.selfWorthSentences ?? deepResult.selfWorth?.sentences,
+    rewrites: ai?.rewrites ?? deepResult.selfEsteem?.rewrites,
+    fromAnswers: Boolean(ai),
+  };
+}
+
 // One upgrade attempt per report. Purchased per-choice snapshots stay as purchased.
 export function needsAiUpgrade(deepResult: { aiReading?: unknown; aiUpgradeAttempted?: boolean }): boolean {
   if (deepResult.aiUpgradeAttempted) return false;

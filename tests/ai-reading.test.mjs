@@ -8,6 +8,7 @@ import {
   isInsightReport,
   isInsightV2,
   needsAiUpgrade,
+  paidAttachmentCopy,
   parseAiReading,
   publicAttachmentModules,
   publicInsightReport,
@@ -141,6 +142,18 @@ test("needsAiUpgrade runs once per report and leaves purchased per-choice snapsh
   assert.equal(needsAiUpgrade({ aiReading: { ...modules, romanceEssay: "你还在" } }), true);
   assert.equal(needsAiUpgrade({ aiReading: undefined }), true);
   assert.equal(needsAiUpgrade({ aiReading: { summary: "x", choices: [{ questionId: "q1", reading: "ok" }] } }), false);
+});
+
+test("paidAttachmentCopy keeps canned text until the deep report is unlocked", () => {
+  const canned = {
+    romanceEssay: "Fixed style essay.",
+    characteristics: ["Fixed trait"],
+    aiReading: modules,
+    selfWorth: { sentences: "Fixed worth." },
+  };
+  assert.equal(paidAttachmentCopy(canned, false).romanceEssay, "Fixed style essay.");
+  assert.equal(paidAttachmentCopy(canned, true).romanceEssay, modules.romanceEssay);
+  assert.equal(paidAttachmentCopy(canned, true).fromAnswers, true);
 });
 
 test("legacy per-choice snapshots are detected without passing as module reports", () => {

@@ -53,12 +53,16 @@ export type ReportResponse = {
   preview?: ReportPreview;
   id: string;
   unlocked: boolean;
+  deepUnlocked?: boolean;
   status: string;
   amountCents: number;
+  deepAmountCents?: number;
+  deepStatus?: string;
   currency: "usd";
   sandbox: boolean;
   checkoutReady: boolean;
   refundPolicy: string;
+  deepRefundPolicy?: string;
   test: QuizTest;
   result: ResultProfile;
   questions?: QuizQuestion[];

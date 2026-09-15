@@ -1,4 +1,4 @@
-import { currentPrice, ownedReport, reportOrder, saveReportSnapshot, snapshotOf } from "@/db/payment-store";
+import { currentDeepPrice, currentPrice, deepOrder, ownedReport, reportOrder, saveReportSnapshot, snapshotOf, type OrderRow } from "@/db/payment-store";
 import { upgradeAiReading } from "@/lib/ai-reading";
 import { fulfillSession } from "@/lib/payment-fulfillment";
 import { paymentError, privateJson } from "@/lib/payment-http";
@@ -14,20 +14,32 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   try {
     const report = await ownedReport((await params).id, readProfileId(request), request);
     let order = await reportOrder(report.id);
+    let deep = await deepOrder(report.id);
     const config = paymentConfig();
-    const matchingEnvironment = !order || Boolean(order.livemode) === !config.sandbox;
-    if (matchingEnvironment && order?.stripe_session_id && order.status === "pending" && new URL(request.url).searchParams.get("sync") === "1") {
-      await fulfillSession(await stripeClient().checkout.sessions.retrieve(order.stripe_session_id));
+    const matchingEnvironment = (row?: OrderRow | null) => !row || Boolean(row.livemode) === !config.sandbox;
+    const sync = new URL(request.url).searchParams.get("sync") === "1";
+    if (sync) {
+      for (const pending of [order, deep]) {
+        if (matchingEnvironment(pending) && pending?.stripe_session_id && pending.status === "pending") {
+          await fulfillSession(await stripeClient().checkout.sessions.retrieve(pending.stripe_session_id));
+        }
+      }
       order = await reportOrder(report.id);
+      deep = await deepOrder(report.id);
     }
-    const unlocked = Boolean(report.free || (matchingEnvironment && order?.status === "paid"));
+    const unlocked = Boolean(report.free || (matchingEnvironment(order) && order?.status === "paid"));
+    const deepUnlocked = Boolean(matchingEnvironment(deep) && deep?.status === "paid");
     const snapshot = snapshotOf(report);
-    if (await upgradeAiReading(snapshot)) await saveReportSnapshot(report.id, snapshot);
+    if (deepUnlocked && await upgradeAiReading(snapshot)) await saveReportSnapshot(report.id, snapshot);
     const response: ReportResponse = {
-      id: report.id, unlocked, status: report.free ? "free" : order?.status ?? "unpaid",
-      amountCents: report.free ? 0 : order?.amount_cents ?? await currentPrice(report), currency: "usd",
-      sandbox: config.sandbox, checkoutReady: config.ready && matchingEnvironment, test: snapshot.test,
+      id: report.id, unlocked, deepUnlocked, status: report.free ? "free" : order?.status ?? "unpaid",
+      amountCents: report.free ? 0 : order?.amount_cents ?? await currentPrice(report),
+      deepAmountCents: currentDeepPrice(),
+      deepStatus: deep?.status,
+      currency: "usd",
+      sandbox: config.sandbox, checkoutReady: config.ready && matchingEnvironment(order) && matchingEnvironment(deep), test: snapshot.test,
       refundPolicy: await orderRefundPolicy(order?.id),
+      deepRefundPolicy: await orderRefundPolicy(deep?.id),
       result: unlocked ? snapshot.result : freeResultFromSnapshot(snapshot),
       ...(unlocked ? { questions: snapshot.questions, answerChoices: snapshot.answerChoices, deepResult: snapshot.deepResult } : { preview: reportPreview(snapshot) }),
     };

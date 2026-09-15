@@ -219,6 +219,8 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       assert.equal(state.data.preview.inclusions, undefined);
       assert.doesNotMatch(JSON.stringify(state.data.preview), /paid reading|Mother \(CG|Father \(CG|AT WORK|millions of users/i);
       const stored=JSON.parse((await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(report.id).first()).snapshot_json);
+      assert.equal(stored.deepResult.aiReading, undefined);
+      assert.equal(stored.deepResult.aiUpgradeAttempted, undefined);
       const leaked = stored.questions.flatMap((q) => q.options.map((option) => option.meaning)).filter((meaning) => meaning && JSON.stringify(state.data).includes(meaning));
       assert.equal(leaked.length, 0, 'Unpaid response must not leak canned option readings');
       assert.match(state.headers.get("cache-control"), /no-store/);
@@ -294,6 +296,45 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       assert.equal(second.status, 200); assert.notEqual(second.data.url, first.data.url);
       const count = await db.prepare("SELECT COUNT(*) AS n FROM payment_orders WHERE report_id = ?").bind(expiring.id).first();
       assert.equal(count.n, 1);
+    });
+
+    await t.test("deep reading is a second $19.99 purchase after the basic report", async () => {
+      const deepReport = await save(999);
+      const unpaidState = await reportState(deepReport);
+      assert.equal(unpaidState.data.deepUnlocked, false);
+      assert.equal(unpaidState.data.deepAmountCents, 1999);
+      assert.equal((await call("/api/checkout", {
+        cookie: deepReport.cookie,
+        body: { reportId: deepReport.id, expectedAmountCents: 1999, expectedRefundPolicy: unpaidState.data.deepRefundPolicy, tier: "deep" },
+      })).status, 409);
+      const basicCreated = await checkout(deepReport, 999);
+      const basicSession = await getSession(basicCreated.data.url.split("/").at(-1));
+      const basicPi = "pi_" + crypto.randomUUID();
+      await setIntent({ id: basicPi, latest_charge: { amount_refunded: 0 } });
+      Object.assign(basicSession, { payment_status: "paid", status: "complete", payment_intent: basicPi });
+      await setSession(basicSession);
+      assert.equal(await notify("checkout.session.completed", basicSession), 200);
+      const basicPaid = await reportState(deepReport);
+      assert.equal(basicPaid.data.unlocked, true);
+      assert.equal(basicPaid.data.deepUnlocked, false);
+      assert.equal(basicPaid.data.deepResult.aiReading, undefined);
+      const deepCreated = await call("/api/checkout", {
+        cookie: deepReport.cookie,
+        body: { reportId: deepReport.id, expectedAmountCents: 1999, expectedRefundPolicy: basicPaid.data.deepRefundPolicy, tier: "deep" },
+      });
+      assert.equal(deepCreated.status, 200, JSON.stringify(deepCreated.data));
+      const deepSession = await getSession(deepCreated.data.url.split("/").at(-1));
+      assert.equal(deepSession.amount_total, 1999);
+      const deepPi = "pi_" + crypto.randomUUID();
+      await setIntent({ id: deepPi, latest_charge: { amount_refunded: 0 } });
+      Object.assign(deepSession, { payment_status: "paid", status: "complete", payment_intent: deepPi });
+      await setSession(deepSession);
+      assert.equal(await notify("checkout.session.completed", deepSession), 200);
+      const deepPaid = await reportState(deepReport);
+      assert.equal(deepPaid.data.unlocked, true);
+      assert.equal(deepPaid.data.deepUnlocked, true);
+      assert.equal(deepPaid.data.deepResult.aiReading, undefined);
+      assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM deep_orders WHERE report_id = ?").bind(deepReport.id).first()).n, 1);
     });
 
     await t.test("admin soft deletion preserves reports and live order metrics exclude test orders", async () => {

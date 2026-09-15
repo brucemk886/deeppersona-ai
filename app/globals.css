@@ -1627,6 +1627,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .ap-worth-ring span { color: var(--muted); font-size: 13px; }
 .ap-sample > span { color: var(--wine); font-size: 11px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
 .ap-paywall { margin-top: 48px; padding-top: 28px; border-top: 1px solid var(--line); }
+.ap-deep-upsell {
+  margin-top: 28px;
+  padding: 24px;
+  border: 1px solid #d4b45d;
+  border-radius: 22px;
+  background: #fff8e8;
+}
 .ap-paywall h2 { margin: 0 0 12px; font: 500 36px/1.15 Georgia, serif; }
 .ap-paywall p { margin: 1rem 0; line-height: 1.7; }
 .ap-unlocked-block, .ap-card-pair-open article {
