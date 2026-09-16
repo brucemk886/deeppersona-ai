@@ -6,8 +6,8 @@ import { pathToFileURL } from 'node:url';
 
 // Development adapter only. Runs the unchanged payment route source with a
 // SQLite implementation of D1 to avoid Windows workerd's outbound-I/O stalls.
-export async function localPaymentRoutes(bindings) {
-  const directory = resolve('.wrangler/payment-dev/miniflare-D1DatabaseObject');
+export async function localPaymentRoutes(bindings, persistence = '.wrangler/payment-dev') {
+  const directory = resolve(persistence, 'miniflare-D1DatabaseObject');
   const file = readdirSync(directory).find((name) => name.endsWith('.sqlite') && name !== 'metadata.sqlite');
   if (!file) throw new Error('Local D1 must be initialized before the payment adapter starts.');
   const sqlite = new DatabaseSync(resolve(directory, file));
@@ -41,6 +41,7 @@ export async function localPaymentRoutes(bindings) {
   await build({ stdin: { contents: `
     export { POST as checkout } from './app/api/checkout/route';
     export { POST as webhook } from './app/api/stripe/webhook/route';
+    export { POST as lemonWebhook } from './app/api/lemonsqueezy/webhook/route';
     export { GET as report } from './app/api/reports/[id]/route';
   `, resolveDir: process.cwd(), loader: 'ts' }, outfile: output,
     bundle: true, platform: 'node', format: 'esm', packages: 'external',

@@ -14,7 +14,9 @@ import { getD1, getRuntimeEnv } from "@/db/quiz-store";
 import { fulfillSession } from "@/lib/payment-fulfillment";
 import { PaymentError, paymentError, privateJson, requireSameOrigin } from "@/lib/payment-http";
 import { readProfileId } from "@/lib/profile-cookie";
-import { checkoutOrigin, paymentConfig, stripeClient } from "@/lib/stripe";
+import { stripeClient } from "@/lib/stripe";
+import { paymentConfig } from '@/lib/payment-config';
+import { createLemonCheckout, lemonPayment } from '@/lib/lemonsqueezy';
 import { orderRefundPolicy, LEGACY_REFUND_POLICY } from '@/lib/refund-policy';
 
 export async function POST(request: Request) {
@@ -39,7 +41,7 @@ export async function POST(request: Request) {
     if (previous && Boolean(previous.livemode) !== !config.sandbox) throw new PaymentError("Please take a new test in this payment environment.", 409);
     if (!deep && (report.free || previous?.status === "paid")) return privateJson({ url: `/reports/${report.id}` });
     if (deep && previous?.status === "paid") return privateJson({ url: `/reports/${report.id}` });
-    if (deep && !(report.free || basic?.status === "paid")) {
+    if (deep && !(report.free || (basic?.status === "paid" && Boolean(basic.livemode) === !config.sandbox))) {
       throw new PaymentError("Unlock the full report first.", 409);
     }
     if (previous?.status === "refunded") throw new PaymentError("This purchase was refunded. Take a new test to purchase a new report.", 409);
@@ -52,13 +54,21 @@ export async function POST(request: Request) {
     const refundPolicy = await orderRefundPolicy(previous?.id);
     if (body.expectedRefundPolicy !== refundPolicy) throw new PaymentError('The purchase terms have been updated. Refresh this page and review the refund policy before purchasing.', 409);
     if (!config.ready) throw new PaymentError("Checkout is not available yet. Please try again later.", 503);
-    const stripe = stripeClient();
     const table = deep ? "deep_orders" as const : "payment_orders" as const;
     let order = deep
       ? await createDeepOrder(report, !config.sandbox, amount)
       : await createOrder(report, !config.sandbox, amount);
     if (await orderRefundPolicy(order.id) !== refundPolicy) throw new PaymentError('Refresh this page to review the terms for your existing order.', 409);
     if (order.amount_cents !== amount) throw new PaymentError("The price has changed. Refresh this page before purchasing.", 409);
+    const requestUrl = new URL(request.url);
+    const origin = config.sandbox && ['localhost', '127.0.0.1'].includes(requestUrl.hostname)
+      ? requestUrl.origin : new URL(getRuntimeEnv().APP_URL || 'https://deeppersonaai.com').origin;
+    const lemon = await lemonPayment(order.id);
+    // An existing Stripe session remains with Stripe, so a provider switch cannot charge it twice.
+    if (lemon || (config.provider === 'lemonsqueezy' && !order.stripe_session_id)) {
+      return privateJson({ url: await createLemonCheckout(order, report, deep, origin, refundPolicy) });
+    }
+    const stripe = stripeClient();
     if (order.stripe_session_id) {
       const existing = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
       if (existing.status === "complete") {
@@ -69,7 +79,6 @@ export async function POST(request: Request) {
       await clearExpiredCheckout(order, existing.id, table);
       order = (deep ? await deepOrder(report.id) : await reportOrder(report.id))!;
     }
-    const origin = checkoutOrigin(request);
     const title = snapshotOf(report).test.title;
     const session = await stripe.checkout.sessions.create({
       mode: "payment", payment_method_types: ["card"], customer_email: report.email,

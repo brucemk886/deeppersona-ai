@@ -38,6 +38,12 @@ async function createPaymentSchema() {
     )`),
     getD1().prepare("CREATE INDEX IF NOT EXISTS deep_orders_intent_idx ON deep_orders(payment_intent_id)"),
     getD1().prepare("CREATE TABLE IF NOT EXISTS payment_order_policies (order_id TEXT PRIMARY KEY, version TEXT NOT NULL, recorded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"),
+    getD1().prepare(`CREATE TABLE IF NOT EXISTS lemon_payments (
+      order_id TEXT PRIMARY KEY, store_id TEXT NOT NULL, variant_id TEXT NOT NULL,
+      nonce TEXT NOT NULL, checkout_id TEXT UNIQUE, checkout_url TEXT, expires_at INTEGER NOT NULL DEFAULT 0,
+      remote_order_id TEXT UNIQUE, lease_until INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
     getD1().prepare(`CREATE TABLE IF NOT EXISTS report_emails (
       id TEXT PRIMARY KEY, report_id TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE,
       token TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0,

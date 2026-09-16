@@ -41,6 +41,13 @@ type RuntimeEnv = {
   DEEPSEEK_API_KEY?: string;
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
+  PAYMENT_PROVIDER?: string;
+  LEMONSQUEEZY_API_KEY?: string;
+  LEMONSQUEEZY_WEBHOOK_SECRET?: string;
+  LEMONSQUEEZY_STORE_ID?: string;
+  LEMONSQUEEZY_VARIANT_ID?: string;
+  LEMONSQUEEZY_DEEP_VARIANT_ID?: string;
+  LEMONSQUEEZY_TEST_MODE?: string;
   APP_URL?: string;
   RESEND_API_KEY?: string;
   RESEND_WEBHOOK_SECRET?: string;

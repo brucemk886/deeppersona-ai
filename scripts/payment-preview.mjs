@@ -5,18 +5,23 @@ import { parseEnv } from 'node:util';
 import { createServer, request as httpRequest } from 'node:http';
 
 import { localPaymentRoutes } from './local-payment-routes.mjs';
-const bindings = parseEnv(readFileSync('.dev.vars','utf8'));
+const bindings = parseEnv(readFileSync(process.env.PAYMENT_ENV_FILE || '.dev.vars','utf8'));
+const persistence = process.env.PAYMENT_PERSIST || '.wrangler/payment-dev';
+const port = Number(process.env.PAYMENT_PORT || 8787);
+if (bindings.PAYMENT_PROVIDER === 'lemonsqueezy' && bindings.LEMONSQUEEZY_TEST_MODE !== 'true') {
+  throw new Error('Local Lemon Squeezy preview requires test mode.');
+}
 const mf = new Miniflare({
   modules: ['index.js', ...readdirSync('dist/server',{recursive:true}).filter(p=>p.endsWith('.js') && p!=='index.js')].map(p=>({type:'ESModule',path:resolve('dist/server',p)})), modulesRoot:resolve('dist/server'),
   compatibilityDate:'2026-05-22',compatibilityFlags:['nodejs_compat'],
   bindings,
-  d1Databases:['DB'],d1Persist:'.wrangler/payment-dev',
+  d1Databases:['DB'],d1Persist:persistence,
   port:0,host:'127.0.0.1',inspectorPort:0,
 });
 const workerUrl = new URL(await mf.ready);
 const initialization = await mf.dispatchFetch('http://localhost/api/tests');
 await initialization.text();
-const localPayments = await localPaymentRoutes(bindings);
+const localPayments = await localPaymentRoutes(bindings, persistence);
 // Serve static files in Node: the Miniflare asset RPC bridge can hang on Windows.
 const assetRoot = resolve('dist/client');
 const contentTypes = { '.js':'text/javascript', '.css':'text/css', '.svg':'image/svg+xml', '.png':'image/png', '.webp':'image/webp', '.ico':'image/x-icon', '.woff2':'font/woff2', '.json':'application/json' };
@@ -25,6 +30,7 @@ const server = createServer(async (request, response) => {
   const reportMatch = pathname.match(/^\/api\/reports\/([^/]+)$/);
   const handler = request.method === 'POST' && pathname === '/api/checkout' ? localPayments.routes.checkout
     : request.method === 'POST' && pathname === '/api/stripe/webhook' ? localPayments.routes.webhook
+    : request.method === 'POST' && pathname === '/api/lemonsqueezy/webhook' ? localPayments.routes.lemonWebhook
     : request.method === 'GET' && reportMatch ? localPayments.routes.report : null;
   if (handler) {
     try {
@@ -59,8 +65,8 @@ const server = createServer(async (request, response) => {
   upstream.on('error', () => { if (!response.headersSent) response.writeHead(503); response.end('Local preview unavailable. Please retry.'); });
   request.pipe(upstream);
 });
-await new Promise((ready) => server.listen(8787, '127.0.0.1', ready));
-console.log('Payment preview ready: http://127.0.0.1:8787/');
+await new Promise((ready) => server.listen(port, '127.0.0.1', ready));
+console.log(`Payment preview ready: http://127.0.0.1:${port}/`);
 const keepAlive = setInterval(() => {}, 60000);
 process.on('SIGINT',async()=>{clearInterval(keepAlive);server.close();await mf.dispose();localPayments.close();process.exit();});
 

@@ -3,7 +3,9 @@ import { upgradeAiReading } from "@/lib/ai-reading";
 import { fulfillSession } from "@/lib/payment-fulfillment";
 import { paymentError, privateJson } from "@/lib/payment-http";
 import { readProfileId } from "@/lib/profile-cookie";
-import { paymentConfig, stripeClient } from "@/lib/stripe";
+import { stripeClient } from "@/lib/stripe";
+import { paymentConfig } from '@/lib/payment-config';
+import { lemonPayment, syncLemonOrder } from '@/lib/lemonsqueezy';
 import type { ReportResponse } from "@/lib/payment-types";
 import { orderRefundPolicy } from '@/lib/refund-policy';
 import { freeResultFromSnapshot, reportPreview } from '@/lib/report-preview';
@@ -22,6 +24,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       for (const pending of [order, deep]) {
         if (matchingEnvironment(pending) && pending?.stripe_session_id && pending.status === "pending") {
           await fulfillSession(await stripeClient().checkout.sessions.retrieve(pending.stripe_session_id));
+        } else if (matchingEnvironment(pending) && pending && pending.status === 'pending') {
+          const lemon = await lemonPayment(pending.id);
+          if (lemon?.remote_order_id) await syncLemonOrder(pending, lemon);
         }
       }
       order = await reportOrder(report.id);
