@@ -6,7 +6,7 @@ import { enqueueReportEmail } from './report-email';
 export type LemonPayment = {
   order_id: string; store_id: string; variant_id: string; nonce: string;
   checkout_id: string | null; checkout_url: string | null; expires_at: number;
-  remote_order_id: string | null; lease_until: number;
+  remote_order_id: string | null; lease_until: number; prepared: number;
 };
 type LemonOrder = { type: string; id: string; attributes: {
   store_id: number; currency: string; subtotal: number; discount_total: number;
@@ -32,12 +32,39 @@ export async function lemonPayment(orderId: string) {
   return getD1().prepare('SELECT * FROM lemon_payments WHERE order_id = ?').bind(orderId).first<LemonPayment>();
 }
 
-export async function createLemonCheckout(order: OrderRow, report: ReportRow, deep: boolean, origin: string, policy: string) {
+async function validatedLemonConfig(payment: LemonPayment, order: OrderRow) {
+  const env = getRuntimeEnv();
+  const material = [env.LEMONSQUEEZY_API_KEY, payment.store_id, payment.variant_id, !Boolean(order.livemode), order.currency].join(':');
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(material));
+  const cacheKey = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+  const now = Date.now();
+  const cached = await getD1().prepare('SELECT valid_until FROM lemon_config_cache WHERE cache_key = ? AND valid_until > ?')
+    .bind(cacheKey, now).first<{valid_until: number}>();
+  if (cached) return;
+  const [variantResponse, storeResponse] = await Promise.all([
+    lemonRequest<{ data: { attributes: { is_subscription: boolean; test_mode: boolean } } }>(`variants/${payment.variant_id}`),
+    lemonRequest<{ data: { attributes: { currency: string } } }>(`stores/${payment.store_id}`),
+  ]);
+  if (variantResponse.data.attributes.is_subscription || variantResponse.data.attributes.test_mode !== !Boolean(order.livemode) ||
+      storeResponse.data.attributes.currency.toLowerCase() !== order.currency) {
+    throw new PaymentError('The checkout product or payment environment is not configured correctly.', 503);
+  }
+  await getD1().prepare(`INSERT INTO lemon_config_cache (cache_key, valid_until) VALUES (?, ?)
+    ON CONFLICT(cache_key) DO UPDATE SET valid_until = excluded.valid_until, updated_at = CURRENT_TIMESTAMP`)
+    .bind(cacheKey, now + 5 * 60 * 1000).run();
+}
+
+export async function markLemonCheckoutOpened(orderId: string) {
+  await getD1().prepare('UPDATE lemon_payments SET prepared = 0 WHERE order_id = ?').bind(orderId).run();
+}
+
+export async function createLemonCheckout(order: OrderRow, report: ReportRow, deep: boolean, origin: string, policy: string, prepare = false) {
   const env = getRuntimeEnv();
   const variant = deep ? env.LEMONSQUEEZY_DEEP_VARIANT_ID : env.LEMONSQUEEZY_VARIANT_ID;
   if (!variant || !env.LEMONSQUEEZY_STORE_ID) throw new PaymentError('Checkout is not configured.', 503);
-  await getD1().prepare(`INSERT OR IGNORE INTO lemon_payments (order_id, store_id, variant_id, nonce) VALUES (?, ?, ?, ?)`)
-    .bind(order.id, env.LEMONSQUEEZY_STORE_ID, variant, crypto.randomUUID()).run();
+  await getD1().prepare(`INSERT OR IGNORE INTO lemon_payments (order_id, store_id, variant_id, nonce, prepared) VALUES (?, ?, ?, ?, ?)`)
+    .bind(order.id, env.LEMONSQUEEZY_STORE_ID, variant, crypto.randomUUID(), prepare ? 1 : 0).run();
+  if (!prepare) await markLemonCheckoutOpened(order.id);
   let payment = (await lemonPayment(order.id))!;
   if (payment.remote_order_id) {
     await syncLemonOrder(order, payment);
@@ -51,14 +78,7 @@ export async function createLemonCheckout(order: OrderRow, report: ReportRow, de
   try {
     payment = (await lemonPayment(order.id))!;
     if (payment.checkout_url && payment.expires_at > Date.now() + 10000) return payment.checkout_url;
-    const [variantResponse, storeResponse] = await Promise.all([
-      lemonRequest<{ data: { attributes: { is_subscription: boolean; test_mode: boolean } } }>(`variants/${payment.variant_id}`),
-      lemonRequest<{ data: { attributes: { currency: string } } }>(`stores/${payment.store_id}`),
-    ]);
-    if (variantResponse.data.attributes.is_subscription || variantResponse.data.attributes.test_mode !== !Boolean(order.livemode) ||
-        storeResponse.data.attributes.currency.toLowerCase() !== order.currency) {
-      throw new PaymentError('The checkout product or payment environment is not configured correctly.', 503);
-    }
+    await validatedLemonConfig(payment, order);
     const expires = Date.now() + 30 * 60 * 1000;
     const returnUrl = `${origin}/reports/${report.id}?payment=success${deep ? '&tier=deep' : ''}`;
     const result = await lemonRequest<{ data: { id: string; attributes: { url: string; test_mode: boolean } } }>('checkouts', { data: {

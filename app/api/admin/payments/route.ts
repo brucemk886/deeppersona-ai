@@ -18,6 +18,7 @@ export async function GET(request: Request) {
       (SELECT first_access_at FROM report_emails WHERE report_id = r.id ORDER BY created_at DESC LIMIT 1) AS email_link_access_at
       FROM payment_orders o
       JOIN quiz_reports r ON r.id = o.report_id LEFT JOIN quiz_tests t ON t.id = r.test_id
+      WHERE NOT EXISTS (SELECT 1 FROM lemon_payments hidden WHERE hidden.order_id = o.id AND hidden.prepared = 1 AND o.status = 'pending')
       UNION ALL
       SELECT o.id, o.amount_cents, o.currency, o.status, o.livemode, o.created_at,
       o.paid_at, r.email, t.title AS test_title,
@@ -27,6 +28,7 @@ export async function GET(request: Request) {
       (SELECT first_access_at FROM report_emails WHERE report_id = r.id ORDER BY created_at DESC LIMIT 1) AS email_link_access_at
       FROM deep_orders o
       JOIN quiz_reports r ON r.id = o.report_id LEFT JOIN quiz_tests t ON t.id = r.test_id
+      WHERE NOT EXISTS (SELECT 1 FROM lemon_payments hidden WHERE hidden.order_id = o.id AND hidden.prepared = 1 AND o.status = 'pending')
       ORDER BY created_at DESC LIMIT 100`).all();
     return privateJson({ ...await paymentConfig(), orders: orders.results });
   } catch (error) { return paymentError(error); }

@@ -27,6 +27,7 @@ export async function POST(request: Request) {
       expectedAmountCents?: number;
       expectedRefundPolicy?: string;
       tier?: string;
+      prepare?: boolean;
     };
     if (typeof body.reportId !== "string") throw new PaymentError("Choose a report first.");
     const report = await ownedReport(body.reportId, readProfileId(request), request);
@@ -66,8 +67,9 @@ export async function POST(request: Request) {
     const lemon = await lemonPayment(order.id);
     // An existing Stripe session remains with Stripe, so a provider switch cannot charge it twice.
     if (lemon || (config.provider === 'lemonsqueezy' && !order.stripe_session_id)) {
-      return privateJson({ url: await createLemonCheckout(order, report, deep, origin, refundPolicy) });
+      return privateJson({ url: await createLemonCheckout(order, report, deep, origin, refundPolicy, body.prepare === true) });
     }
+    if (body.prepare === true) throw new PaymentError('Checkout preloading is not available for this payment provider.', 409);
     const stripe = stripeClient();
     if (order.stripe_session_id) {
       const existing = await stripe.checkout.sessions.retrieve(order.stripe_session_id);

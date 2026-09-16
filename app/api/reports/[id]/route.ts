@@ -42,7 +42,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       deepAmountCents: currentDeepPrice(),
       deepStatus: deep?.status,
       currency: "usd",
-      sandbox: config.sandbox, checkoutReady: config.ready && await matchingEnvironment(order), test: snapshot.test,
+      sandbox: config.sandbox, checkoutReady: config.ready && await matchingEnvironment(order), paymentProvider: config.provider, test: snapshot.test,
       refundPolicy: await orderRefundPolicy(order?.id),
       deepRefundPolicy: await orderRefundPolicy(deep?.id),
       result: unlocked ? snapshot.result : freeResultFromSnapshot(snapshot),

@@ -46,7 +46,12 @@ async function createPaymentSchema() {
       order_id TEXT PRIMARY KEY, store_id TEXT NOT NULL, variant_id TEXT NOT NULL,
       nonce TEXT NOT NULL, checkout_id TEXT UNIQUE, checkout_url TEXT, expires_at INTEGER NOT NULL DEFAULT 0,
       remote_order_id TEXT UNIQUE, lease_until INTEGER NOT NULL DEFAULT 0,
+      prepared INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    getD1().prepare(`CREATE TABLE IF NOT EXISTS lemon_config_cache (
+      cache_key TEXT PRIMARY KEY, valid_until INTEGER NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
     getD1().prepare(`CREATE TABLE IF NOT EXISTS report_emails (
       id TEXT PRIMARY KEY, report_id TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE,
@@ -63,6 +68,9 @@ async function createPaymentSchema() {
     getD1().prepare("CREATE INDEX IF NOT EXISTS report_emails_resend_idx ON report_emails(resend_id)"),
     getD1().prepare("CREATE TABLE IF NOT EXISTS report_email_limits (bucket TEXT PRIMARY KEY, hits INTEGER NOT NULL, expires_at INTEGER NOT NULL)"),
   ]);
+  await getD1().prepare("ALTER TABLE lemon_payments ADD COLUMN prepared INTEGER NOT NULL DEFAULT 0").run().catch((error: unknown) => {
+    if (!(error instanceof Error) || !/duplicate column name/i.test(error.message)) throw error;
+  });
 }
 
 export async function ownedReport(id: string, profileId: string | null | undefined, request?: Request) {

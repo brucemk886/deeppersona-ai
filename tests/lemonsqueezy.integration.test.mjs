@@ -86,9 +86,22 @@ test('Lemon Squeezy checkout, signed delivery, two tiers and refunds', async t =
       assert.equal((await state(r)).data.amountCents,999);
       await db.prepare('UPDATE quiz_tests SET report_price_cents=999 WHERE id=?').bind(testId).run();
     });
+    await t.test('prepares checkout before the click, keeps it out of opened orders, and marks it opened',async()=>{
+      const r=await save();const warmed=await checkout(r,'basic',{prepare:true});
+      assert.equal(warmed.status,200,JSON.stringify(warmed.data));
+      const order=await db.prepare('SELECT id FROM payment_orders WHERE report_id=?').bind(r.id).first();
+      assert.equal((await db.prepare('SELECT prepared FROM lemon_payments WHERE order_id=?').bind(order.id).first()).prepared,1);
+      assert.ok((await db.prepare('SELECT valid_until FROM lemon_config_cache').first()).valid_until>Date.now());
+      const opened=await call('/api/checkout/opened',{cookie:r.cookie,body:{reportId:r.id}});
+      assert.equal(opened.status,200);assert.equal(opened.data.ok,true);
+      assert.equal((await db.prepare('SELECT prepared FROM lemon_payments WHERE order_id=?').bind(order.id).first()).prepared,0);
+      assert.equal((await checkout(r)).data.url,warmed.data.url);
+    });
     await t.test('rejects subscription configuration before creating checkout',async()=>{
-      const r=await save();await mock.fetch('http://mock/fixture/subscription',{method:'POST',body:'{"value":true}'});
+      const r=await save();await db.prepare('DELETE FROM lemon_config_cache').run();
+      await mock.fetch('http://mock/fixture/subscription',{method:'POST',body:'{"value":true}'});
       assert.equal((await checkout(r)).status,503);
+      assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM lemon_config_cache').first()).n,0);
       await mock.fetch('http://mock/fixture/subscription',{method:'POST',body:'{"value":false}'});
     });
     for (const [name,patch] of Object.entries({store:{store_id:99},variant:{first_order_item:{variant_id:99}},amount:{subtotal:1},currency:{currency:'EUR'},mode:{test_mode:false},discount:{discount_total:100}})) {

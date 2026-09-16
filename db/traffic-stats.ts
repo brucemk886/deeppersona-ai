@@ -28,7 +28,7 @@ export async function getTrafficStats(rangeInput?: string | null) {
     COALESCE(a.campaign,s.campaign,'') AS campaign_label, COALESCE(a.medium,'') AS medium, COALESCE(a.content,'') AS content,
     CASE WHEN s.completed_at IS NOT NULL OR EXISTS (SELECT 1 FROM quiz_events e WHERE e.session_id=s.id AND e.event_name='email_gate_viewed') THEN 1 ELSE 0 END AS finished,
     CASE WHEN s.completed_at IS NOT NULL AND s.email IS NOT NULL THEN 1 ELSE 0 END AS submitted,
-    CASE WHEN EXISTS (SELECT 1 FROM quiz_reports r JOIN payment_orders o ON o.report_id=r.id WHERE r.session_id=s.id AND o.livemode=1 AND (o.stripe_session_id IS NOT NULL OR o.paid_at IS NOT NULL)) THEN 1 ELSE 0 END AS checkout,
+    CASE WHEN EXISTS (SELECT 1 FROM quiz_reports r JOIN payment_orders o ON o.report_id=r.id WHERE r.session_id=s.id AND o.livemode=1 AND (o.stripe_session_id IS NOT NULL OR o.paid_at IS NOT NULL OR EXISTS (SELECT 1 FROM lemon_payments lp WHERE lp.order_id=o.id AND lp.prepared=0 AND lp.checkout_url IS NOT NULL))) THEN 1 ELSE 0 END AS checkout,
     CASE WHEN EXISTS (SELECT 1 FROM quiz_reports r JOIN payment_orders o ON o.report_id=r.id WHERE r.session_id=s.id AND o.livemode=1 AND o.amount_cents>0 AND o.paid_at IS NOT NULL AND o.status IN ('paid','refunded')) THEN 1 ELSE 0 END AS paid
     FROM quiz_sessions s LEFT JOIN quiz_attribution a ON a.session_id=s.id
     WHERE ${productionSession} AND ${sessionPredicate})`;

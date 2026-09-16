@@ -61,6 +61,7 @@ export type ReportResponse = {
   currency: "usd";
   sandbox: boolean;
   checkoutReady: boolean;
+  paymentProvider: "stripe" | "lemonsqueezy";
   refundPolicy: string;
   deepRefundPolicy?: string;
   test: QuizTest;

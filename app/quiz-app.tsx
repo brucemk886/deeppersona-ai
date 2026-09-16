@@ -114,6 +114,21 @@ function preloadAtlas(path: string) {
   void image.decode().catch(() => undefined);
 }
 
+function preconnectCheckout(url: string) {
+  if (typeof document === "undefined") return;
+  try {
+    const target = new URL(url);
+    if (target.protocol !== "https:" || !target.hostname.endsWith(".lemonsqueezy.com")) return;
+    const exists = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel="preconnect"]'))
+      .some((link) => link.href === `${target.origin}/` || link.href === target.origin);
+    if (exists) return;
+    const link = document.createElement("link");
+    link.rel = "preconnect";
+    link.href = target.origin;
+    document.head.appendChild(link);
+  } catch { /* Ignore an invalid warm-up response and use the normal checkout path. */ }
+}
+
 function getAttribution() { return currentAttribution(); }
 
 function InnerMap({ completedTestIds, compact = false }: { completedTestIds: string[]; compact?: boolean }) {
@@ -215,6 +230,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
   const profileRequested = useRef(false);
   const answerTransitionTimer = useRef<number | null>(null);
   const questionRequests = useRef(new Map<string, Promise<QuizQuestion[]>>());
+  const checkoutWarmup = useRef<{ key: string; promise: Promise<{ url?: string } | null> } | null>(null);
   const [attribution] = useState(() =>
     typeof window === "undefined" ? { source: "direct", campaign: "" } : getAttribution(),
   );
@@ -388,6 +404,27 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
     return data;
   }, [initialReportId]);
 
+  const prepareBasicCheckout = useCallback((data: ReportResponse) => {
+    if (data.unlocked || data.amountCents <= 0 || data.status === "refunded" || !data.checkoutReady || data.paymentProvider !== "lemonsqueezy") return null;
+    const key = [data.id, data.amountCents, data.refundPolicy].join(":");
+    if (checkoutWarmup.current?.key === key) return checkoutWarmup.current.promise;
+    const promise = requestJson<{ url?: string }>("/api/checkout", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        reportId: data.id,
+        expectedAmountCents: data.amountCents,
+        expectedRefundPolicy: data.refundPolicy,
+        prepare: true,
+      }),
+    }, 15000).then((prepared) => {
+      if (prepared.url) preconnectCheckout(prepared.url);
+      return prepared;
+    }).catch(() => null);
+    checkoutWarmup.current = { key, promise };
+    return promise;
+  }, []);
+
   useEffect(() => {
     if (!initialReportId) return;
     let stopped = false;
@@ -413,11 +450,31 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
     return () => { stopped = true; clearTimeout(timer); };
   }, [initialReportId, refreshReport]);
 
+  useEffect(() => {
+    if (!reportData) return;
+    // Create the hosted checkout while the visitor reads the free result so the payment button can open immediately.
+    const timer = window.setTimeout(() => { void prepareBasicCheckout(reportData); }, 250 + Math.floor(Math.random() * 350));
+    return () => window.clearTimeout(timer);
+  }, [prepareBasicCheckout, reportData]);
+
   async function beginCheckout(tier: "basic" | "deep" = "basic") {
     if (!reportData) return;
     setSubmitting(true);
     setError("");
     try {
+      if (tier === "basic") {
+        const prepared = await prepareBasicCheckout(reportData);
+        if (prepared?.url) {
+          void fetch("/api/checkout/opened", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ reportId: reportData.id }),
+            keepalive: true,
+          }).catch(() => undefined);
+          window.location.assign(prepared.url);
+          return;
+        }
+      }
       const amount = tier === "deep" ? reportData.deepAmountCents : reportData.amountCents;
       const policy = tier === "deep" ? reportData.deepRefundPolicy : reportData.refundPolicy;
       const data = await requestJson<{ url?: string }>("/api/checkout", { method: "POST", headers: { "content-type": "application/json" },
