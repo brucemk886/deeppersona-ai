@@ -12,7 +12,7 @@ test('Lemon Squeezy checkout, signed delivery, two tiers and refunds', async t =
     modules: ['index.js', ...readdirSync('dist/server', {recursive:true}).filter(p => p.endsWith('.js') && p !== 'index.js')]
       .map(p => ({type:'ESModule',path:resolve('dist/server',p)})),
     compatibilityDate:'2026-05-22', compatibilityFlags:['nodejs_compat'], d1Databases:{DB:'lemon-fixture'},
-    bindings:{PAYMENT_PROVIDER:'lemonsqueezy', LEMONSQUEEZY_API_KEY:'test_fixture', LEMONSQUEEZY_WEBHOOK_SECRET:secret,
+    bindings:{ADMIN_PASSWORD:'fixture', ADMIN_SESSION_SECRET:'settings-fixture', STRIPE_SECRET_KEY:'sk_live_fixture', STRIPE_WEBHOOK_SECRET:'whsec_fixture', LEMONSQUEEZY_API_KEY:'test_fixture', LEMONSQUEEZY_WEBHOOK_SECRET:secret,
       LEMONSQUEEZY_TEST_MODE:'true', LEMONSQUEEZY_STORE_ID:'10', LEMONSQUEEZY_VARIANT_ID:'20', LEMONSQUEEZY_DEEP_VARIANT_ID:'21'},
     outboundService:'lemon-mock',
   }, {name:'lemon-mock', modules:true, compatibilityDate:'2026-05-22', script:`
@@ -22,6 +22,7 @@ test('Lemon Squeezy checkout, signed delivery, two tiers and refunds', async t =
       if (u.pathname === '/fixture/order') { const d = await request.json(); orders.set(d.id,d); return Response.json({ok:true}); }
       if (u.pathname === '/fixture/subscription') { subscription = (await request.json()).value; return Response.json({ok:true}); }
       if (u.pathname === '/fixture/checkouts') return Response.json(checkouts);
+      if (u.pathname === '/v1/checkout/sessions') return Response.json({id:'cs_live_fixture',url:'https://checkout.stripe.com/fixture',status:'open'});
       if (u.pathname.startsWith('/v1/variants/')) return Response.json({data:{attributes:{is_subscription:subscription,test_mode:true}}});
       if (u.pathname.startsWith('/v1/stores/')) return Response.json({data:{attributes:{currency:'USD'}}});
       if (u.pathname === '/v1/checkouts') {
@@ -35,8 +36,8 @@ test('Lemon Squeezy checkout, signed delivery, two tiers and refunds', async t =
   try {
     const base = new URL(await mf.ready).origin;
     const db = await mf.getD1Database('DB','app'), mock = await mf.getWorker('lemon-mock');
-    const call = async (path,{cookie,body,origin=base}={}) => {
-      const r=await fetch(base+path,{method:body===undefined?'GET':'POST',headers:{...(cookie?{cookie}:{}),origin,'content-type':'application/json'},
+    const call = async (path,{cookie,body,origin=base,method=body===undefined?'GET':'POST'}={}) => {
+      const r=await fetch(base+path,{method,headers:{...(cookie?{cookie}:{}),origin,'content-type':'application/json'},
         ...(body===undefined?{}:{body:JSON.stringify(body)})});
       return {status:r.status,data:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0]};
     };
@@ -123,9 +124,31 @@ test('Lemon Squeezy checkout, signed delivery, two tiers and refunds', async t =
       const b=await fixture(r);assert.equal(await notify(b.event),409);
       assert.equal((await db.prepare('SELECT remote_order_id FROM lemon_payments WHERE order_id=?').bind(a.local.id).first()).remote_order_id,a.data.id);
     });
-    await t.test('historical Stripe paid orders still unlock in the matching environment',async()=>{
-      const r=await save();await db.prepare("INSERT INTO payment_orders (id,report_id,amount_cents,status,stripe_session_id,livemode) VALUES (?,?,999,'paid','cs_test_old',0)").bind(crypto.randomUUID(),r.id).run();
+    await t.test('historical live Stripe paid orders still unlock with Lemon sandbox selected',async()=>{
+      const r=await save();await db.prepare("INSERT INTO payment_orders (id,report_id,amount_cents,status,stripe_session_id,livemode) VALUES (?,?,999,'paid','cs_live_old',1)").bind(crypto.randomUUID(),r.id).run();
       assert.equal((await state(r)).data.unlocked,true);
+    });
+    await t.test('admin switch persists, rejects unauthorized requests, routes new orders and preserves pending Lemon checkouts',async()=>{
+      const issued=String(Math.floor(Date.now()/1000));
+      const cookie='deeppersona_admin='+issued+'.'+createHmac('sha256','settings-fixture').update('admin.'+issued).digest('hex');
+      const change=(provider,extra={})=>call('/api/admin/settings',{cookie,method:'PUT',body:{provider},...extra});
+      assert.equal((await call('/api/admin/settings')).status,401);
+      assert.equal((await change('stripe',{cookie:''})).status,401);
+      assert.equal((await change('stripe',{origin:'https://evil.example'})).status,403);
+      assert.equal((await change('invalid')).status,400);
+      const initial=await call('/api/admin/settings',{cookie});
+      assert.equal(initial.data.provider,'lemonsqueezy');
+      assert.equal(JSON.stringify(initial.data).includes('sk_live_fixture'),false);
+      const pending=await save(), first=await checkout(pending);
+      const changed=await change('stripe');assert.equal(changed.status,200);
+      assert.equal((await db.prepare('SELECT provider FROM payment_settings WHERE id=1').first()).provider,'stripe');
+      assert.equal((await checkout(pending)).data.url,first.data.url);
+      const fresh=await save();assert.equal((await checkout(fresh)).data.url,'https://checkout.stripe.com/fixture');
+      assert.equal((await db.prepare('SELECT livemode FROM payment_orders WHERE report_id=?').bind(fresh.id).first()).livemode,1);
+      const f=await fixture(pending);assert.equal(await notify(f.event),200);
+      assert.equal((await state(pending)).data.unlocked,true);
+      assert.equal((await change('lemonsqueezy')).status,200);
+      assert.equal((await call('/api/admin/settings',{cookie})).data.provider,'lemonsqueezy');
     });
   } finally { await mf.dispose(); }
 });

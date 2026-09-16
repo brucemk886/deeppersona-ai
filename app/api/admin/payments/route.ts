@@ -28,6 +28,6 @@ export async function GET(request: Request) {
       FROM deep_orders o
       JOIN quiz_reports r ON r.id = o.report_id LEFT JOIN quiz_tests t ON t.id = r.test_id
       ORDER BY created_at DESC LIMIT 100`).all();
-    return privateJson({ ...paymentConfig(), orders: orders.results });
+    return privateJson({ ...await paymentConfig(), orders: orders.results });
   } catch (error) { return paymentError(error); }
 }

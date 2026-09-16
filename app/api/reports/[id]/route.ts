@@ -17,14 +17,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const report = await ownedReport((await params).id, readProfileId(request), request);
     let order = await reportOrder(report.id);
     let deep = await deepOrder(report.id);
-    const config = paymentConfig();
-    const matchingEnvironment = (row?: OrderRow | null) => !row || Boolean(row.livemode) === !config.sandbox;
+    const config = await paymentConfig(order);
+    const matchingEnvironment = async (row?: OrderRow | null) => !row || Boolean(row.livemode) === !(await paymentConfig(row)).sandbox;
     const sync = new URL(request.url).searchParams.get("sync") === "1";
     if (sync) {
       for (const pending of [order, deep]) {
-        if (matchingEnvironment(pending) && pending?.stripe_session_id && pending.status === "pending") {
+        if (await matchingEnvironment(pending) && pending?.stripe_session_id && pending.status === "pending") {
           await fulfillSession(await stripeClient().checkout.sessions.retrieve(pending.stripe_session_id));
-        } else if (matchingEnvironment(pending) && pending && pending.status === 'pending') {
+        } else if (await matchingEnvironment(pending) && pending && pending.status === 'pending') {
           const lemon = await lemonPayment(pending.id);
           if (lemon?.remote_order_id) await syncLemonOrder(pending, lemon);
         }
@@ -32,8 +32,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       order = await reportOrder(report.id);
       deep = await deepOrder(report.id);
     }
-    const unlocked = Boolean(report.free || (matchingEnvironment(order) && order?.status === "paid"));
-    const deepUnlocked = Boolean(matchingEnvironment(deep) && deep?.status === "paid");
+    const unlocked = Boolean(report.free || order?.status === "paid");
+    const deepUnlocked = deep?.status === "paid";
     const snapshot = snapshotOf(report);
     if (deepUnlocked && await upgradeAiReading(snapshot)) await saveReportSnapshot(report.id, snapshot);
     const response: ReportResponse = {
@@ -42,7 +42,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       deepAmountCents: currentDeepPrice(),
       deepStatus: deep?.status,
       currency: "usd",
-      sandbox: config.sandbox, checkoutReady: config.ready && matchingEnvironment(order) && matchingEnvironment(deep), test: snapshot.test,
+      sandbox: config.sandbox, checkoutReady: config.ready && await matchingEnvironment(order), test: snapshot.test,
       refundPolicy: await orderRefundPolicy(order?.id),
       deepRefundPolicy: await orderRefundPolicy(deep?.id),
       result: unlocked ? snapshot.result : freeResultFromSnapshot(snapshot),

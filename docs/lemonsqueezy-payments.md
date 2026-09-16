@@ -1,7 +1,10 @@
 # Lemon Squeezy integration
 
-The provider is selected explicitly with `PAYMENT_PROVIDER=lemonsqueezy`.
-The default remains Stripe. Adding API credentials alone never switches production.
+The admin Settings page selects the provider, persisted in D1 `payment_settings`.
+The initial default is Lemon Squeezy; `PAYMENT_PROVIDER=stripe` can override the
+initial fallback until an administrator saves a selection. Missing credentials
+disable a provider. Switching never changes test/live mode or existing checkouts.
+Previously paid reports retain access across provider and environment changes.
 
 ## Configuration
 

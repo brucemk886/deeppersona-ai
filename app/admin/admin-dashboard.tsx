@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import Link from "next/link";
 import TrafficReport, { type TrafficData } from "./traffic-panel";
 import ReportEmailPanel from './report-email-panel';
+import SettingsPanel from './settings-panel';
 import { BlogManager, type AdminBlogPost } from "./blog-panel";
 import { type BlogPost } from "@/lib/blog";
 import { type AffiliateProduct, type QuizQuestion, type QuizTest } from "@/lib/quiz";
@@ -17,7 +18,7 @@ import {
   type AdminStatsRange,
 } from "@/lib/admin-stats-range";
 
-type AdminSection = "overview" | "tests" | "questions" | "blog" | "traffic" | "emails" | "email-records" | "payments" | "affiliates";
+type AdminSection = "overview" | "tests" | "questions" | "blog" | "traffic" | "emails" | "email-records" | "payments" | "affiliates" | "settings";
 
 type Stats = {
   traffic: TrafficData;
@@ -60,6 +61,7 @@ const navigation: { id: AdminSection; icon: string; label: string }[] = [
   { id: "emails", icon: "邮", label: "邮箱用户" },
   { id: "email-records", icon: "信", label: "邮件记录" },
   { id: "affiliates", icon: "链", label: "联盟产品" },
+  { id: "settings", icon: "设", label: "设置" },
 ];
 
 const funnelOrder = [
@@ -623,6 +625,7 @@ export function AdminDashboard({
           ) : null}
 
           {activeSection === "payments" ? <PaymentPanel /> : null}
+          {activeSection === "settings" ? <SettingsPanel /> : null}
           {activeSection === "email-records" ? <ReportEmailPanel /> : null}
           {activeSection === "blog" ? (
             <BlogManager

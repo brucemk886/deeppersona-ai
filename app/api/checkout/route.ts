@@ -34,13 +34,13 @@ export async function POST(request: Request) {
     if (limiter && !(await limiter.limit({ key: `checkout:${report.profile_id}` })).success) {
       return new Response(JSON.stringify({ error: 'Too many checkout attempts. Please wait one minute and try again.' }), { status: 429, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Retry-After': '60' } });
     }
-    const config = paymentConfig();
     const deep = body.tier === "deep";
     const basic = await reportOrder(report.id);
     const previous = deep ? await deepOrder(report.id) : basic;
-    if (previous && Boolean(previous.livemode) !== !config.sandbox) throw new PaymentError("Please take a new test in this payment environment.", 409);
+    const config = await paymentConfig(previous);
     if (!deep && (report.free || previous?.status === "paid")) return privateJson({ url: `/reports/${report.id}` });
     if (deep && previous?.status === "paid") return privateJson({ url: `/reports/${report.id}` });
+    if (previous && Boolean(previous.livemode) !== !config.sandbox) throw new PaymentError("Please take a new test in this payment environment.", 409);
     if (deep && !(report.free || (basic?.status === "paid" && Boolean(basic.livemode) === !config.sandbox))) {
       throw new PaymentError("Unlock the full report first.", 409);
     }

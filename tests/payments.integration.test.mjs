@@ -50,7 +50,7 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
     modules: ["index.js", ...readdirSync("dist/server", { recursive: true }).filter((p) => p.endsWith(".js") && p !== "index.js")]
       .map((p) => ({ type: "ESModule", path: resolve("dist/server", p) })),
     modulesRoot: resolve("dist/server"), compatibilityDate: "2026-05-22", compatibilityFlags: ["nodejs_compat"],
-    bindings: { STRIPE_SECRET_KEY: "sk_test_local_fixture", STRIPE_WEBHOOK_SECRET: webhookSecret, RESEND_WEBHOOK_SECRET: resendSecret, ADMIN_PASSWORD: 'fixture', ADMIN_SESSION_SECRET: 'local-admin-fixture' }, d1Databases: {DB:"shared-test-db"},
+    bindings: { PAYMENT_PROVIDER: "stripe", STRIPE_SECRET_KEY: "sk_test_local_fixture", STRIPE_WEBHOOK_SECRET: webhookSecret, RESEND_WEBHOOK_SECRET: resendSecret, ADMIN_PASSWORD: 'fixture', ADMIN_SESSION_SECRET: 'local-admin-fixture' }, d1Databases: {DB:"shared-test-db"},
     ratelimits: { CHECKOUT_RATE_LIMIT: { simple: { limit: 30, period: 60 } } },
     outboundService: "stripe-mock",
   }, { name: "stripe-mock", modules: true, script: mockScript, compatibilityDate: "2026-05-22" },

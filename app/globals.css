@@ -1647,3 +1647,19 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .ap-banner { height: 140px; }
   .ap-hero h1 { font-size: 46px; }
 }
+.payment-settings-card { max-width: 1000px; padding: clamp(20px, 3vw, 36px); background: #fff; border: 1px solid #dfe5e1; border-radius: 20px; }
+.payment-settings-card h2 { margin: 0 0 12px; font-size: 24px; }
+.payment-settings-card p { color: #596b62; line-height: 1.7; }
+.payment-provider-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; border: 0; padding: 0; margin: 28px 0 20px; }
+.payment-provider-options legend { margin-bottom: 12px; font-weight: 600; }
+.payment-provider-option { display: flex; align-items: center; gap: 12px; padding: 22px 18px; border: 1px solid #dfe5e1; border-radius: 14px; cursor: pointer; }
+.payment-provider-option.selected { border-color: #194d3e; background: #f0f6f2; box-shadow: inset 0 0 0 1px #194d3e; }
+.payment-provider-option:focus-within { outline: 3px solid #bacfc3; outline-offset: 3px; }
+.payment-provider-option input { accent-color: #194d3e; width: 18px; height: 18px; flex-shrink: 0; }
+.payment-provider-option strong, .payment-provider-option small { display: block; }
+.payment-provider-option small { margin-top: 8px; color: #596b62; font-size: 12px; }
+.payment-provider-status { margin-left: auto; white-space: nowrap; font-size: 12px; color: #194d3e; }
+.payment-settings-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; margin-top: 28px; }
+.payment-settings-actions [role="status"] { color: #194d3e; }
+.payment-settings-card .payment-settings-error { color: #a02a2a; }
+@media (max-width: 760px) { .payment-provider-options { grid-template-columns: 1fr; } }
