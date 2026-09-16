@@ -453,8 +453,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
   useEffect(() => {
     if (!reportData) return;
     // Create the hosted checkout while the visitor reads the free result so the payment button can open immediately.
-    const timer = window.setTimeout(() => { void prepareBasicCheckout(reportData); }, 250 + Math.floor(Math.random() * 350));
-    return () => window.clearTimeout(timer);
+    void prepareBasicCheckout(reportData);
   }, [prepareBasicCheckout, reportData]);
 
   async function beginCheckout(tier: "basic" | "deep" = "basic") {
