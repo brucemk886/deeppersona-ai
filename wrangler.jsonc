@@ -21,6 +21,7 @@
       "custom_domain": true
     }
   ],
+  "services": [{ "binding": "FACTORY_LINKS", "service": "tiktok-factory" }],
   "d1_databases": [
     {
       "binding": "DB",
