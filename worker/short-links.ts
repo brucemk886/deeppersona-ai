@@ -1,6 +1,7 @@
+import { registerLinkClick } from './link-traffic';
 type LinkService = { fetch(request: Request): Promise<Response> };
 const headers = { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' };
-export async function routeShortLink(request: Request, service?: LinkService): Promise<Response | null> {
+export async function routeShortLink(request: Request, service?: LinkService, db?: D1Database): Promise<Response | null> {
  const url = new URL(request.url);
  if (!url.pathname.startsWith('/go/')) return null;
  if (!['GET', 'HEAD'].includes(request.method)) return new Response('Method not allowed', { status: 405, headers: { ...headers, Allow: 'GET, HEAD' } });
@@ -17,6 +18,8 @@ export async function routeShortLink(request: Request, service?: LinkService): P
   const location = result.headers.get('location');
   const target = location ? new URL(location) : null;
   if (result.status !== 302 || target?.origin !== 'https://deeppersonaai.com' || target.pathname !== '/' || target.username || target.password) throw new Error('Invalid redirect');
+  const clickId = await registerLinkClick(request, db, url.pathname.slice(4), target);
+  if (clickId) target.searchParams.set('lf_click', clickId);
   return new Response(null, { status: 302, headers: { ...headers, Location: target.href } });
  } catch {
   return new Response('Link temporarily unavailable. Please try again.', { status: 503, headers });

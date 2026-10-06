@@ -1,5 +1,6 @@
+import { getAnalyticsConsent } from './google-analytics';
 
-export type Attribution = { source: string; campaign: string; medium: string; content: string };
+export type Attribution = { source: string; campaign: string; medium: string; content: string; visitId?: string };
 export function resolveAttribution(search: string, referrer: string, host: string, previous?: Attribution): Attribution {
   const params = new URLSearchParams(search);
   let external = '';
@@ -14,5 +15,8 @@ export function resolveAttribution(search: string, referrer: string, host: strin
 
 export function currentAttribution(): Attribution {
   if (typeof window === 'undefined') return { source: 'direct', campaign: '', medium: '', content: '' };
-  return resolveAttribution(location.search, document.referrer, location.hostname);
+  const attribution = resolveAttribution(location.search, document.referrer, location.hostname);
+  const clickId = new URLSearchParams(location.search).get('lf_click');
+  if (getAnalyticsConsent() !== 'denied' && attribution.source === 'tiktok' && attribution.campaign.startsWith('factory-') && /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(clickId || '')) attribution.visitId = clickId!;
+  return attribution;
 }

@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { routeShortLink } from '../worker/short-links.ts';
+import { buildSync } from 'esbuild';
+const bundle=buildSync({entryPoints:['worker/short-links.ts'],bundle:true,write:false,format:'esm',platform:'neutral'}).outputFiles[0].text;
+const {routeShortLink}=await import('data:text/javascript;base64,'+Buffer.from(bundle).toString('base64'));
 const short='https://deeppersonaai.com/go/123456abcd';
 const target='https://deeppersonaai.com/?utm_source=tiktok&utm_medium=bio&utm_campaign=factory-a';
 test('branded short links forward only the safe path and bot classification headers',async()=>{

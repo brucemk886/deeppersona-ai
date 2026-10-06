@@ -1,3 +1,4 @@
+import { handleLinkArrival } from './link-traffic';
 import { routeShortLink } from './short-links';
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
@@ -30,7 +31,9 @@ interface ExecutionContext {
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
-    const shortLink = await routeShortLink(request, env.FACTORY_LINKS);
+    const arrival = await handleLinkArrival(request, env.DB);
+    if (arrival) return arrival;
+    const shortLink = await routeShortLink(request, env.FACTORY_LINKS, env.DB);
     if (shortLink) return shortLink;
 
     if (url.pathname === "/_vinext/image") {
