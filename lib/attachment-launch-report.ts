@@ -1,3 +1,4 @@
+import { enrichLaunchReport } from './attachment-launch-story';
 import { launchQuestions } from './attachment-launch-questions';
 import type { QuizQuestion, ResultProfile } from './quiz';
 import type { DeepResultContent } from './deep-results';
@@ -112,6 +113,6 @@ export function buildLaunchReport(questions: QuizQuestion[], choices: Record<str
   };
   return {
     result: { key: close ? 'choices' : leading[0] || 'choices', title: headline, eyebrow: 'Your relationship response pattern', summary, strength: '', watchout: '', nextStep: overview.action },
-    deepResult: { launchReport, lens: { title: 'A reflection based on your choices', explanation: 'These are counts of your selections in this quiz, not validated attachment scores, a diagnosis, or a claim about your childhood or your partner. Your responses can change across relationships and situations.', reflectionPrompt: launchReport.practice.reflection } },
+    deepResult: { launchReport: enrichLaunchReport(launchReport), lens: { title: 'A reflection based on your choices', explanation: 'These are counts of your selections in this quiz, not validated attachment scores, a diagnosis, or a claim about your childhood or your partner. Your responses can change across relationships and situations.', reflectionPrompt: launchReport.practice.reflection } },
   };
 }

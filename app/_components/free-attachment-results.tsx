@@ -65,8 +65,8 @@ export function FreeAttachmentResults({
   };
   const price = `$${(amountCents / 100).toFixed(2)}`;
   return (
-    <article className="ap-results">
-      {preview.launchOverview ? <><LaunchSummary overview={preview.launchOverview} offerPrice={amountCents === 0 ? "Free" : price} /><LaunchOffer /></> : <>
+    <article className={`ap-results ${preview.launchOverview ? "launch-free" : ""}`}>
+      {preview.launchOverview ? <><LaunchSummary overview={preview.launchOverview} offerPrice={amountCents === 0 ? "Free" : price} /><LaunchOffer overview={preview.launchOverview} /></> : <>
       <header className="ap-hero">
         <p className="ap-kicker">{testTitle}</p>
         <h1>{title}</h1>
@@ -135,7 +135,7 @@ export function FreeAttachmentResults({
 
       </>}
       <section className="ap-paywall" id="unlock-full-results">
-        <h2>Unlock full results · {amountCents === 0 ? "Free" : price}</h2>
+        <h2>{preview.launchOverview ? "Your complete relationship reading" : "Unlock full results"} · {amountCents === 0 ? "Free" : price}</h2>
         <p>{amountCents > 0 ? `USD ${(amountCents / 100).toFixed(2)}, one time. ` : ""}This page unlocks after confirmation, plus an email backup link to the address you used with the test.</p>
         <p className="service-context">For entertainment and self-reflection. This is not a clinical diagnosis, a validated psychological assessment, or professional advice. <Link href="/disclaimer">How to use these results</Link></p>
         {sandbox ? <p className="sandbox-notice">Test checkout — no real money will be charged.</p> : null}
@@ -154,7 +154,7 @@ export function FreeAttachmentResults({
               onClick={onCheckout}
               type="button"
             >
-              {submitting ? "Opening checkout…" : amountCents === 0 ? "Open my full results" : `Unlock full results · ${price}`}
+              {submitting ? "Opening checkout…" : amountCents === 0 ? "Open my full results" : `${preview.launchOverview ? "Unlock my complete reading" : "Unlock full results"} · ${price}`}
             </button>
             {!checkoutReady && amountCents > 0 ? <p>Checkout is being set up. Your result is saved; please come back later.</p> : null}
           </>

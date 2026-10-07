@@ -8,15 +8,26 @@ export const RESPONSE_LABELS: Record<ResponseKey, string> = {
 };
 export type ResponseCounts = Record<ResponseKey, number>;
 export type AnswerEvidence = { questionId: string; questionNumber: number; prompt: string; answer: string; response: ResponseKey; domain: string };
+export type LaunchInsight = {
+  title: string; opening: string; excerpt: string; evidence: AnswerEvidence[];
+  contrastTitle: string; contrast: string; contrastEvidence?: AnswerEvidence;
+  chapters: { title: string; question: string; questionId: string }[];
+};
+export type LaunchReading = {
+  version: 'attachment-reading-v2';
+  need: string; protection: string; cost: string; misread: string; pivot: string;
+  relationship: { title: string; body: string }[];
+};
 export type LaunchOverview = {
   version: typeof LAUNCH_VERSION; answered: number; counts: ResponseCounts; leading: ResponseKey[];
   headline: string; summary: string; evidence: AnswerEvidence[]; exception?: AnswerEvidence;
-  exceptionNote: string; action: string;
+  exceptionNote: string; action: string; insight?: LaunchInsight;
 };
 export type LaunchReport = {
   overview: LaunchOverview;
+  reading?: LaunchReading;
   domains: { title: string; counts: ResponseCounts; reading: string }[];
-  scenarios: { evidence: AnswerEvidence; reading: string; loop: string[]; sentence: string; condition: string; observation: string }[];
+  scenarios: { title?: string; question?: string; need?: string; cost?: string; evidence: AnswerEvidence; reading: string; loop: string[]; sentence: string; condition: string; observation: string }[];
   answers: AnswerEvidence[];
   practice: { title: string; steps: string[]; reflection: string };
 };

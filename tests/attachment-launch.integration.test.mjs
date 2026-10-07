@@ -31,6 +31,13 @@ test('launch report lifecycle, owned view events and edition funnel use actual p
  // Synthetic server-confirmed payment, local D1 only; never a checkout call to a payment provider.
  await db.prepare("INSERT INTO payment_orders(id,report_id,amount_cents,livemode,status,paid_at) VALUES (?,?,999,1,'paid',CURRENT_TIMESTAMP)").bind(crypto.randomUUID(),id).run();
  const paid=await call('/api/reports/'+id,{cookie});assert.equal(paid.data.unlocked,true);assert.equal(paid.data.deepResult.launchReport.scenarios.length,3);assert.equal(paid.data.deepResult.launchReport.answers.length,20);
+ // Existing launch reports receive the new reading from their frozen answers,
+ // with no write to historical snapshots and no paid content in an unpaid response.
+ const oldSnapshot = JSON.parse((await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(id).first()).snapshot_json);
+ delete oldSnapshot.deepResult.launchReport.reading;
+ delete oldSnapshot.deepResult.launchReport.overview.insight;
+ await db.prepare('UPDATE quiz_reports SET snapshot_json=? WHERE id=?').bind(JSON.stringify(oldSnapshot), id).run();
+ assert.equal((await call('/api/reports/'+id,{cookie})).data.deepResult.launchReport.reading.version,'attachment-reading-v2');
  const frozen=(await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(id).first()).snapshot_json;
  await db.prepare("UPDATE quiz_questions SET prompt='Later admin change' WHERE id=?").bind(qs[0].id).run();
  assert.equal((await call('/api/reports/'+id,{cookie})).data.deepResult.launchReport.answers[0].prompt,qs[0].prompt);
@@ -41,7 +48,11 @@ test('launch report lifecycle, owned view events and edition funnel use actual p
  const traffic=stats.data.traffic;assert.ok(traffic,'admin includes traffic analytics');
  const cohort=traffic.editions.find(e=>e.edition==='attachment-launch-v1');assert.ok(cohort);assert.equal(cohort.started,1);assert.equal(cohort.result_viewed,1);assert.equal(cohort.paid,1);assert.equal(cohort.paid_opened,1);
  await db.prepare("UPDATE payment_orders SET status='refunded' WHERE report_id=?").bind(id).run();
- assert.equal((await call('/api/reports/'+id,{cookie})).data.deepResult,undefined);
+ const refunded = await call('/api/reports/'+id,{cookie});
+ assert.equal(refunded.data.deepResult,undefined);
+ assert.ok(refunded.data.preview.launchOverview.insight.excerpt);
+ assert.equal(JSON.stringify(refunded.data).includes(paid.data.deepResult.launchReport.reading.protection), false);
+ assert.equal((await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(id).first()).snapshot_json,frozen);
  assert.equal((await call(`/api/reports/${id}/viewed`,{cookie,body:{view:'full'}})).status,403);
  }finally{await mf.dispose();}
 });

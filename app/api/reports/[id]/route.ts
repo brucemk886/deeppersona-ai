@@ -1,3 +1,4 @@
+import { enrichLaunchReport } from '@/lib/attachment-launch-story';
 import { currentDeepPrice, currentPrice, deepOrder, ownedReport, reportOrder, saveReportSnapshot, snapshotOf, type OrderRow } from "@/db/payment-store";
 import { upgradeAiReading } from "@/lib/ai-reading";
 import { fulfillSession } from "@/lib/payment-fulfillment";
@@ -35,6 +36,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const unlocked = Boolean(report.free || order?.status === "paid");
     const deepUnlocked = deep?.status === "paid";
     const snapshot = snapshotOf(report);
+    // Add the improved reading from this report's frozen answers. No historical
+    // snapshot, catalog row, purchase or email destination is rewritten.
+    if (snapshot.deepResult.launchReport) snapshot.deepResult.launchReport = enrichLaunchReport(snapshot.deepResult.launchReport);
     if (deepUnlocked && !snapshot.deepResult.launchReport && await upgradeAiReading(snapshot)) await saveReportSnapshot(report.id, snapshot);
     const response: ReportResponse = {
       id: report.id, unlocked, deepUnlocked, status: report.free ? "free" : order?.status ?? "unpaid",
