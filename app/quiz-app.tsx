@@ -758,8 +758,16 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
       <main className="quiz-shell">
         <header className="quiz-header">
           <button className="brand brand-button" onClick={returnHome}><BrandLogo /></button>
-          <div className="progress-copy"><span>{relationshipContext ? `With ${relationshipContext.nickname} · ${selectedTest.title}` : selectedTest.title} · {questionIndex + 1} of {questions.length}</span><span>{Math.round(progress)}%</span></div>
-          <div className="progress-track"><span style={{ width: `${progress}%`, background: selectedTest.accent }} /></div>
+          {/* Translation can replace text nodes; remount the copy each step and keep counters intact. */}
+          <div className="progress-copy" key={activeQuestion.id}>
+            <span>
+              <span>{relationshipContext ? `With ${relationshipContext.nickname} · ${selectedTest.title}` : selectedTest.title}</span>
+              {" · "}
+              <span className="notranslate" translate="no">{`${questionIndex + 1} / ${questions.length}`}</span>
+            </span>
+            <span className="notranslate" translate="no">{`${Math.round(progress)}%`}</span>
+          </div>
+          <div aria-label="Quiz progress" aria-valuemax={100} aria-valuemin={0} aria-valuenow={Math.round(progress)} className="progress-track" role="progressbar"><span style={{ width: `${progress}%`, background: selectedTest.accent }} /></div>
         </header>
         <section className={`question-section ${textMode ? "question-section-text" : ""}`}>
           <div className="question-heading"><span>{relationshipContext ? `Thinking of ${relationshipContext.nickname}` : activeQuestion.kicker}</span><h1>{activeQuestion.prompt}</h1><p>{relationshipContext ? `Keep ${relationshipContext.nickname} in mind. Notice the first response this relationship brings up.` : (textMode ? QUIZ_HELPER_TEXT : QUIZ_HELPER_EN)}</p></div>
