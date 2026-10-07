@@ -1,10 +1,18 @@
 import { getD1, getProfileSummary, listQuestions, listTests, submitQuiz } from "@/db/quiz-store";
 import { ensurePaymentSchema, type ReportRow } from "@/db/payment-store";
 import { validateEmailAddress } from "@/lib/email-validation";
+import { ATTACHMENT_TEST_ID, PUBLIC_QUESTION_IDS } from "@/lib/public-catalog";
+import { isLaunchQuestion } from "@/lib/attachment-launch";
+import type { QuizQuestion } from "@/lib/quiz";
 import { buildChoiceReport } from "@/lib/deep-results";
 import { catalogQuestion, publicTest } from "@/lib/public-quiz";
 import { createProfileId, profileCookie, readProfileId } from "@/lib/profile-cookie";
 import { PaymentError, paymentError, requireSameOrigin } from "@/lib/payment-http";
+
+function hasCompleteAnswers(questions: QuizQuestion[], choices: Record<string, number>) {
+  return questions.length > 0 && Object.keys(choices).length === questions.length &&
+    questions.every((question) => Number.isInteger(choices[question.id]) && Boolean(question.options[choices[question.id]]));
+}
 
 export async function POST(request: Request) {
   try {
@@ -25,15 +33,27 @@ export async function POST(request: Request) {
       .bind(body.sessionId).first<ReportRow>();
     if (existing) {
       if (existing.profile_id !== profileId) throw new PaymentError("This test has already been saved.", 409);
+      if (existing.email !== email.normalized) {
+        throw new PaymentError("This result is already saved with a different email. Use the original email to reopen it, or start a new test.", 409);
+      }
       return Response.json({ ok: true, reportId: existing.id, profile: await getProfileSummary(profileId) },
         { headers: { "Cache-Control": "no-store" } });
     }
     const test = (await listTests()).find((item) => item.id === body.testId);
     if (!test) throw new PaymentError("This test is unavailable.", 404);
-    const questions = await listQuestions(test.id);
+    let questions = await listQuestions(test.id);
     const choices = body.answerChoices;
-    if (!questions.length || Object.keys(choices).length !== questions.length ||
-        questions.some((question) => !Number.isInteger(choices[question.id]) || !question.options[choices[question.id]])) {
+    // The launch retired, but retained, the preceding 20-question edition.
+    // Finish an already-loaded full edition using its actual managed rows; never
+    // combine editions, revive deleted rows, or accept arbitrary inactive quizzes.
+    if (!hasCompleteAnswers(questions, choices) && test.id === ATTACHMENT_TEST_ID &&
+        questions.length > 0 && questions.every((question) => isLaunchQuestion(question.id)) &&
+        Object.keys(choices).length === PUBLIC_QUESTION_IDS.size &&
+        Object.keys(choices).every((id) => PUBLIC_QUESTION_IDS.has(id))) {
+      const previous = (await listQuestions(test.id, true)).filter((question) => PUBLIC_QUESTION_IDS.has(question.id));
+      if (hasCompleteAnswers(previous, choices)) questions = previous;
+    }
+    if (!hasCompleteAnswers(questions, choices)) {
       throw new PaymentError("The questions have changed. Please restart this test.", 409);
     }
     const answers = Object.fromEntries(questions.map(q => [q.id, choices[q.id]]));

@@ -230,6 +230,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
   const [sessionId, setSessionId] = useState("");
   const questionsCache = useRef(new Map<string, QuizQuestion[]>());
   const profileRequested = useRef(false);
+  const emailEdited = useRef(false);
   const answerTransitionTimer = useRef<number | null>(null);
   const questionRequests = useRef(new Map<string, Promise<QuizQuestion[]>>());
   const checkoutWarmup = useRef<{ key: string; promise: Promise<{ url?: string } | null> } | null>(null);
@@ -237,24 +238,21 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
     typeof window === "undefined" ? { source: "direct", campaign: "" } : getAttribution(),
   );
 
-  const loadQuestions = useCallback(async (testId: string) => {
+  const loadQuestions = useCallback(async (testId: string, fresh = false) => {
     const cached = questionsCache.current.get(testId);
-    if (cached?.length) return cached;
-    // These are the current, sanitized rows already read for this page by the server.
-    // Starting the quiz must not wait for a second network request on mobile.
+    if (!fresh && cached?.length) return cached;
+    // Landing-page previews can use their server data. A new attempt revalidates
+    // the catalog because this tab may have stayed open through a release.
     const suppliedQuestions = initialQuestions
       .filter((question) => question.testId === testId && question.active)
       .sort((a, b) => a.position - b.position);
-    if (suppliedQuestions.length) {
+    if (!fresh && suppliedQuestions.length) {
       questionsCache.current.set(testId, suppliedQuestions);
       return suppliedQuestions;
     }
     const pending = questionRequests.current.get(testId);
     if (pending) return pending;
     const request = (async () => {
-      const fallbackQuestions = initialQuestions
-        .filter((question) => question.testId === testId && question.active)
-        .sort((a, b) => a.position - b.position);
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 4_000);
       try {
@@ -269,10 +267,6 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
         }
         questionsCache.current.set(testId, publicQuestions);
         return publicQuestions;
-      } catch (requestError) {
-        if (!fallbackQuestions.length) throw requestError;
-        questionsCache.current.set(testId, fallbackQuestions);
-        return fallbackQuestions;
       } finally {
         window.clearTimeout(timeout);
       }
@@ -334,7 +328,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
         const profile = data as InnerProfileSummary | null;
         if (!profile?.completedTestIds) return;
         setProfile(profile);
-        if (profile.email) setEmail((current) => current || profile.email || "");
+        if (profile.email && !emailEdited.current) setEmail(profile.email);
       })
       .catch(() => undefined);
   }, [stage]);
@@ -557,7 +551,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
     setLoadingTest(test.id);
     setError("");
     try {
-      const readyQuestions = await loadQuestions(test.id);
+      const readyQuestions = await loadQuestions(test.id, true);
       if (!readyQuestions.length) throw new Error("This quiz is being prepared. The older question set has been removed.");
       const firstScene = sceneKeyFromPath(readyQuestions[0].atlasPath);
       if (showsOptionImages(test, readyQuestions[0].atlasPath) && !firstScene) preloadAtlas(readyQuestions[0].atlasPath);
@@ -614,7 +608,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
   async function unlockResult(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedTest) return;
-    const emailValidation = validateEmailAddress(profile.email ?? email);
+    const emailValidation = validateEmailAddress(email);
     if (!emailValidation.valid) {
       setError(emailValidation.message);
       return;
@@ -822,7 +816,13 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
             <p>{normalizePresentationMode(selectedTest.presentationMode) === "text"
               ? "You have completed the questions. Enter your email to save your result and see your free summary. A longer reading of your romantic patterns is optional."
               : "You have completed the image choices. Enter your email to save your result and see your free summary. A longer written report with five themes and an interpretation of each selected image is optional."}</p>
-            {profile.email ? <div className="saved-profile-email"><span>Saving this reflection to</span><strong>{profile.email}</strong></div> : <><label htmlFor="email">Email address</label><input aria-invalid={Boolean(error)} autoComplete="email" id="email" onBlur={(event) => { const validation = validateEmailAddress(event.target.value); if (!validation.valid) setError(validation.message); }} onChange={(event) => { setEmail(event.target.value); setError(""); }} placeholder="name@gmail.com" required type="email" value={email} /><small className="email-hint">Use an email you can access. Test, placeholder, and malformed addresses are not accepted.</small></>}            {error ? <p className="form-error" role="alert">{error}</p> : null}
+            <label htmlFor="email">Email address</label>
+            <input aria-describedby="email-hint" aria-invalid={Boolean(error)} autoComplete="email" disabled={submitting} id="email"
+              onBlur={(event) => { const validation = validateEmailAddress(event.target.value); if (!validation.valid) setError(validation.message); }}
+              onChange={(event) => { emailEdited.current = true; setEmail(event.target.value); setError(""); }}
+              placeholder="name@gmail.com" required type="email" value={email} />
+            <small className="email-hint" id="email-hint">Use an email you can access. You can change it before saving this result.</small>
+            {error ? <p className="form-error" role="alert">{error}</p> : null}
             <button className="primary-button full-button" disabled={submitting} type="submit">{submitting ? "Saving your result…" : "See my result →"}</button>
             <small className="privacy-note">No password is needed on this device. By continuing, you acknowledge our <Link href="/privacy">Privacy Policy</Link> and <Link href="/terms">Terms</Link>.</small>
           </form>
