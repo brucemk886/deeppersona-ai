@@ -33,7 +33,7 @@ export function HomeLanding({
       <section className="attach-hero" id="top">
         <div className="attach-hero-copy">
           <span className="editorial-kicker">A first-reaction quiz for real relationships</span>
-          <h1>Do you know your attachment style?</h1>
+          <h1>Why do you react this way in relationships?</h1>
           <p className="hero-lede">
             Explore the patterns behind how you connect, receive care, and find your way back to each other through {featuredTest?.questionCount || "20"} first-reaction questions.
           </p>
@@ -47,6 +47,7 @@ export function HomeLanding({
               {loading ? "Opening…" : "Start the free quiz"} <span aria-hidden="true">→</span>
             </button>
           </div>
+          <p className="service-context">Free summary after {featuredTest?.questionCount || 20} questions. Enter your email to save and view it. {featuredTest && featuredTest.reportPriceCents > 0 ? `Optional complete report: USD ${(featuredTest.reportPriceCents / 100).toFixed(2)}, one time.` : ""}</p>
           {error ? <p className="form-error" role="alert">{error}</p> : null}
         </div>
         <figure className="editorial-hero-image">

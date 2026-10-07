@@ -1,3 +1,4 @@
+import { buildSync } from 'esbuild';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readdirSync } from 'node:fs';
@@ -42,6 +43,10 @@ test('Lemon Squeezy checkout, signed delivery, two tiers and refunds', async t =
       return {status:r.status,data:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0]};
     };
     const catalog=(await call('/api/tests')).data, testId=catalog.tests[0].id;
+    const legacyBundle=buildSync({entryPoints:['lib/relationship-content.ts'],bundle:true,write:false,format:'esm',platform:'node'}).outputFiles[0].text;
+    const {relationshipQuestions}=await import('data:text/javascript;base64,'+Buffer.from(legacyBundle).toString('base64'));
+    await db.prepare('DELETE FROM quiz_questions WHERE test_id=?').bind(testId).run();
+    await db.batch(relationshipQuestions.map(q=>db.prepare('INSERT INTO quiz_questions (id,test_id,kicker,prompt,atlas_path,options_json,position,active) VALUES (?,?,?,?,?,?,?,1)').bind(q.id,q.testId,q.kicker,q.prompt,q.atlasPath,JSON.stringify(q.options),q.position)));
     const {questions}=(await call('/api/questions?test='+testId)).data;
     await db.prepare('UPDATE quiz_tests SET report_price_cents=999 WHERE id=?').bind(testId).run();
     const save=async()=>{

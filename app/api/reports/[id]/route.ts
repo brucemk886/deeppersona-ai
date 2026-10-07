@@ -35,11 +35,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const unlocked = Boolean(report.free || order?.status === "paid");
     const deepUnlocked = deep?.status === "paid";
     const snapshot = snapshotOf(report);
-    if (deepUnlocked && await upgradeAiReading(snapshot)) await saveReportSnapshot(report.id, snapshot);
+    if (deepUnlocked && !snapshot.deepResult.launchReport && await upgradeAiReading(snapshot)) await saveReportSnapshot(report.id, snapshot);
     const response: ReportResponse = {
       id: report.id, unlocked, deepUnlocked, status: report.free ? "free" : order?.status ?? "unpaid",
       amountCents: report.free ? 0 : order?.amount_cents ?? await currentPrice(report),
-      deepAmountCents: currentDeepPrice(),
+      deepAmountCents: snapshot.deepResult.launchReport ? 0 : currentDeepPrice(),
       deepStatus: deep?.status,
       currency: "usd",
       sandbox: config.sandbox, checkoutReady: config.ready && await matchingEnvironment(order), paymentProvider: config.provider, test: snapshot.test,

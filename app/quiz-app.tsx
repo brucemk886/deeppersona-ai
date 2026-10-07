@@ -3,6 +3,8 @@ import { BrandLogo, BrandMark } from "@/app/_components/brand";
 
 
 import Link from "next/link";
+import { LaunchFullReport } from "@/app/_components/attachment-launch-result";
+import { optionOrder, isLaunchQuestion } from "@/lib/attachment-launch";
 import { HomeLanding } from "@/app/_components/home-landing";
 import { AttachmentResult, HowYouScored, PatternLoop, SelfWorthRing, StyleBanner } from "@/app/_components/attachment-result";
 import { FreeAttachmentResults } from "@/app/_components/free-attachment-results";
@@ -456,6 +458,14 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
     void prepareBasicCheckout(reportData);
   }, [prepareBasicCheckout, reportData]);
 
+  useEffect(() => {
+    if (!reportData) return;
+    void fetch(`/api/reports/${reportData.id}/viewed`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ view: reportData.unlocked ? 'full' : 'summary' }), keepalive: true,
+    }).catch(() => undefined);
+  }, [reportData?.id, reportData?.unlocked]);
+
   async function beginCheckout(tier: "basic" | "deep" = "basic") {
     if (!reportData) return;
     setSubmitting(true);
@@ -484,6 +494,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
           ...(tier === "deep" ? { tier: "deep" } : {}),
         }) }, 25000);
       if (!data.url) throw new Error("Unable to open checkout.");
+      void fetch("/api/checkout/opened", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ reportId: reportData.id, tier }), keepalive: true }).catch(() => undefined);
       window.location.assign(data.url);
     } catch (checkoutError) {
       setError(checkoutError instanceof Error && (checkoutError.name === "TimeoutError" || checkoutError.name === "AbortError")
@@ -563,6 +574,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
       window.history.replaceState({}, "", `/?test=${encodeURIComponent(test.id)}`);
       const payload = {
         sessionId: nextSession,
+        questionId: readyQuestions[0].id,
         ...freshAttribution,
         testId: test.id,
       };
@@ -638,7 +650,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
         traffic_source: attribution.source,
         campaign: attribution.campaign || undefined,
       });
-      track("result_viewed", questions.length + 2);
+
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Please try again.");
@@ -729,7 +741,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
             <h1>{quizReady ? detailPrompt : "This quiz is being prepared."}</h1>
             <p className="detail-intro">{quizReady ? (textMode ? selectedTest.description : "There is no right answer. Pick the scene that matches your first move when closeness feels uncertain.") : "The previous question set is no longer offered. Start the free attachment quiz when you are ready."}</p>
             <p className="service-context">For entertainment and self-reflection, not diagnosis or treatment. <Link href="/disclaimer">Read the limitations</Link></p>
-            {quizReady ? <div className="detail-reveal"><span>YOUR FREE RESULT INCLUDES</span><div><p>A primary style label and anxiety × avoidance map.</p><p>A short fixed preview of this style’s romantic patterns.</p><p>Unlock the $9.99 report for the full style reading. A deeper reading written from your answers is optional after that.</p></div></div> : null}
+            {quizReady ? <div className="detail-reveal"><span>YOUR FREE RESULT INCLUDES</span><div>{detailQuestions.some(q => isLaunchQuestion(q.id)) ? <><p>Your response pattern, with examples from your own answers and one useful next step.</p><p>Enter your email at the end to save and view the free summary.</p><p>The optional complete report (USD {(selectedTest.reportPriceCents / 100).toFixed(2)}) includes three conversation tools and a review of all your answers. One payment; no second upgrade.</p></> : <><p>A primary style label and anxiety × avoidance map.</p><p>A short preview of this style’s romantic patterns.</p><p>The longer report is optional.</p></>}</div></div> : null}
             <button className="primary-button detail-cta" disabled={!quizReady || loadingTest === selectedTest.id} onClick={() => void startTest(selectedTest)}>{!quizReady ? "Quiz items coming next" : loadingTest === selectedTest.id ? "Opening…" : "Start the free quiz"} <span aria-hidden="true">→</span></button>
             <div className="detail-assurance"><span>{textMode ? "Free first-reaction quiz" : "Free visual test"}</span><i /> <span>Private by design</span>{selectedTest.reportPriceCents > 0 ? <><i /> <span>Optional report: USD {(selectedTest.reportPriceCents / 100).toFixed(2)}</span></> : null}</div>
             {selectedTest.reportPriceCents > 0 ? <p className="detail-purchase-note">The type is free. A longer reading is a one-time optional payment. No subscription.</p> : null}
@@ -761,8 +773,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
           {/* Translation can replace text nodes; remount the copy each step and keep counters intact. */}
           <div className="progress-copy" key={activeQuestion.id}>
             <span>
-              <span>{relationshipContext ? `With ${relationshipContext.nickname} · ${selectedTest.title}` : selectedTest.title}</span>
-              {" · "}
+              <span className="quiz-progress-context">{relationshipContext ? `With ${relationshipContext.nickname} · ${selectedTest.title}` : selectedTest.title}{" · "}</span>
               <span className="notranslate" translate="no">{`${questionIndex + 1} / ${questions.length}`}</span>
             </span>
             <span className="notranslate" translate="no">{`${Math.round(progress)}%`}</span>
@@ -772,9 +783,10 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
         <section className={`question-section ${textMode ? "question-section-text" : ""}`}>
           <div className="question-heading"><span>{relationshipContext ? `Thinking of ${relationshipContext.nickname}` : activeQuestion.kicker}</span><h1>{activeQuestion.prompt}</h1><p>{relationshipContext ? `Keep ${relationshipContext.nickname} in mind. Notice the first response this relationship brings up.` : (textMode ? QUIZ_HELPER_TEXT : QUIZ_HELPER_EN)}</p></div>
           <div className={`option-grid ${showImages ? "" : "option-grid-text"}`} role="radiogroup" aria-label={activeQuestion.prompt}>
-            {activeQuestion.options.map((option, index) => {
+            {optionOrder(sessionId, activeQuestion.id, activeQuestion.options.length).map((index, displayIndex) => {
+              const option = activeQuestion.options[index];
               const selected = selectedOptionIndex === index;
-              const letter = String.fromCharCode(65 + index);
+              const letter = String.fromCharCode(65 + displayIndex);
               return (
                 <article className={`option-card ${showImages ? "" : "option-card-text"} ${selected ? "selected" : ""} ${isAdvancing && selected ? "is-confirming" : ""}`} key={`${activeQuestion.id}-${index}`}>
                   {showImages ? (
@@ -834,6 +846,8 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
       || legacyChoices.some((item) => item.questionId === question.id && item.reading),
     ),
   );
+  if (reportData?.unlocked && deepResult?.launchReport) return <main className="result-shell ap-result-shell"><SiteNav active="quiz" /><LaunchFullReport report={deepResult.launchReport} /><SiteFooter /></main>;
+
   const paidCopy = deepResult ? paidAttachmentCopy(deepResult, Boolean(reportData?.deepUnlocked)) : null;
 
   return (

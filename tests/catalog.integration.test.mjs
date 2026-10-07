@@ -39,7 +39,7 @@ test("admin catalog edits persist across public reads and fresh Worker isolates"
     const originalTest = catalog.data.tests.find(item => item.id === "attachment-style");
     assert.ok(originalTest);
     assert.equal(originalTest.presentationMode, "text");
-    assert.equal(first[0].prompt, "When their texting suddenly goes cold and dry, what hits you first?");
+    assert.equal(first[0].prompt, "Their replies are shorter than usual today. What happens inside you first?");
     assert.equal(first[0].atlasPath, "");
     const edited = structuredClone(first[0]);
     Object.assign(edited, { prompt: "ADMIN: Which scene would you choose?", atlasPath: first[1].atlasPath, position: 7 });

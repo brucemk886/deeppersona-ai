@@ -1,5 +1,5 @@
 import { catalogQuestion } from "./public-quiz";
-import { relationshipQuestions } from "./relationship-content";
+import { launchQuestions } from "./attachment-launch-questions";
 import { type QuizQuestion, type QuizTest } from "./quiz";
 
 export const ATTACHMENT_TEST_ID = "attachment-style";
@@ -9,9 +9,9 @@ export const DEEP_REPORT_PRICE_CENTS = 1999;
 export const defaultTests: QuizTest[] = [
   {
     id: ATTACHMENT_TEST_ID,
-    title: "Attachment Style Quiz: 20 Real First-Reaction Moments",
+    title: "Your Relationship Pattern: 20 Everyday Moments",
     kicker: "Free · 20 first-reaction questions",
-    description: "Think about the relationship that hurt you most. Don't pick the polished, mature answer. Pick the first reaction your body actually has.",
+    description: "Think of one current or recent romantic relationship. Choose the response closest to what you tend to do. Keep that same relationship in mind for all 20 questions.",
     coverAtlasPath: "/quiz/relationship-v7/q01.webp",
     accent: "#9b4f5e",
     position: 1,
@@ -113,7 +113,7 @@ export const defaultTests: QuizTest[] = [
   },
 ];
 
-export const defaultQuestions: QuizQuestion[] = relationshipQuestions.map(catalogQuestion);
+export const defaultQuestions: QuizQuestion[] = launchQuestions.map(catalogQuestion);
 
 export const PUBLIC_QUESTION_IDS = new Set(defaultQuestions.map((question) => question.id));
 

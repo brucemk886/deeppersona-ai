@@ -46,7 +46,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   const resultsUi = quiz + freeResults;
   assert.match(quiz, /<BrandLogo/);
   assert.match(await readFile("app/_components/brand.tsx", "utf8"), /alt="DeepPersona AI"/);
-  assert.match(homeLanding, /Do you know your attachment style\?/);
+  assert.match(homeLanding, /Why do you react this way in relationships\?/);
   assert.match(homeLanding, /Start the free quiz/);
   assert.match(siteChrome, /Not a clinical diagnosis/);
   assert.match(homeLanding, /Anxious-leaning/);
@@ -93,7 +93,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.doesNotMatch(resultsUi, /Mother \(CG|Father \(CG|AT WORK|millions of users/i);
   assert.match(attachment, /scoreAttachment/);
   const liveCatalog = catalog.slice(0, catalog.indexOf("RETIRED_QUESTION_PROMPTS"));
-  assert.match(catalog, /relationshipQuestions\.map/);
+  assert.match(catalog, /launchQuestions\.map/);
   assert.doesNotMatch(liveCatalog, /They suddenly go quiet/);
   assert.doesNotMatch(liveCatalog, /Which room feels safest to share/);
   assert.doesNotMatch(catalog, /id: "attachment-style-1"/);

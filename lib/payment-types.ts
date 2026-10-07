@@ -11,6 +11,7 @@ export type ReportSnapshot = {
 };
 
 export type ReportPreview = {
+  launchOverview?: import("./attachment-launch").LaunchOverview;
   totalChoices: number;
   modules: string[];
   romanceEssay?: string;

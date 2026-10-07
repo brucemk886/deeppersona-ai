@@ -1647,3 +1647,31 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .ap-banner { height: 140px; }
   .ap-hero h1 { font-size: 46px; }
 }
+
+/* Versioned relationship report: counts, answer evidence, and practical tools. */
+.launch-counts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; margin-top:1.4rem; }
+.launch-counts > div, .launch-evidence { border:1px solid #d9dfd6; border-radius:16px; padding:1.25rem; background:#fafbf8; min-width:0; }
+.launch-counts span { display:block; color:#485749; }
+.launch-counts strong { display:block; font-size:1.5rem; margin:.4rem 0; }
+.launch-counts meter { width:100%; height:12px; accent-color:#48694d; }
+.launch-evidence-grid { display:grid; gap:1rem; margin-top:1rem; }
+.launch-evidence h3, .launch-scenario h3 { font-size:1.2rem; line-height:1.5; margin:.5rem 0; }
+.launch-evidence blockquote, .launch-script blockquote { margin:1rem 0 0; font-size:1.08rem; line-height:1.7; }
+.launch-action, .launch-sample { background:#eef2e8; border-radius:18px; padding:1.5rem; }
+.launch-list li { margin:.8rem 0; line-height:1.7; }
+.launch-scenario { padding:1.6rem 0; border-bottom:1px solid #d9dfd6; }
+.launch-loop { padding-left:1.3rem; }
+.launch-loop li { padding-left:.4rem; margin:1.2rem 0; }
+.launch-loop p { margin:.4rem 0; }
+.launch-script { border-left:4px solid #48694d; padding:.6rem 1.2rem; background:#fafbf8; }
+.launch-script h4 { margin:0; }
+.launch-delivered { padding:1rem; background:#eef2e8; border-radius:12px; text-align:center; }
+.launch-report summary { cursor:pointer; font-weight:600; padding:1rem 0; }
+@media(max-width:600px) { .launch-counts { grid-template-columns:1fr; } .launch-evidence,.launch-action { padding:1rem; } }
+
+.launch-early-offer { margin-top:1.2rem; font-family:inherit; }
+.launch-early-offer a { display:inline-block; padding:.75rem 1rem; border:1px solid #48694d; border-radius:10px; color:#214c3c; font-size:1rem; text-decoration:none; }
+.launch-early-offer small { display:block; margin-top:.6rem; font-size:.8rem; line-height:1.5; color:#5b675c; }
+
+.progress-copy .notranslate { white-space:nowrap; }
+@media(max-width:600px) { .quiz-progress-context { display:none; } }

@@ -20,6 +20,10 @@ import type { ResultProfile } from './quiz';
 export const FREE_SAMPLE_MODULE = ROMANCE_MODULE;
 
 export function freeResultFromSnapshot(snapshot: ReportSnapshot): ResultProfile {
+  if (snapshot.deepResult.launchReport) {
+    const { key, title, summary, eyebrow, nextStep } = snapshot.result;
+    return { key, title, summary, eyebrow, nextStep, strength: "", watchout: "" };
+  }
   const scored = resolveAttachmentScores(snapshot.questions, snapshot.answerChoices, snapshot.result);
   const themeTitle = scored
     ? ATTACHMENT_STYLE_META[scored.style].blurb
@@ -57,6 +61,10 @@ export function reportPreview(snapshot: ReportSnapshot): ReportPreview {
   const answered = snapshot.questions.map((q, index) => ({ q, index, selectedIndex: snapshot.answerChoices[q.id] }))
     .filter((x) => Number.isInteger(x.selectedIndex) && x.q.options[x.selectedIndex]);
   const modules = snapshot.deepResult.modules ?? [];
+  if (snapshot.deepResult.launchReport) {
+    const overview = snapshot.deepResult.launchReport.overview;
+    return { totalChoices: overview.answered, modules: [], launchOverview: overview };
+  }
   const scored = resolveAttachmentScores(snapshot.questions, snapshot.answerChoices, snapshot.result);
   const caregiverScored = scoreAttachmentSubset(snapshot.questions, snapshot.answerChoices, CHILDHOOD_MODULE);
   const worth = scored ? selfWorthSnapshot(snapshot.questions, snapshot.answerChoices) : undefined;

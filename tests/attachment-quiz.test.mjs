@@ -64,8 +64,8 @@ test("public catalog contains twenty distinct text questions and no canned readi
     assert.equal(q.atlasPath, "");
   }
   assert.match(catalog, /presentationMode: "text"/);
-  assert.match(catalog, /Attachment Style Quiz: 20 Real First-Reaction Moments/);
-  assert.match(catalog, /Don't pick the polished, mature answer/);
+  assert.match(catalog, /Your Relationship Pattern: 20 Everyday Moments/);
+  assert.match(catalog, /Think of one current or recent romantic relationship/);
   assert.equal((catalog.match(/presentationMode: "image"/g) ?? []).length, 7);
   assert.doesNotMatch(live, /They suddenly go quiet/);
   assert.doesNotMatch(live, /Which room feels safest to share/);

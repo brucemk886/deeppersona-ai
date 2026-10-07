@@ -4,7 +4,11 @@ import { buildAttachmentReport } from "./attachment-report";
 import { ATTACHMENT_TEST_ID } from "./quiz-content";
 import type { QuizQuestion, QuizTest, ResultProfile } from "./quiz";
 
+import { isLaunchQuestion, type LaunchReport } from "./attachment-launch";
+import { buildLaunchReport } from "./attachment-launch-report";
+
 export type DeepResultContent = {
+  launchReport?: LaunchReport;
   aiReading?: AiReading;
   aiReadingVersion?: number;
   aiUpgradeAttempted?: boolean;
@@ -36,6 +40,9 @@ export function buildChoiceReport(
   questions: QuizQuestion[],
   choices: Record<string, number>,
 ): { result: ResultProfile; deepResult: DeepResultContent } {
+  if (test.id === ATTACHMENT_TEST_ID && questions.length > 0 && questions.every(q => isLaunchQuestion(q.id))) {
+    return buildLaunchReport(questions, choices);
+  }
   if (test.id === ATTACHMENT_TEST_ID && questions.length > 0) {
     return buildAttachmentReport(questions, choices);
   }

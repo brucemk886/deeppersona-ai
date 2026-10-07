@@ -1,3 +1,4 @@
+import { relationshipQuestions } from '@/lib/relationship-content';
 import { answerRecords } from '@/lib/admin-answer-records';
 import { ensureTrafficSchema } from './traffic-store';
 import { productionSession } from './traffic-stats';
@@ -7,7 +8,7 @@ import {
   defaultTests,
   FULL_REPORT_PRICE_CENTS,
 } from "@/lib/quiz-content";
-import { catalogOption } from "@/lib/public-quiz";
+import { catalogOption, catalogQuestion } from "@/lib/public-quiz";
 import { env } from "cloudflare:workers";
 import {
   normalizePresentationMode,
@@ -406,6 +407,10 @@ async function applyStripCannedReadingsMigration(): Promise<void> {
 async function applyAttachmentV12TextMigration(): Promise<void> {
   const db = getD1();
   if (await catalogMigrationApplied(ATTACHMENT_V12_MIGRATION)) return;
+  if (await db.prepare("SELECT id FROM quiz_questions WHERE id LIKE 'attachment-style-launch-v1-q%' LIMIT 1").first()) {
+    await db.prepare("INSERT OR IGNORE INTO quiz_catalog_migrations (id) VALUES (?)").bind(ATTACHMENT_V12_MIGRATION).run();
+    return;
+  }
 
   const existing = await db.prepare("SELECT id FROM quiz_tests WHERE id = ?")
     .bind(ATTACHMENT_TEST_ID)
@@ -417,8 +422,9 @@ async function applyAttachmentV12TextMigration(): Promise<void> {
     return;
   }
 
-  const attachment = defaultTests.find((test) => test.id === ATTACHMENT_TEST_ID);
-  const questions = defaultQuestions.filter((question) => question.testId === ATTACHMENT_TEST_ID);
+  // Freeze the historical migration; changing today's seeds must not expand its scope.
+  const attachment = { ...defaultTests.find(test => test.id === ATTACHMENT_TEST_ID)!, title: "Attachment Style Quiz: 20 Real First-Reaction Moments", kicker: "Free · 20 first-reaction questions", description: "Think about the relationship that hurt you most. Don't pick the polished, mature answer. Pick the first reaction your body actually has.", presentationMode: "text" as const };
+  const questions = relationshipQuestions.map(catalogQuestion);
   if (!attachment || !questions.length) return;
 
   await db.batch([
@@ -452,6 +458,10 @@ async function applyAttachmentV12TextMigration(): Promise<void> {
 async function applyAttachmentEnglishBankMigration(): Promise<void> {
   const db = getD1();
   if (await catalogMigrationApplied(ATTACHMENT_V12_EN_MIGRATION)) return;
+  if (await db.prepare("SELECT id FROM quiz_questions WHERE id LIKE 'attachment-style-launch-v1-q%' LIMIT 1").first()) {
+    await db.prepare("INSERT OR IGNORE INTO quiz_catalog_migrations (id) VALUES (?)").bind(ATTACHMENT_V12_EN_MIGRATION).run();
+    return;
+  }
 
   const existing = await db.prepare("SELECT id FROM quiz_tests WHERE id = ?")
     .bind(ATTACHMENT_TEST_ID)
@@ -463,8 +473,9 @@ async function applyAttachmentEnglishBankMigration(): Promise<void> {
     return;
   }
 
-  const attachment = defaultTests.find((test) => test.id === ATTACHMENT_TEST_ID);
-  const questions = defaultQuestions.filter((question) => question.testId === ATTACHMENT_TEST_ID);
+  // Freeze the historical migration; changing today's seeds must not expand its scope.
+  const attachment = { ...defaultTests.find(test => test.id === ATTACHMENT_TEST_ID)!, title: "Attachment Style Quiz: 20 Real First-Reaction Moments", kicker: "Free · 20 first-reaction questions", description: "Think about the relationship that hurt you most. Don't pick the polished, mature answer. Pick the first reaction your body actually has.", presentationMode: "text" as const };
+  const questions = relationshipQuestions.map(catalogQuestion);
   if (!attachment || !questions.length) return;
 
   await db.batch([

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LaunchSummary, LaunchOffer } from "./attachment-launch-result";
 import {
   HowYouScored,
   LockedInsightCard,
@@ -65,6 +66,7 @@ export function FreeAttachmentResults({
   const price = `$${(amountCents / 100).toFixed(2)}`;
   return (
     <article className="ap-results">
+      {preview.launchOverview ? <><LaunchSummary overview={preview.launchOverview} offerPrice={amountCents === 0 ? "Free" : price} /><LaunchOffer /></> : <>
       <header className="ap-hero">
         <p className="ap-kicker">{testTitle}</p>
         <h1>{title}</h1>
@@ -131,6 +133,7 @@ export function FreeAttachmentResults({
         </section>
       ) : null}
 
+      </>}
       <section className="ap-paywall" id="unlock-full-results">
         <h2>Unlock full results · {amountCents === 0 ? "Free" : price}</h2>
         <p>{amountCents > 0 ? `USD ${(amountCents / 100).toFixed(2)}, one time. ` : ""}This page unlocks after confirmation, plus an email backup link to the address you used with the test.</p>

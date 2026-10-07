@@ -13,7 +13,7 @@ The owner has authorized ongoing GitHub synchronization after production changes
 
 ## Product direction
 
-Tests use intuitive image choices. Do not replace the experience with written scenario questionnaires. The relationship-test-v2-draft.md scenario proposal was rejected by the owner and is not approved for implementation.
+As authorized on 2026-10-07, the attachment quiz uses the first traffic edition: 20 written everyday scenarios, balanced response options, and one optional payment for the complete answer-based report. Keep historical report snapshots and previously purchased deep-report rights intact. Evaluate new iterations using edition-specific funnel data; do not overwrite the managed catalog on reads. Other image quizzes are not changed by this decision.
 
 ## Catalog source of truth
 

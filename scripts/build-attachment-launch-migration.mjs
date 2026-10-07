@@ -1,0 +1,16 @@
+import { buildSync } from 'esbuild';
+import { writeFileSync, mkdirSync } from 'node:fs';
+const bundle=buildSync({stdin:{contents:"export {launchQuestions} from './lib/attachment-launch-questions'; export {relationshipQuestions} from './lib/relationship-content'; export {defaultTests} from './lib/quiz-content';",resolveDir:process.cwd()},bundle:true,write:false,format:'esm',platform:'node'}).outputFiles[0].text;
+const {launchQuestions,relationshipQuestions,defaultTests}=await import('data:text/javascript;base64,'+Buffer.from(bundle).toString('base64'));
+const quote=s=>"'"+String(s).replaceAll("'","''")+"'";
+const ids=qs=>qs.map(q=>quote(q.id)).join(',');
+const exactBank=qs=>qs.map(q=>`EXISTS (SELECT 1 FROM quiz_questions WHERE id=${quote(q.id)} AND test_id='attachment-style' AND prompt=${quote(q.prompt)} AND ${q.options.map((o,i)=>`json_extract(options_json,'$[${i}].label')=${quote(o.label)} AND json_extract(options_json,'$[${i}].styleKey')=${quote(o.styleKey)}`).join(' AND ')})`).join(' AND\n');
+const newIds=ids(launchQuestions),oldIds=ids(relationshipQuestions);
+const gate=`(SELECT COUNT(*) FROM quiz_questions WHERE test_id='attachment-style' AND active=1)=20 AND NOT EXISTS (SELECT 1 FROM quiz_questions WHERE test_id='attachment-style' AND active=1 AND id NOT IN (${oldIds},${newIds})) AND ((${exactBank(relationshipQuestions)}) OR NOT EXISTS(SELECT 1 FROM quiz_questions WHERE test_id='attachment-style' AND active=1 AND id NOT IN (${newIds}))) AND (${exactBank(launchQuestions)}) AND EXISTS(SELECT 1 FROM quiz_tests WHERE id='attachment-style' AND report_price_cents=999 AND active=1)`;
+const sql=[`-- Explicit 2026-10-07 launch. Stage inactive rows, then switch the active bank in ONE guarded UPDATE.\n-- Never deletes questions/reports or changes prices. Reruns do not overwrite admin text.\n-- Verify exactly 20 launch rows active afterward; a failed gate leaves the current active bank intact.`,
+...launchQuestions.map(q=>`INSERT INTO quiz_questions (id,test_id,kicker,prompt,atlas_path,options_json,position,active) VALUES (${[q.id,q.testId,q.kicker,q.prompt,'',JSON.stringify(q.options)].map(quote).join(',')},${q.position},0) ON CONFLICT(id) DO NOTHING;`),
+`UPDATE quiz_questions SET active=CASE WHEN id IN (${newIds}) THEN 1 ELSE 0 END, updated_at=CURRENT_TIMESTAMP WHERE test_id='attachment-style' AND (${gate});`,
+`UPDATE quiz_tests SET title=${quote(defaultTests[0].title)}, kicker=${quote(defaultTests[0].kicker)}, description=${quote(defaultTests[0].description)}, presentation_mode='text', updated_at=CURRENT_TIMESTAMP WHERE id='attachment-style' AND (SELECT COUNT(*) FROM quiz_questions WHERE test_id='attachment-style' AND active=1 AND id IN (${newIds}))=20 AND NOT EXISTS (SELECT 1 FROM quiz_catalog_migrations WHERE id='attachment-launch-v1-2026-10-07');`,
+`INSERT OR IGNORE INTO quiz_catalog_migrations (id) SELECT 'attachment-launch-v1-2026-10-07' WHERE (SELECT COUNT(*) FROM quiz_questions WHERE test_id='attachment-style' AND active=1 AND id IN (${newIds}))=20;`,
+`SELECT COUNT(*) AS active_questions, SUM(CASE WHEN id IN (${newIds}) THEN 1 ELSE 0 END) AS launch_questions FROM quiz_questions WHERE test_id='attachment-style' AND active=1;`];
+mkdirSync('db/releases',{recursive:true});writeFileSync('db/releases/2026-10-07-attachment-launch-v1.sql',sql.join('\n\n')+'\n');

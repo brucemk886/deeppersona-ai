@@ -74,6 +74,10 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
     const { data: catalog } = await call("/api/tests");
     assert.equal((await call('/api/events',{body:{sessionId:crypto.randomUUID(),eventName:'session_started'}})).status,200,'test events work without an age checkbox');
     const testId = catalog.tests[0].id;
+    const legacyBundle = buildSync({entryPoints:['lib/relationship-content.ts'],bundle:true,write:false,format:'esm',platform:'node'}).outputFiles[0].text;
+    const {relationshipQuestions} = await import('data:text/javascript;base64,'+Buffer.from(legacyBundle).toString('base64'));
+    await db.prepare('DELETE FROM quiz_questions WHERE test_id=?').bind(testId).run();
+    await db.batch(relationshipQuestions.map(q=>db.prepare('INSERT INTO quiz_questions (id,test_id,kicker,prompt,atlas_path,options_json,position,active) VALUES (?,?,?,?,?,?,?,1)').bind(q.id,q.testId,q.kicker,q.prompt,q.atlasPath,JSON.stringify(q.options),q.position)));
     const { data: { questions } } = await call(`/api/questions?test=${testId}`);
     const save = async (price = 999) => {
       await db.prepare("UPDATE quiz_tests SET report_price_cents = ? WHERE id = ?").bind(price, testId).run();
