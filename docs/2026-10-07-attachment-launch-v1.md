@@ -37,3 +37,9 @@ Ship the user's approved first version before traffic acquisition, then use obse
 - Keep this question edition steady while the first traffic arrives. Examine starts, question reach/answers, email submission, result viewing, checkout navigation, server-confirmed payment and paid report opening by source. Unanswered is not automatically abandonment and pageviews are not unique people.
 - For substantive next-edition wording changes, create new question IDs/report version and preserve prior snapshots rather than blending cohorts. Admin can still edit the managed catalog; arbitrary rewritten prompts fall back to a generic script instead of receiving an unrelated old scenario script.
 - Next business steps: first acquisition creatives, then actual TikTok One eligibility/direct-link/profile routing for the stated account inventory. Those are not validated or launched by this release.
+
+## Follow-up copy refinement (2026-10-07)
+- User requested combining repeated phone checking with repeated follow-up messages. V1 Q1's reassurance option is now: "I keep checking my phone, then keep sending follow-up texts until they reply."
+- Update the default bank and apply `db/releases/2026-10-07-attachment-phone-followups.sql` to the managed live catalog. This guard matches the expected prior text and semantic style; it preserves other options, scoring and historical report snapshots. Newly created reports quote the new selected text automatically.
+- Keep the original launch migration unchanged. This small requested copy refinement remains in the initial V1 cohort and is recorded here; it is not a separately measured experiment.
+- Validation: existing launch/report tests and deployment type/build checks; verify the public catalog option after the explicit migration.

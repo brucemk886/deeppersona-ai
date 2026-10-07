@@ -12,7 +12,7 @@ export const launchQuestions: QuizQuestion[] = [
     "active": true,
     "options": [
       {
-        "label": "I start wondering whether I did something wrong and look for reassurance.",
+        "label": "I keep checking my phone, then keep sending follow-up texts until they reply.",
         "styleKey": "anxious",
         "microcopy": "",
         "meaning": "",
