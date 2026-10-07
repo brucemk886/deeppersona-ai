@@ -9,7 +9,7 @@ The owner approved the Chinese answer-mapping preview and explicitly authorized 
 - Free: named tendency, 3–5 actual answer examples, behavior themes. Do not restore the rejected positive Q13 counterexample. Two detailed teaser sections (relationship risks, origins) precede the single purchase card. Teasers use separately authored copy; full paragraphs are never merely hidden by CSS.
 - Full: selected relationship interactions, three relevant main-type risk chapters, selected family/later-experience interpretations, two deeper-pattern chapters, and the complete answer record at the bottom. No advice worksheets or conversation-script bundle.
 - Avoidant origins follow the approved angle: repeated unsuccessful requests for needed support can teach someone to handle things alone and expect little from asking. The actual family answer must be selected. Skipped experiences are not inferred from type, and past self-reliance is not presented as a current fact when current answers do not support it.
-- USD 9.99 one-time remains unchanged. No second upgrade for V2. Prior snapshots and historical base/deep rights stay intact; the two retained complete earlier editions can finish after release.
+- The managed one-time price remains unchanged. Production verification found USD 4.99; USD 9.99 in the review was a placeholder. The migration does not edit price. No second upgrade for V2. Prior snapshots and historical base/deep rights stay intact; the two retained complete earlier editions can finish after release.
 - The US-facing site uses authored English. Chinese references in option metadata are for admin review only and are not shipped in public question responses.
 
 ## Backend
@@ -29,12 +29,12 @@ The owner approved the Chinese answer-mapping preview and explicitly authorized 
 ## Validation
 - TypeScript and build pass; complete regression suite: 101 passing tests.
 - Tests cover all four types and all background options, skip/mixed/insufficient handling, actual choice evidence, family-source gating, public API/client-bundle exclusion of paid copy, immutable snapshots, concurrent admin revisions, same-origin/auth checks, preview side effects, one-payment rules/refunds, V1 completion and per-edition analytics.
-- Migration tests: exact 20-row switch, idempotency, no historical report mutation, fail closed on edited/deleted live rows or edited staged rows. Tested against SQLite and actual isolated Miniflare D1. The initial oversized SQL guard was replaced before any production migration.
+- Migration tests: exact 20-row switch, idempotency, no historical report mutation, fail closed on edited/deleted live rows or edited staged rows. Tested against SQLite and actual isolated Miniflare D1. The initial oversized SQL guard was replaced before any production migration. Production preflight also demonstrated fail-closed behavior when the managed price differed from the review placeholder; the guard now accepts the existing nonnegative price without changing it.
 - Browser QA: mobile quiz through all 20 choices; actual free/full result and admin components rendered with synthetic responses captured from isolated Worker APIs. Verified two previews before one purchase card, five evidence cards, 20 full-answer entries, no horizontal overflow, fixed-report preview and option editors; no browser exceptions. The combined Windows Miniflare SSR-to-submission browser run timed out, so component/browser checks and real API integration tests were run separately. Twelve concurrent direct event requests all passed. Screenshots stay under ignored `work/fixed-v2/`; no real checkout or email was triggered.
 
 ## Release and follow-up
 1. Commit reviewed source, fetch/push main, verify clean HEAD equals origin/main, then `npm run deploy`.
-2. Read the production catalog once to initialize compatible schema, then apply the explicit release SQL using Wrangler D1 execute. Verify 20 active fixed questions, 14 core / 6 context, price 999 and old rows inactive.
+2. Read the production catalog once to initialize compatible schema, then apply the explicit release SQL using Wrangler D1 execute. Verify 20 active fixed questions, 14 core / 6 context, unchanged managed price (499 cents at release) and old rows inactive.
 3. Read-only production checks of public quiz, admin access protection and deployed assets. Deployment receipt stays in ignored `work/deployed-site.json`; record final release verification in the parent Local Factory handoff.
 4. Review V2 starts, per-question reach/answer, email submission, result views, checkout clicks and confirmed purchases after real traffic arrives. An unanswered question is not necessarily abandonment. Further question/rule redesign should use a new edition rather than merge distinct cohorts.
 

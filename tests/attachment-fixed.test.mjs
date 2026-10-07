@@ -36,15 +36,17 @@ test('actual background chooses specific loops and unpaid preview never contains
 });
 test('fixed migration is atomic at the bank switch, preserves snapshots and does not clobber managed edits',()=>{
  const sql=readFileSync('db/releases/2026-10-08-attachment-fixed-v2.sql','utf8');
- for(const mode of ['normal','edited-v1','edited-v2','deleted-v1']){
+ for(const mode of ['normal','managed-price','edited-v1','edited-v2','deleted-v1']){
   const db=new DatabaseSync(':memory:');db.exec("CREATE TABLE quiz_questions(id TEXT PRIMARY KEY,test_id TEXT,kicker TEXT,prompt TEXT,atlas_path TEXT,options_json TEXT,report_config_json TEXT,position INT,active INT,updated_at TEXT);CREATE TABLE quiz_tests(id TEXT PRIMARY KEY,title TEXT,kicker TEXT,description TEXT,presentation_mode TEXT,active INT,report_price_cents INT,updated_at TEXT);CREATE TABLE quiz_catalog_migrations(id TEXT PRIMARY KEY);CREATE TABLE quiz_report_templates(version TEXT PRIMARY KEY,revision INT,content_json TEXT);CREATE TABLE quiz_reports(snapshot_json TEXT);INSERT INTO quiz_reports VALUES('old purchased snapshot');INSERT INTO quiz_tests(id,active,report_price_cents) VALUES('attachment-style',1,999);");
   const insert=q=>db.prepare('INSERT INTO quiz_questions(id,test_id,kicker,prompt,atlas_path,options_json,report_config_json,position,active) VALUES(?,?,?,?,?,?,?,?,?)').run(q.id,q.testId,q.kicker,q.prompt,q.atlasPath,JSON.stringify(q.options),q.reportConfig?JSON.stringify(q.reportConfig):null,q.position,q.active?1:0);
   launchQuestions.forEach(insert);
+  if(mode==='managed-price')db.prepare('UPDATE quiz_tests SET report_price_cents=499 WHERE id=?').run('attachment-style');
   if(mode==='edited-v1')db.prepare('UPDATE quiz_questions SET prompt=? WHERE id=?').run('Managed edit',launchQuestions[0].id);
   if(mode==='edited-v2')insert({...qs[0],active:false,prompt:'Managed staged edit'});
   if(mode==='deleted-v1')db.prepare('DELETE FROM quiz_questions WHERE id=?').run(launchQuestions[0].id);
   db.exec(sql);const active=db.prepare('SELECT id FROM quiz_questions WHERE active=1 ORDER BY position').all().map(q=>q.id);
-  assert.deepEqual(active,mode==='normal'?qs.map(q=>q.id):launchQuestions.filter((q,i)=>mode!=='deleted-v1'||i!==0).map(q=>q.id));assert.equal(db.prepare('SELECT snapshot_json FROM quiz_reports').get().snapshot_json,'old purchased snapshot');
+  assert.deepEqual(active,['normal','managed-price'].includes(mode)?qs.map(q=>q.id):launchQuestions.filter((q,i)=>mode!=='deleted-v1'||i!==0).map(q=>q.id));assert.equal(db.prepare('SELECT snapshot_json FROM quiz_reports').get().snapshot_json,'old purchased snapshot');
+  assert.equal(db.prepare('SELECT report_price_cents FROM quiz_tests').get().report_price_cents,mode==='managed-price'?499:999);
   if(mode==='normal'){db.prepare('UPDATE quiz_questions SET prompt=? WHERE id=?').run('Saved later',qs[0].id);db.exec(sql);assert.equal(db.prepare('SELECT prompt FROM quiz_questions WHERE id=?').get(qs[0].id).prompt,'Saved later');assert.equal(db.prepare('SELECT COUNT(*) n FROM quiz_questions WHERE active=1').get().n,20);}
   db.close();
  }
