@@ -2,6 +2,7 @@ import { type QuizOption, type QuizQuestion, type QuizTest } from "./quiz";
 
 export function catalogOption(option: Partial<QuizOption>, index = 0): QuizOption {
   return {
+    ...(option.optionId ? { optionId: option.optionId } : {}),
     label: option.label?.trim() || `Choice ${String.fromCharCode(65 + index)}`,
     microcopy: "",
     meaning: "",
@@ -27,4 +28,9 @@ export function publicTest(test: QuizTest): QuizTest {
 
 export function publicQuestion(question: QuizQuestion): QuizQuestion {
   return catalogQuestion(question);
+}
+
+// Only managed storage/admin reads retain the paid interpretation.
+export function managedOption(option: Partial<QuizOption>, index=0): QuizOption {
+  return { ...catalogOption(option,index), ...(option.fixed ? {fixed: option.fixed} : {}) };
 }

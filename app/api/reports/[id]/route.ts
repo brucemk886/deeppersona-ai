@@ -39,11 +39,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     // Add the improved reading from this report's frozen answers. No historical
     // snapshot, catalog row, purchase or email destination is rewritten.
     if (snapshot.deepResult.launchReport) snapshot.deepResult.launchReport = enrichLaunchReport(snapshot.deepResult.launchReport);
-    if (deepUnlocked && !snapshot.deepResult.launchReport && await upgradeAiReading(snapshot)) await saveReportSnapshot(report.id, snapshot);
+    if (deepUnlocked && !snapshot.deepResult.launchReport && !snapshot.deepResult.fixedReport && await upgradeAiReading(snapshot)) await saveReportSnapshot(report.id, snapshot);
     const response: ReportResponse = {
       id: report.id, unlocked, deepUnlocked, status: report.free ? "free" : order?.status ?? "unpaid",
       amountCents: report.free ? 0 : order?.amount_cents ?? await currentPrice(report),
-      deepAmountCents: snapshot.deepResult.launchReport ? 0 : currentDeepPrice(),
+      deepAmountCents: (snapshot.deepResult.launchReport || snapshot.deepResult.fixedReport) ? 0 : currentDeepPrice(),
       deepStatus: deep?.status,
       currency: "usd",
       sandbox: config.sandbox, checkoutReady: config.ready && await matchingEnvironment(order), paymentProvider: config.provider, test: snapshot.test,

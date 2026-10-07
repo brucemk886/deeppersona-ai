@@ -109,7 +109,8 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(admin, /测试管理/);
   assert.match(admin, /题目管理/);
   assert.doesNotMatch(admin, /<label>补充说明|<label>选择含义|<label>投射解读/);
-  assert.match(admin, /由 AI 直接生成/);
+  assert.match(admin, /依恋 V2 使用固定解析/);
+  assert.doesNotMatch(admin, /由 AI 直接生成/);
   assert.match(admin, /博客管理/);
   assert.match(admin, /addBlogPost/);
   assert.match(admin, /removeBlogPost/);

@@ -1,4 +1,5 @@
-import { catalogOption, publicQuestion } from "@/lib/public-quiz";
+import { fixedValidation, isFixedQuestion } from "@/lib/attachment-fixed";
+import { managedOption, publicQuestion } from "@/lib/public-quiz";
 import { isAdminRequest } from "@/app/admin-auth";
 import { deleteQuestion, listQuestions, saveQuestion } from "@/db/quiz-store";
 import { type QuizQuestion } from "@/lib/quiz";
@@ -34,6 +35,8 @@ export async function PUT(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  try {
+  requireSameOrigin(request);
   const body = (await request.json()) as QuizQuestion;
   const valid =
     typeof body.id === "string" &&
@@ -44,7 +47,7 @@ export async function PUT(request: Request) {
     typeof body.active === "boolean" &&
     Number.isSafeInteger(body.position) && body.position >= 0 &&
     Array.isArray(body.options) &&
-    body.options.length === 4 &&
+    (body.reportConfig ? body.options.length >= 4 && body.options.length <= 8 : body.options.length === 4) &&
     body.options.every(
       (option) =>
         typeof option.label === "string" &&
@@ -55,11 +58,19 @@ export async function PUT(request: Request) {
     return Response.json({ error: "Invalid question payload" }, { status: 400 });
   }
 
+  const issue = fixedValidation(body);
+  if (issue) return Response.json({error:issue},{status:400});
+  if (body.reportConfig && (!isFixedQuestion(body.id) || body.testId !== "attachment-style")) return Response.json({error:"Invalid fixed edition"},{status:400});
+  if(body.reportConfig){
+    const previous=(await listQuestions(body.testId,true)).find(q=>q.id===body.id);
+    if(previous && (JSON.stringify(previous.reportConfig)!==JSON.stringify(body.reportConfig) || previous.options.map(o=>o.optionId).join('|')!==body.options.map(o=>o.optionId).join('|') || previous.options.some((o,i)=>o.fixed?.tag!==body.options[i]?.fixed?.tag))) return Response.json({error:"此版本的计分用途、情境、选项 ID 与标签不可重排。请在新版本中调整结构。"},{status:409});
+  }
   await saveQuestion({
     ...body,
-    options: body.options.map((option, index) => catalogOption(option, index)),
+    options: body.options.map((option, index) => managedOption(option, index)),
   });
   return Response.json({ ok: true });
+  } catch (error) { return paymentError(error); }
 }
 
 export async function DELETE(request: Request) {

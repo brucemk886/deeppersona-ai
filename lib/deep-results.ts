@@ -5,9 +5,12 @@ import { ATTACHMENT_TEST_ID } from "./quiz-content";
 import type { QuizQuestion, QuizTest, ResultProfile } from "./quiz";
 
 import { isLaunchQuestion, type LaunchReport } from "./attachment-launch";
+import { buildFixedReport } from "./attachment-fixed-report";
+import { FIXED_VERSION, type FixedTemplates } from "./attachment-fixed";
 import { buildLaunchReport } from "./attachment-launch-report";
 
 export type DeepResultContent = {
+  fixedReport?: import("./attachment-fixed").FixedReport;
   launchReport?: LaunchReport;
   aiReading?: AiReading;
   aiReadingVersion?: number;
@@ -39,7 +42,12 @@ export function buildChoiceReport(
   test: QuizTest,
   questions: QuizQuestion[],
   choices: Record<string, number>,
+  templates?: FixedTemplates,
 ): { result: ResultProfile; deepResult: DeepResultContent } {
+  if (test.id === ATTACHMENT_TEST_ID && questions.some(q => q.reportConfig?.version === FIXED_VERSION)) {
+    if (!templates || questions.some(q => q.reportConfig?.version !== FIXED_VERSION)) throw new Error("This report edition is not ready.");
+    return buildFixedReport(questions, choices, templates);
+  }
   if (test.id === ATTACHMENT_TEST_ID && questions.length > 0 && questions.every(q => isLaunchQuestion(q.id))) {
     return buildLaunchReport(questions, choices);
   }

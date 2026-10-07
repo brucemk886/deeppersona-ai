@@ -1,4 +1,6 @@
 "use client";
+import { FixedFullReport } from "@/app/_components/attachment-fixed-result";
+import { isFixedQuestion } from "@/lib/attachment-fixed";
 import { BrandLogo, BrandMark } from "@/app/_components/brand";
 
 
@@ -626,6 +628,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
           email: emailToSave,
           marketingConsent: false,
           answerChoices,
+          answerOptionIds: Object.fromEntries(questions.filter(q => q.options[answerChoices[q.id]]?.optionId).map(q => [q.id, q.options[answerChoices[q.id]].optionId])),
           source: attribution.source,
           campaign: attribution.campaign,
           relationshipId: relationshipContext?.id,
@@ -735,7 +738,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
             <h1>{quizReady ? detailPrompt : "This quiz is being prepared."}</h1>
             <p className="detail-intro">{quizReady ? (textMode ? selectedTest.description : "There is no right answer. Pick the scene that matches your first move when closeness feels uncertain.") : "The previous question set is no longer offered. Start the free attachment quiz when you are ready."}</p>
             <p className="service-context">For entertainment and self-reflection, not diagnosis or treatment. <Link href="/disclaimer">Read the limitations</Link></p>
-            {quizReady ? <div className="detail-reveal"><span>YOUR FREE RESULT INCLUDES</span><div>{detailQuestions.some(q => isLaunchQuestion(q.id)) ? <><p>Your response pattern, with examples from your own answers and one useful next step.</p><p>Enter your email at the end to save and view the free summary.</p><p>The optional complete report (USD {(selectedTest.reportPriceCents / 100).toFixed(2)}) includes three conversation tools and a review of all your answers. One payment; no second upgrade.</p></> : <><p>A primary style label and anxiety × avoidance map.</p><p>A short preview of this style’s romantic patterns.</p><p>The longer report is optional.</p></>}</div></div> : null}
+            {quizReady ? <div className="detail-reveal"><span>YOUR FREE RESULT INCLUDES</span><div>{detailQuestions.some(q => isFixedQuestion(q.id)) ? <><p>Your attachment tendency, the choices behind it, and the behaviors you may recognize in your relationships.</p><p>14 questions explore your reactions. Six optional context questions explore relationships and earlier experiences. Enter your email to save and view your free result.</p><p>The optional complete reading (USD {(selectedTest.reportPriceCents / 100).toFixed(2)}) explores relationship risks and possible formation clues from your answers. One payment; no second upgrade.</p></> : detailQuestions.some(q => isLaunchQuestion(q.id)) ? <><p>Your response pattern, with examples from your own answers and one useful next step.</p><p>Enter your email at the end to save and view the free summary.</p><p>The optional complete report (USD {(selectedTest.reportPriceCents / 100).toFixed(2)}) includes three conversation tools and a review of all your answers. One payment; no second upgrade.</p></> : <><p>A primary style label and anxiety × avoidance map.</p><p>A short preview of this style’s romantic patterns.</p><p>The longer report is optional.</p></>}</div></div> : null}
             <button className="primary-button detail-cta" disabled={!quizReady || loadingTest === selectedTest.id} onClick={() => void startTest(selectedTest)}>{!quizReady ? "Quiz items coming next" : loadingTest === selectedTest.id ? "Opening…" : "Start the free quiz"} <span aria-hidden="true">→</span></button>
             <div className="detail-assurance"><span>{textMode ? "Free first-reaction quiz" : "Free visual test"}</span><i /> <span>Private by design</span>{selectedTest.reportPriceCents > 0 ? <><i /> <span>Optional report: USD {(selectedTest.reportPriceCents / 100).toFixed(2)}</span></> : null}</div>
             {selectedTest.reportPriceCents > 0 ? <p className="detail-purchase-note">The type is free. A longer reading is a one-time optional payment. No subscription.</p> : null}
@@ -775,7 +778,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
           <div aria-label="Quiz progress" aria-valuemax={100} aria-valuemin={0} aria-valuenow={Math.round(progress)} className="progress-track" role="progressbar"><span style={{ width: `${progress}%`, background: selectedTest.accent }} /></div>
         </header>
         <section className={`question-section ${textMode ? "question-section-text" : ""}`}>
-          <div className="question-heading"><span>{relationshipContext ? `Thinking of ${relationshipContext.nickname}` : activeQuestion.kicker}</span><h1>{activeQuestion.prompt}</h1><p>{relationshipContext ? `Keep ${relationshipContext.nickname} in mind. Notice the first response this relationship brings up.` : (textMode ? QUIZ_HELPER_TEXT : QUIZ_HELPER_EN)}</p></div>
+          <div className="question-heading"><span>{relationshipContext ? `Thinking of ${relationshipContext.nickname}` : activeQuestion.kicker}</span><h1>{activeQuestion.prompt}</h1><p>{relationshipContext ? `Keep ${relationshipContext.nickname} in mind. Notice the first response this relationship brings up.` : (isFixedQuestion(activeQuestion.id) ? activeQuestion.reportConfig?.kind === "core" ? "Choose the response closest to yours. If the situation does not fit, you can skip it." : "Choose what fits your experience. These answers add context and do not change your type." : textMode ? QUIZ_HELPER_TEXT : QUIZ_HELPER_EN)}</p></div>
           <div className={`option-grid ${showImages ? "" : "option-grid-text"}`} role="radiogroup" aria-label={activeQuestion.prompt}>
             {optionOrder(sessionId, activeQuestion.id, activeQuestion.options.length).map((index, displayIndex) => {
               const option = activeQuestion.options[index];
@@ -846,6 +849,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
       || legacyChoices.some((item) => item.questionId === question.id && item.reading),
     ),
   );
+  if (reportData?.unlocked && deepResult?.fixedReport) return <main className="result-shell ap-result-shell"><SiteNav active="quiz" /><FixedFullReport report={deepResult.fixedReport} /><SiteFooter /></main>;
   if (reportData?.unlocked && deepResult?.launchReport) return <main className="result-shell ap-result-shell"><SiteNav active="quiz" /><LaunchFullReport report={deepResult.launchReport} /><SiteFooter /></main>;
 
   const paidCopy = deepResult ? paidAttachmentCopy(deepResult, Boolean(reportData?.deepUnlocked)) : null;

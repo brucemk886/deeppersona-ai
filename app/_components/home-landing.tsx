@@ -35,7 +35,7 @@ export function HomeLanding({
           <span className="editorial-kicker">A first-reaction quiz for real relationships</span>
           <h1>Why do you react this way in relationships?</h1>
           <p className="hero-lede">
-            Explore the patterns behind how you connect, receive care, and find your way back to each other through {featuredTest?.questionCount || "20"} first-reaction questions.
+            Explore the patterns behind how you connect, receive care, and find your way back to each other through {featuredTest?.questionCount || "20"} questions about your relationships and experiences.
           </p>
           <div className="attach-hero-actions">
             <button
@@ -97,7 +97,7 @@ export function HomeLanding({
         <header>
           <span>How it can look in a relationship</span>
           <h2>Two common pulls: reaching, and stepping back.</h2>
-          <p>Most people recognize a little of both. The question is which move your body chooses first.</p>
+          <p>Most people recognize a little of both. The question is which response feels most familiar to you.</p>
         </header>
         <div className="sign-grid">
           <article className="sign-card sign-anxious">

@@ -36,10 +36,11 @@ export const isLaunchQuestion = (id: string) => id.startsWith(LAUNCH_PREFIX);
 // Persist canonical option indexes; only their presentation order is shuffled.
 export function optionOrder(sessionId: string, questionId: string, length: number): number[] {
   const order = Array.from({ length }, (_, index) => index);
-  if (!isLaunchQuestion(questionId)) return order;
+  const fixed = questionId.startsWith("attachment-style-fixed-v2-q");
+  if (!isLaunchQuestion(questionId) && !fixed) return order;
   let seed = 2166136261;
   for (const char of `${sessionId}:${questionId}`) seed = Math.imul(seed ^ char.charCodeAt(0), 16777619) >>> 0;
-  for (let i = length - 1; i > 0; i--) {
+  for (let i = (fixed ? Math.min(4,length) : length) - 1; i > 0; i--) {
     seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
     const j = (seed >>> 0) % (i + 1);
     [order[i], order[j]] = [order[j], order[i]];

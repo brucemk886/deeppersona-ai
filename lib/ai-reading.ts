@@ -109,6 +109,7 @@ export async function generateAiReading(
 
 // Paid / already-free reports only. One attempt, then the reading is fixed.
 export async function upgradeAiReading(snapshot: ReportSnapshot): Promise<boolean> {
+  if (snapshot.deepResult.fixedReport || snapshot.deepResult.launchReport) return false;
   if (!hasAiKey() || !ATTACHMENT_KEYS.has(snapshot.result.key)) return false;
   if (!needsAiUpgrade(snapshot.deepResult)) return false;
   snapshot.deepResult.aiUpgradeAttempted = true;

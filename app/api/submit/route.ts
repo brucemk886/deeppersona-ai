@@ -1,8 +1,10 @@
+import { getFixedTemplates } from "@/db/fixed-report-store";
+import { FIXED_VERSION, isFixedQuestion } from "@/lib/attachment-fixed";
 import { getD1, getProfileSummary, listQuestions, listTests, submitQuiz } from "@/db/quiz-store";
 import { ensurePaymentSchema, type ReportRow } from "@/db/payment-store";
 import { validateEmailAddress } from "@/lib/email-validation";
 import { ATTACHMENT_TEST_ID, PUBLIC_QUESTION_IDS } from "@/lib/public-catalog";
-import { isLaunchQuestion } from "@/lib/attachment-launch";
+import { isLaunchQuestion, LAUNCH_PREFIX } from "@/lib/attachment-launch";
 import type { QuizQuestion } from "@/lib/quiz";
 import { buildChoiceReport } from "@/lib/deep-results";
 import { catalogQuestion, publicTest } from "@/lib/public-quiz";
@@ -19,7 +21,7 @@ export async function POST(request: Request) {
     requireSameOrigin(request);
     const body = await request.json() as {
       sessionId?: string; testId?: string; email?: string; marketingConsent?: boolean;
-      answerChoices?: Record<string, number>; source?: string; campaign?: string; relationshipId?: string;
+      answerChoices?: Record<string, number>; answerOptionIds?: Record<string,string>; source?: string; campaign?: string; relationshipId?: string;
     };
     const email = validateEmailAddress(typeof body.email === "string" ? body.email : "");
     if (!email.valid) throw new PaymentError(email.message);
@@ -43,21 +45,28 @@ export async function POST(request: Request) {
     if (!test) throw new PaymentError("This test is unavailable.", 404);
     let questions = await listQuestions(test.id);
     const choices = body.answerChoices;
-    // The launch retired, but retained, the preceding 20-question edition.
-    // Finish an already-loaded full edition using its actual managed rows; never
-    // combine editions, revive deleted rows, or accept arbitrary inactive quizzes.
+    // Only the two explicitly retired, complete attachment editions can finish.
+    // Read their retained managed rows; never accept mixed or arbitrary inactive sets.
     if (!hasCompleteAnswers(questions, choices) && test.id === ATTACHMENT_TEST_ID &&
-        questions.length > 0 && questions.every((question) => isLaunchQuestion(question.id)) &&
-        Object.keys(choices).length === PUBLIC_QUESTION_IDS.size &&
-        Object.keys(choices).every((id) => PUBLIC_QUESTION_IDS.has(id))) {
-      const previous = (await listQuestions(test.id, true)).filter((question) => PUBLIC_QUESTION_IDS.has(question.id));
-      if (hasCompleteAnswers(previous, choices)) questions = previous;
+        questions.length > 0 && questions.every(q => isLaunchQuestion(q.id) || isFixedQuestion(q.id))) {
+      const ids = Object.keys(choices);
+      const oldIds = new Set(Array.from({length:20},(_,i)=>LAUNCH_PREFIX+String(i+1).padStart(2,'0')));
+      const accepted = ids.length === 20 && (ids.every(id=>PUBLIC_QUESTION_IDS.has(id)) ||
+        (questions.every(q=>isFixedQuestion(q.id)) && ids.every(id=>oldIds.has(id))));
+      if (accepted) {
+        const previous=(await listQuestions(test.id,true)).filter(q=>ids.includes(q.id));
+        if(hasCompleteAnswers(previous,choices)) questions=previous;
+      }
     }
     if (!hasCompleteAnswers(questions, choices)) {
       throw new PaymentError("The questions have changed. Please restart this test.", 409);
     }
+    if (body.answerOptionIds && questions.some(q => q.reportConfig?.version === FIXED_VERSION && body.answerOptionIds?.[q.id] !== q.options[choices[q.id]].optionId)) {
+      throw new PaymentError("The answer options have changed. Please restart this test.",409);
+    }
+    const templates = questions.some(q=>q.reportConfig?.version === FIXED_VERSION) ? await getFixedTemplates() : undefined;
     const answers = Object.fromEntries(questions.map(q => [q.id, choices[q.id]]));
-    const { result, deepResult } = buildChoiceReport(test, questions, choices);
+    const { result, deepResult } = buildChoiceReport(test, questions, choices, templates ?? undefined);
     const reportId = crypto.randomUUID();
     const profile = await submitQuiz({
       sessionId: body.sessionId, profileId, email: email.normalized, marketingConsent: body.marketingConsent === true,

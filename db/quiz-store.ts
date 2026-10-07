@@ -8,7 +8,7 @@ import {
   defaultTests,
   FULL_REPORT_PRICE_CENTS,
 } from "@/lib/quiz-content";
-import { catalogOption, catalogQuestion } from "@/lib/public-quiz";
+import { catalogOption, catalogQuestion, managedOption } from "@/lib/public-quiz";
 import { env } from "cloudflare:workers";
 import {
   normalizePresentationMode,
@@ -62,6 +62,7 @@ type QuestionRow = {
   id: string;
   kicker: string;
   options_json: string;
+  report_config_json?: string | null;
   position: number;
   prompt: string;
   test_id: string;
@@ -170,6 +171,7 @@ async function createSchema(): Promise<void> {
       prompt TEXT NOT NULL,
       atlas_path TEXT NOT NULL,
       options_json TEXT NOT NULL,
+      report_config_json TEXT,
       position INTEGER NOT NULL DEFAULT 0,
       active INTEGER NOT NULL DEFAULT 1,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -224,6 +226,13 @@ async function createSchema(): Promise<void> {
     )`),
   ]);
 
+  await db.prepare("ALTER TABLE quiz_questions ADD COLUMN report_config_json TEXT").run().catch((error: unknown) => {
+    if (!(error instanceof Error) || !/duplicate column name/i.test(error.message)) throw error;
+  });
+  await db.prepare(`CREATE TABLE IF NOT EXISTS quiz_report_templates (
+    version TEXT PRIMARY KEY, revision INTEGER NOT NULL, content_json TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`).run();
   await db.prepare(`ALTER TABLE quiz_tests ADD COLUMN report_price_cents INTEGER NOT NULL DEFAULT ${FULL_REPORT_PRICE_CENTS}`).run().catch((error: unknown) => {
     if (!(error instanceof Error) || !/duplicate column name/i.test(error.message)) throw error;
   });
@@ -273,7 +282,8 @@ function rowToQuestion(row: QuestionRow): QuizQuestion {
     kicker: row.kicker,
     prompt: row.prompt,
     atlasPath: row.atlas_path,
-    options: parsedOptions.map((option, index) => catalogOption(option, index)),
+    options: parsedOptions.map((option, index) => managedOption(option, index)),
+    ...(row.report_config_json ? { reportConfig: JSON.parse(row.report_config_json) } : {}),
     position: row.position,
     active: Boolean(row.active),
   };
@@ -579,18 +589,19 @@ export async function listQuestions(testId?: string, includeInactive = false): P
 export async function saveQuestion(question: QuizQuestion): Promise<void> {
   await ensureCatalog();
   await getD1().prepare(`INSERT INTO quiz_questions
-    (id, test_id, kicker, prompt, atlas_path, options_json, position, active, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    (id, test_id, kicker, prompt, atlas_path, options_json, report_config_json, position, active, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(id) DO UPDATE SET
       test_id = excluded.test_id,
       kicker = excluded.kicker,
       prompt = excluded.prompt,
       atlas_path = excluded.atlas_path,
       options_json = excluded.options_json,
+      report_config_json = excluded.report_config_json,
       position = excluded.position,
       active = excluded.active,
       updated_at = CURRENT_TIMESTAMP`)
-    .bind(question.id, question.testId, question.kicker, question.prompt, question.atlasPath, JSON.stringify(question.options.map((option, index) => catalogOption(option, index))), question.position, question.active ? 1 : 0)
+    .bind(question.id, question.testId, question.kicker, question.prompt, question.atlasPath, JSON.stringify(question.options.map((option, index) => managedOption(option, index))), question.reportConfig ? JSON.stringify(question.reportConfig) : null, question.position, question.active ? 1 : 0)
     .run();
 }
 

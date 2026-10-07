@@ -17,6 +17,8 @@ export function showsOptionImages(
 }
 
 export type QuizOption = {
+  optionId?: string;
+  fixed?: import("./attachment-fixed").FixedOption;
   readingFocus?: string;
   label: string;
   microcopy: string;
@@ -27,6 +29,7 @@ export type QuizOption = {
 };
 
 export type QuizQuestion = {
+  reportConfig?: import("./attachment-fixed").FixedQuestionConfig;
   id: string;
   testId: string;
   kicker: string;

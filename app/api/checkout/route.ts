@@ -36,7 +36,8 @@ export async function POST(request: Request) {
       return new Response(JSON.stringify({ error: 'Too many checkout attempts. Please wait one minute and try again.' }), { status: 429, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Retry-After': '60' } });
     }
     const deep = body.tier === "deep";
-    if (deep && snapshotOf(report).deepResult.launchReport) throw new PaymentError("This edition includes all report tools in one purchase. No separate upgrade is needed.", 409);
+    if (snapshotOf(report).deepResult.fixedReport?.overview.state === "insufficient") throw new PaymentError("There is not enough information for a paid report. Please retake the quiz when more situations apply.",409);
+    if (deep && (snapshotOf(report).deepResult.launchReport || snapshotOf(report).deepResult.fixedReport)) throw new PaymentError("This edition includes all report tools in one purchase. No separate upgrade is needed.", 409);
     const basic = await reportOrder(report.id);
     const previous = deep ? await deepOrder(report.id) : basic;
     const config = await paymentConfig(previous);

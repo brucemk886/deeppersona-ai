@@ -1,0 +1,49 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { readdirSync,readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { createHmac } from 'node:crypto';
+import { Miniflare } from 'miniflare';
+
+test('fixed V2 managed lifecycle: private templates, immutable reports, retained edition, one payment and revisioned admin edits',async()=>{
+ let outbound=0;
+ const mf=new Miniflare({host:'127.0.0.1',port:0,inspectorPort:0,modules:['index.js',...readdirSync('dist/server',{recursive:true}).filter(p=>p.endsWith('.js')&&p!=='index.js')].map(p=>({type:'ESModule',path:resolve('dist/server',p)})),modulesRoot:resolve('dist/server'),compatibilityDate:'2026-05-22',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],bindings:{ADMIN_SESSION_SECRET:'fixed-local-fixture',ADMIN_PASSWORD:'fixture',STRIPE_SECRET_KEY:'sk_test_local_fixture',DEEPSEEK_API_KEY:'local-blocked-fixture'},outboundService:()=>{outbound++;return Response.json({error:'No external requests in tests'},{status:503});}});
+ try{
+ const base=new URL(await mf.ready).origin,db=await mf.getD1Database('DB');
+ const call=async(path,{body,cookie,origin=base,method}={})=>{const res=await fetch(base+path,{method:method??(body===undefined?'GET':'POST'),headers:{origin,'content-type':'application/json',...(cookie?{cookie}:{})},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(20000)});return {status:res.status,headers:res.headers,data:await res.json()};};
+ const old=(await call('/api/questions?test=attachment-style')).data.questions;
+ const issued=String(Math.floor(Date.now()/1000)),admin='deeppersona_admin='+issued+'.'+createHmac('sha256','fixed-local-fixture').update('admin.'+issued).digest('hex');
+ for(const statement of readFileSync('db/releases/2026-10-08-attachment-fixed-v2.sql','utf8').split(/\n\n+/).filter(s=>s.trim()&&!s.startsWith('--')))await db.prepare(statement).run();
+ const qs=(await call('/api/questions?test=attachment-style')).data.questions;assert.equal(qs.length,20);assert.ok(qs.every(q=>q.reportConfig?.version==='attachment-fixed-v2'));assert.ok(qs.every(q=>q.options.every(o=>!o.fixed&&o.optionId)));
+ assert.equal((await call('/api/admin/fixed-reports')).status,401);assert.equal((await call('/api/admin/fixed-reports/preview',{body:{choices:{}}})).status,401);
+ const templates=(await call('/api/admin/fixed-reports',{cookie:admin})).data.templates;assert.equal(templates.revision,1);
+ const managed=(await call('/api/questions?test=attachment-style&all=1',{cookie:admin})).data.questions.filter(q=>q.active);
+ assert.ok(managed.every(q=>q.options.every(o=>o.fixed?.reading)));
+ const choices=Object.fromEntries(qs.map(q=>[q.id,q.reportConfig.kind==='core'?1:2]));const ids=Object.fromEntries(qs.map(q=>[q.id,q.options[choices[q.id]].optionId]));
+ const submit=async(extra={},cookie)=>call('/api/submit',{cookie,body:{sessionId:crypto.randomUUID(),testId:'attachment-style',email:'fixed-qa@deeppersonaai.com',answerChoices:choices,answerOptionIds:ids,...extra}});
+ const wrong=await submit({answerOptionIds:{...ids,[qs[0].id]:'wrong'}});assert.equal(wrong.status,409);
+ const saved=await submit();assert.equal(saved.status,200,JSON.stringify(saved.data));const id=saved.data.reportId,cookie=saved.headers.get('set-cookie').split(';')[0];
+ const free=await call('/api/reports/'+id,{cookie});assert.equal(free.status,200);assert.equal(free.data.preview.fixedOverview.primary,'avoidant');assert.equal(free.data.deepResult,undefined);assert.equal(free.data.amountCents,999);assert.equal(free.data.deepAmountCents,0);assert.equal(free.data.preview.fixedOverview.answers,undefined);
+ const snapshot=(await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(id).first()).snapshot_json;const frozen=JSON.parse(snapshot).deepResult.fixedReport;
+ assert.equal(frozen.answers.length,20);assert.equal(frozen.origins[0].evidence.length,2);assert.equal(JSON.stringify(free.data).includes(frozen.deeper[0].paragraphs[0]),false);assert.equal((await call('/api/reports/'+id)).status,401);
+ assert.equal((await call('/api/checkout',{cookie,body:{reportId:id,tier:'deep',expectedAmountCents:1999}})).status,409);
+ const skip=await submit({answerChoices:Object.fromEntries(qs.map(q=>[q.id,q.options.length-1])),answerOptionIds:undefined},cookie);assert.equal(skip.status,200);const skipId=skip.data.reportId;assert.equal((await call('/api/reports/'+skipId,{cookie})).data.preview.fixedOverview.state,'insufficient');assert.equal((await call('/api/checkout',{cookie,body:{reportId:skipId,expectedAmountCents:999}})).status,409);
+ const oldResult=await submit({answerChoices:Object.fromEntries(old.map(q=>[q.id,0])),answerOptionIds:undefined},cookie);assert.equal(oldResult.status,200,JSON.stringify(oldResult.data));assert.equal((await call('/api/reports/'+oldResult.data.reportId,{cookie})).data.preview.launchOverview.answered,20);
+ const mixed={...choices};delete mixed[qs[0].id];mixed[old[0].id]=0;assert.equal((await submit({answerChoices:mixed,answerOptionIds:undefined},cookie)).status,409);
+ assert.equal((await call('/api/admin/fixed-reports',{method:'PUT',cookie:admin,origin:'https://other.example',body:templates})).status,403);
+ assert.equal((await call('/api/admin/fixed-reports/preview',{cookie:admin,origin:'https://other.example',body:{choices,templates}})).status,403);
+ const countBefore=(await db.prepare('SELECT COUNT(*) n FROM quiz_reports').first()).n;
+ const preview=await call('/api/admin/fixed-reports/preview',{cookie:admin,body:{choices,templates}});assert.equal(preview.status,200);assert.equal(preview.data.report.overview.primary,'avoidant');assert.equal((await db.prepare('SELECT COUNT(*) n FROM quiz_reports').first()).n,countBefore);
+ const changed=structuredClone(templates);changed.profiles.avoidant.headline='Managed later report headline';
+ assert.equal((await call('/api/admin/fixed-reports',{cookie:admin,body:changed,method:'PUT'})).data.templates.revision,2);assert.equal((await call('/api/admin/fixed-reports',{cookie:admin,body:changed,method:'PUT'})).status,409);
+ const edited=structuredClone(managed[0]);edited.options[1].fixed.reading='Managed later option interpretation for new reports only.';
+ assert.equal((await call('/api/questions',{cookie:admin,body:edited,method:'PUT'})).status,200);
+ const structural=structuredClone(edited);structural.reportConfig.kind='family';assert.equal((await call('/api/questions',{cookie:admin,body:structural,method:'PUT'})).status,400);
+ const updated=await submit({},cookie);assert.equal(updated.status,200);const later=(await call('/api/reports/'+updated.data.reportId,{cookie})).data;assert.equal(later.preview.fixedOverview.headline,changed.profiles.avoidant.headline);assert.equal(later.preview.fixedOverview.evidence[0].reading,edited.options[1].fixed.reading);
+ assert.equal((await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(id).first()).snapshot_json,snapshot);
+ await db.prepare("INSERT INTO payment_orders(id,report_id,amount_cents,livemode,status,paid_at) VALUES(?,?,999,1,'paid',CURRENT_TIMESTAMP)").bind(crypto.randomUUID(),id).run();
+ const paid=await call('/api/reports/'+id,{cookie});assert.equal(paid.data.unlocked,true);assert.deepEqual(paid.data.deepResult.fixedReport,frozen);assert.equal(outbound,0,'report creation/read never calls AI or external services');
+ const stats=(await call('/api/admin/stats?range=all',{cookie:admin})).data.traffic;assert.ok(stats.editions.find(e=>e.edition==='attachment-fixed-v2'&&e.started>=3));assert.ok(stats.editions.find(e=>e.edition==='attachment-launch-v1'));
+ await db.prepare("UPDATE payment_orders SET status='refunded' WHERE report_id=?").bind(id).run();const refunded=await call('/api/reports/'+id,{cookie});assert.equal(refunded.data.deepResult,undefined);assert.equal(JSON.stringify(refunded.data).includes(frozen.deeper[0].paragraphs[0]),false);
+ }finally{await mf.dispose();}
+});

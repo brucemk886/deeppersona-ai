@@ -20,6 +20,10 @@ import type { ResultProfile } from './quiz';
 export const FREE_SAMPLE_MODULE = ROMANCE_MODULE;
 
 export function freeResultFromSnapshot(snapshot: ReportSnapshot): ResultProfile {
+  if (snapshot.deepResult.fixedReport) {
+    const {key,title,summary,eyebrow}=snapshot.result;
+    return {key,title,summary,eyebrow,strength:"",watchout:"",nextStep:""};
+  }
   if (snapshot.deepResult.launchReport) {
     const { key, title, summary, eyebrow, nextStep } = snapshot.result;
     return { key, title, summary, eyebrow, nextStep, strength: "", watchout: "" };
@@ -61,6 +65,9 @@ export function reportPreview(snapshot: ReportSnapshot): ReportPreview {
   const answered = snapshot.questions.map((q, index) => ({ q, index, selectedIndex: snapshot.answerChoices[q.id] }))
     .filter((x) => Number.isInteger(x.selectedIndex) && x.q.options[x.selectedIndex]);
   const modules = snapshot.deepResult.modules ?? [];
+  if (snapshot.deepResult.fixedReport) {
+    return {totalChoices:snapshot.questions.length,modules:[],fixedOverview:snapshot.deepResult.fixedReport.overview};
+  }
   if (snapshot.deepResult.launchReport) {
     const overview = snapshot.deepResult.launchReport.overview;
     return { totalChoices: overview.answered, modules: [], launchOverview: overview };

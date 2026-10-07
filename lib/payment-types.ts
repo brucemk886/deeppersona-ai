@@ -11,6 +11,7 @@ export type ReportSnapshot = {
 };
 
 export type ReportPreview = {
+  fixedOverview?: import("./attachment-fixed").FixedOverview;
   launchOverview?: import("./attachment-launch").LaunchOverview;
   totalChoices: number;
   modules: string[];

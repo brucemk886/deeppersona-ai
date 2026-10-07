@@ -13,13 +13,13 @@ The owner has authorized ongoing GitHub synchronization after production changes
 
 ## Product direction
 
-As authorized on 2026-10-07, the attachment quiz uses the first traffic edition: 20 written everyday scenarios, balanced response options, and one optional payment for the complete answer-based report. Keep historical report snapshots and previously purchased deep-report rights intact. Evaluate new iterations using edition-specific funnel data; do not overwrite the managed catalog on reads. Other image quizzes are not changed by this decision.
+As authorized on 2026-10-08, the attachment quiz uses fixed V2: 14 relationship-reaction questions and six unscored context questions, four authored main reports, actual-choice evidence, and one optional payment for relationship risks and origins. Report creation and viewing do not use AI. See `docs/2026-10-08-attachment-fixed-v2.md`. Keep historical report snapshots and previously purchased deep-report rights intact. Evaluate new iterations using edition-specific funnel data; do not overwrite the managed catalog on reads. Other image quizzes are not changed by this decision.
 
 Quiz options should describe reactions and actions directly. Avoid decorative body metaphors, neurochemical buzzwords, and ambiguous figurative language that can turn into misleading literal translations.
 
 ## Catalog source of truth
 
-- D1 `quiz_tests` and `quiz_questions` are authoritative for the admin, public quiz, images, ordering, publication state, prices, and new report interpretations.
+- D1 `quiz_tests`, `quiz_questions`, and `quiz_report_templates` are authoritative for the admin, public quiz, images, ordering, publication state, prices, and new report interpretations.
 - Show saved question text verbatim on the public site regardless of browser language. Do not overlay built-in translations on the managed catalog.
 - Code defaults initialize an empty database only. Do not overwrite the existing catalog on reads, filter published questions by a fixed list of IDs, or resurrect deleted rows during deployment.
 - Update existing production content through the admin or an explicitly scoped data migration. Changing the seed files alone does not update a live catalog. Preserve completed report snapshots.

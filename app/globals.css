@@ -1736,3 +1736,32 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .launch-scenario .launch-scenario-title { font-size: 29px; }
   .launch-opening .launch-evidence blockquote { font-size: 19px; }
 }
+
+/* Fixed attachment edition: free evidence, two previews, then one purchase. */
+.fixed-results { --fixed-ink:#214c3c; background:#f4efe5; padding:48px!important; max-width:940px!important; margin-inline:auto; }
+.fixed-reading {color:#173e36;line-height:1.8;}
+.fixed-hero {padding:24px 0 44px;border-bottom:1px solid #d8dccd;}
+.fixed-type {display:inline-block;margin:16px 0 20px;border:1px solid #bec9b8;border-radius:50px;padding:6px 16px;font-size:13px;font-weight:600;}
+.fixed-reading h1 {font-family:var(--font-heading,Georgia),serif;font-size:clamp(36px,5vw,58px);line-height:1.13;font-weight:400;max-width:760px;margin:0 0 24px;letter-spacing:-.03em;}
+.fixed-reading h2 {font-family:var(--font-heading,Georgia),serif;font-size:clamp(27px,3vw,37px);line-height:1.22;font-weight:400;margin:16px 0 22px;}
+.fixed-reading h3 {font-family:var(--font-heading,Georgia),serif;font-size:24px;font-weight:400;line-height:1.3;margin:14px 0;}
+.fixed-reading p {font-size:16px;line-height:1.85;max-width:none;}
+.fixed-reading .fixed-lead {font-size:19px;line-height:1.7;}
+.fixed-reading small,.fixed-footer-note,.fixed-context-note {font-size:12px!important;color:#61746c;}
+.fixed-section {padding:36px 0;border-bottom:1px solid #d8dccd;}
+.fixed-evidence {display:grid;gap:24px;margin-top:28px;}
+.fixed-evidence article {padding:26px;background:#fffcf6;border:1px solid #d8dccd;border-radius:16px;}
+.fixed-reading blockquote {border-left:2px solid #ad5163;margin:16px 0;padding:4px 0 4px 18px;font-size:15px;color:#59685f;}
+.fixed-traits {background:#e7ecdf;padding:28px;border:0;border-radius:16px;margin:28px 0;}
+.fixed-traits ul {padding-left:22px;}.fixed-traits li {padding:6px 0;}
+.fixed-preview-stack {display:grid;gap:24px;margin:30px 0;}
+.fixed-locked {background:#fffcf6;border:1px solid #d8dccd;border-radius:16px;padding:30px;}
+.fixed-chapter-top {display:flex;gap:12px;justify-content:space-between;align-items:center;}.fixed-chapter-top>span:last-child{font-size:11px;border:1px solid #d8dccd;border-radius:30px;padding:3px 9px;}
+.fixed-locked article {border-top:1px solid #d8dccd;margin-top:24px;padding-top:14px;}
+.fixed-redacted {display:grid;gap:11px;margin:18px 0;filter:blur(5px);opacity:.3;pointer-events:none;}.fixed-redacted i{display:block;height:10px;background:#778a7e;border-radius:4px;width:96%;}.fixed-redacted i:nth-child(2){width:88%;}.fixed-redacted i:last-child{width:68%;}
+.fixed-results .ap-paywall {background:#214c3c;color:#fff9ef;border:0;border-radius:16px;padding:32px;margin:32px 0 0;}
+.fixed-results .ap-paywall h2 {color:inherit;line-height:1.2;font-size:32px;}.fixed-results .ap-paywall p,.fixed-results .ap-paywall a,.fixed-results .ap-paywall .text-button {color:inherit;}.fixed-results .ap-paywall .service-context,.fixed-results .ap-paywall .purchase-refund-notice,.fixed-results .ap-paywall .checkout-legal {font-size:12px;line-height:1.6;opacity:.85;}.fixed-results .ap-paywall .unlock-button-primary{background:#fff9ef;color:#214c3c;border-color:#fff9ef;padding:18px;white-space:normal;}
+.fixed-full-block {padding:20px 0;border-bottom:1px solid #d8dccd;}.fixed-full-block:last-child{border:0;}.fixed-access{font-size:11px;letter-spacing:.12em;color:#687d69;}.fixed-answer{padding:18px 0;border-bottom:1px solid #d8dccd;}.fixed-answer summary{cursor:pointer;font-size:16px;}.fixed-answer summary small{margin-right:12px;}.fixed-context-note{padding:18px;background:#e7ecdf;border-radius:8px;}
+.fixed-admin-controls {display:grid;gap:12px;}.fixed-admin-controls label{display:grid;gap:5px;}.fixed-admin-controls textarea{width:100%;min-height:85px;}.fixed-admin-block {border:1px solid #dae1ea;border-radius:8px;padding:18px;margin:14px 0;}.fixed-admin-preview {max-height:75vh;overflow:auto;background:#f4efe5;padding:24px;}.fixed-admin-preview .fixed-results{padding:24px!important;}.fixed-admin-note {padding:16px;background:#edf4ed;border-radius:8px;}.fixed-option-editor {margin-top:12px;display:grid;gap:10px;}.fixed-option-editor small{overflow-wrap:anywhere;}.fixed-preview-questions{display:grid;gap:10px;max-height:400px;overflow:auto;}.fixed-preview-questions select{max-width:100%;width:100%;}
+@media(max-width:600px){.fixed-results{padding:24px 18px!important;}.fixed-hero{padding-top:10px;}.fixed-reading h1{font-size:37px;}.fixed-reading h2{font-size:28px;}.fixed-reading h3{font-size:23px;}.fixed-reading p{font-size:15px;}.fixed-evidence article,.fixed-locked{padding:22px 18px;}.fixed-chapter-top{align-items:flex-start;}.fixed-results .ap-paywall{padding:26px 20px;}.fixed-results .ap-paywall h2{font-size:28px;}.fixed-traits{padding:22px 18px;}}.fixed-results .ap-paywall .purchase-refund-notice {background:#f7f4e9;color:#214c3c;opacity:1;}
+.fixed-results .ap-paywall .form-error {color:#ffe0db;}

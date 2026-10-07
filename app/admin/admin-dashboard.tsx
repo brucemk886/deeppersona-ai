@@ -1,4 +1,6 @@
 "use client";
+import FixedReportsPanel from "./fixed-reports-panel";
+import { FIXED_KEYS, FIXED_KIND_LABELS } from "@/lib/attachment-fixed";
 import { BrandMark } from "@/app/_components/brand";
 
 import type { AnswerRecord } from "@/lib/admin-answer-records";
@@ -10,7 +12,7 @@ import ReportEmailPanel from './report-email-panel';
 import SettingsPanel from './settings-panel';
 import { BlogManager, type AdminBlogPost } from "./blog-panel";
 import { type BlogPost } from "@/lib/blog";
-import { type AffiliateProduct, type QuizQuestion, type QuizTest } from "@/lib/quiz";
+import { type AffiliateProduct, type QuizOption, type QuizQuestion, type QuizTest } from "@/lib/quiz";
 import {
   ADMIN_STATS_RANGE_LABELS,
   ADMIN_STATS_RANGES,
@@ -18,7 +20,7 @@ import {
   type AdminStatsRange,
 } from "@/lib/admin-stats-range";
 
-type AdminSection = "overview" | "tests" | "questions" | "blog" | "traffic" | "emails" | "email-records" | "payments" | "affiliates" | "settings";
+type AdminSection = "fixed-reports" | "overview" | "tests" | "questions" | "blog" | "traffic" | "emails" | "email-records" | "payments" | "affiliates" | "settings";
 
 type Stats = {
   traffic: TrafficData;
@@ -56,6 +58,7 @@ const navigation: { id: AdminSection; icon: string; label: string }[] = [
   { id: "payments", icon: "单", label: "订单" },
   { id: "tests", icon: "测", label: "测试管理" },
   { id: "questions", icon: "题", label: "题目管理" },
+  { id: "fixed-reports", icon: "解", label: "固定报告" },
   { id: "blog", icon: "博", label: "博客管理" },
   { id: "traffic", icon: "流", label: "流量分析" },
   { id: "emails", icon: "邮", label: "邮箱用户" },
@@ -268,7 +271,7 @@ export function AdminDashboard({
   function updateOption(
     questionId: string,
     index: number,
-    next: { label?: string },
+    next: Partial<QuizOption>,
   ) {
     setQuestions((current) =>
       current.map((question) =>
@@ -625,6 +628,7 @@ export function AdminDashboard({
           ) : null}
 
           {activeSection === "payments" ? <PaymentPanel /> : null}
+          {activeSection === "fixed-reports" ? <FixedReportsPanel /> : null}
           {activeSection === "settings" ? <SettingsPanel /> : null}
           {activeSection === "email-records" ? <ReportEmailPanel /> : null}
           {activeSection === "blog" ? (
@@ -979,18 +983,20 @@ function QuestionManager({
   setSelectedTestId: (value: string) => void;
   savingId: string;
   tests: QuizTest[];
-  updateOption: (id: string, index: number, next: { label?: string }) => void;
+  updateOption: (id: string, index: number, next: Partial<QuizOption>) => void;
   updateQuestion: (id: string, next: Partial<QuizQuestion>) => void;
 }) {
+  const [edition,setEdition]=useState("active");
+  const visibleQuestions=questions.filter(q=>edition==="all"||edition==="active"&&q.active||edition==="fixed"&&Boolean(q.reportConfig));
   return (
     <>
       <div className="admin-page-heading question-heading-admin">
-        <div><span className="admin-kicker">测评内容</span><h1>题目管理</h1><p>管理题目和选项原文。图片测验仍用四格拼图；文本测验只展示选项文字。选择含义、补充说明和投射解读已去掉，新报告在用户提交后由 AI 直接生成。保存后刷新前台即可查看；草稿不展示，排序决定出题顺序。修改只影响之后生成的报告。</p></div>
+        <div><span className="admin-kicker">测评内容</span><h1>题目管理</h1><p>管理题目和选项原文。图片测验仍用四格拼图；文本测验只展示选项文字。依恋 V2 使用固定解析：前 14 题计分，后 6 题补充背景；各选项对应的标题、解读和预览均可编辑，不调用 AI。保存后刷新前台即可查看；草稿不展示，排序决定出题顺序。修改只影响之后生成的报告。</p></div>
         <button className="admin-primary-button" onClick={addQuestion}>＋ 新增题目</button>
       </div>
       <div className="test-filter-bar">
         <label>当前测试<select value={selectedTestId} onChange={(event) => setSelectedTestId(event.target.value)}>{tests.map((test) => <option key={test.id} value={test.id}>{test.title}（{test.questionCount ?? 0} 题）</option>)}</select></label>
-        <span>下方只显示当前测试的题目；用户文案按该测试语言原样展示。</span>
+        <label>题库范围<select value={edition} onChange={e=>setEdition(e.target.value)}><option value="active">当前上线题目</option><option value="fixed">固定解析 V2（含草稿）</option><option value="all">全部（含历史版本）</option></select></label>
       </div>
       <div className="question-summary-strip">
         <span><strong>{questions.length}</strong>全部题目</span>
@@ -999,7 +1005,7 @@ function QuestionManager({
         <small>{tests.find((test) => test.id === selectedTestId)?.presentationMode === "text" ? "当前测试为纯文本模式，前台不展示图片占位。" : "图片测验使用一张 2×2 拼图，A/B/C/D 对应四个象限。"}</small>
       </div>
       <div className="question-editor-list">
-        {questions.map((question, questionIndex) => (
+        {visibleQuestions.map((question, questionIndex) => (
           <article className="question-editor-cn" id={`editor-${question.id}`} key={question.id}>
             <header>
               <div className="question-index">{String(questionIndex + 1).padStart(2, "0")}</div>
@@ -1020,6 +1026,7 @@ function QuestionManager({
               </aside>
               <div className="question-form-fields">
                 <div className="field-row two"><label>题目前导语<input value={question.kicker} onChange={(event) => updateQuestion(question.id, { kicker: event.target.value })} /></label><label>图片拼图地址<input list="atlas-paths" value={question.atlasPath} onChange={(event) => updateQuestion(question.id, { atlasPath: event.target.value })} /></label></div>
+                {question.reportConfig ? <div className="fixed-admin-note"><strong>{FIXED_KIND_LABELS[question.reportConfig.kind]}</strong><p>领域：{question.reportConfig.domain} · 类型用途和稳定 ID 固定在此版本，避免改动后混淆计分。要重构计分题，请发布新版本。</p></div> : null}
                 <label>题目正文<textarea rows={2} value={question.prompt} onChange={(event) => updateQuestion(question.id, { prompt: event.target.value })} /></label>
                 <datalist id="atlas-paths"><option value="/quiz/landscapes.png" /><option value="/quiz/doors.png" /><option value="/quiz/symbols.png" /><option value="/quiz/rooms.png" /></datalist>
                 <div className="option-editor-grid-cn">
@@ -1027,6 +1034,7 @@ function QuestionManager({
                     <section key={optionIndex}>
                       <span>{String.fromCharCode(65 + optionIndex)}</span>
                       <label>选项标题<input value={option.label} onChange={(event) => updateOption(question.id, optionIndex, { label: event.target.value })} /></label>
+                      {option.fixed ? <details className="fixed-option-editor"><summary>固定解析与预览</summary><small>选项 ID：{option.fixed.id} · 标签：{option.fixed.tag}</small><label>计分倾向<select value={option.styleKey??''} disabled={question.reportConfig?.kind!=='core'||option.fixed.tag==='skip'} onChange={e=>updateOption(question.id,optionIndex,{styleKey:e.target.value||undefined})}><option value="">不计分</option>{FIXED_KEYS.map(k=><option key={k} value={k}>{({anxious:'焦虑型',avoidant:'回避型',secure:'安全型',fearful:'恐惧回避型'})[k]}</option>)}</select></label><label>解读标题<input value={option.fixed.title} onChange={e=>updateOption(question.id,optionIndex,{fixed:{...option.fixed!,title:e.target.value}})}/></label><label>完整解读<textarea rows={5} value={option.fixed.reading} onChange={e=>updateOption(question.id,optionIndex,{fixed:{...option.fixed!,reading:e.target.value}})}/></label><label>免费悬念预览<textarea rows={3} value={option.fixed.preview} onChange={e=>updateOption(question.id,optionIndex,{fixed:{...option.fixed!,preview:e.target.value}})}/></label>{option.fixed.reviewZh?<small>初稿中文参考（前台以已保存英文为准）：{option.fixed.reviewZh.label}<br/>{option.fixed.reviewZh.reading}</small>:null}</details>:null}
                     </section>
                   ))}
                 </div>
