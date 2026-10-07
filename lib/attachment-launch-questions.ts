@@ -168,28 +168,28 @@ export const launchQuestions: QuizQuestion[] = [
     "active": true,
     "options": [
       {
-        "label": "I love it and soon want to know it will keep happening.",
+        "label": "I feel happy, but keep asking whether they really care about me.",
         "styleKey": "anxious",
         "microcopy": "",
         "meaning": "",
         "projection": ""
       },
       {
-        "label": "I like them, but start protecting more time and space for myself.",
+        "label": "I feel uncomfortable and want some distance.",
         "styleKey": "avoidant",
         "microcopy": "",
         "meaning": "",
         "projection": ""
       },
       {
-        "label": "I enjoy it and speak up if I need a different pace.",
+        "label": "I feel happy and respond with affection.",
         "styleKey": "secure",
         "microcopy": "",
         "meaning": "",
         "projection": ""
       },
       {
-        "label": "I feel drawn in, then uneasy about how much it matters to me.",
+        "label": "I feel happy at first, then worry they'll change their mind, so I hold back.",
         "styleKey": "fearful",
         "microcopy": "",
         "meaning": "",

@@ -15,6 +15,8 @@ The owner has authorized ongoing GitHub synchronization after production changes
 
 As authorized on 2026-10-07, the attachment quiz uses the first traffic edition: 20 written everyday scenarios, balanced response options, and one optional payment for the complete answer-based report. Keep historical report snapshots and previously purchased deep-report rights intact. Evaluate new iterations using edition-specific funnel data; do not overwrite the managed catalog on reads. Other image quizzes are not changed by this decision.
 
+Quiz options should describe reactions and actions directly. Avoid decorative body metaphors, neurochemical buzzwords, and ambiguous figurative language that can turn into misleading literal translations.
+
 ## Catalog source of truth
 
 - D1 `quiz_tests` and `quiz_questions` are authoritative for the admin, public quiz, images, ordering, publication state, prices, and new report interpretations.
