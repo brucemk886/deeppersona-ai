@@ -1,0 +1,11 @@
+import {buildSync} from 'esbuild';
+import {writeFileSync} from 'node:fs';
+const source=buildSync({stdin:{contents:"export {FIXED_INTRO_REVISIONS} from './lib/attachment-result-copy';",resolveDir:process.cwd()},bundle:true,write:false,format:'esm',platform:'node'}).outputFiles[0].text;
+const {FIXED_INTRO_REVISIONS}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+const quote=s=>"'"+s.replaceAll("'","''")+"'";
+const changes=Object.entries(FIXED_INTRO_REVISIONS);
+const fields=changes.flatMap(([k,v])=>[quote('$.profiles.'+k+'.summary'),quote(v.after)]);
+const guards=changes.map(([k,v])=>`json_extract(content_json, ${quote('$.profiles.'+k+'.summary')}) = ${quote(v.before)}`);
+const sql=`-- Exact default-introduction correction only. Preserve managed edits, questions, paid chapters and saved reports.\nUPDATE quiz_report_templates\nSET content_json = json_set(content_json, '$.revision', revision + 1, ${fields.join(',\n    ')}),\n    revision = revision + 1, updated_at = CURRENT_TIMESTAMP\nWHERE version = 'attachment-fixed-v2'\n  AND ${guards.join('\n  AND ')};\n`;
+writeFileSync('db/releases/2026-10-08-attachment-direct-intros.sql',sql);
+console.log('Wrote four-summary guarded migration.');

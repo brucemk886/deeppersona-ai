@@ -75,3 +75,14 @@ The owner requested a larger attachment label, only three answer interpretations
 - No database migration or template reseed is required for this release.
 
 Validation: build and TypeScript pass; all 109 tests pass, including legacy sample removal, three-example projection, preview-to-paid-body correspondence and immutable snapshots through the actual Worker API. Browser QA covers avoidant, secure, close-score and fearful results at 390px: three free examples, enlarged label, removed sections, no overflow or JS errors, working sticky anchor and checkout callback, and 20 full-answer entries. Screenshots remain in ignored `work/preview-refinement/`.
+
+
+## Direct result introductions and removal of score panel
+The owner rejected the avoidant metaphor translating as “carrying alone,” requested its removal and found the result unconvincing. Consumer summaries now show the large type name as the only heading, concrete reactions and possible relationship costs, followed by three answer examples. Remove the hero headline and green score comparison entirely; preserve the four-score metadata, close/tie rules and admin inspection.
+
+- Rewrite the four default introductions using direct reactions instead of metaphors. Avoidant: lowering expectations after disappointment, handling things privately and finding it harder to feel supported. No personal family history is inferred from the type.
+- Make risk section headings specific to the main type: effort to maintain contact, distance and loneliness, approaching and withdrawing, or patience becoming acceptance of too little. Origins and recurring reactions remain evidence-based chapter previews; complete text remains private.
+- `fixedResultIntro` applies only exact former default-summary corrections, including old saved report displays, without rewriting snapshots or overriding custom managed text. This also avoids requiring a retake to remove the rejected default introduction.
+- After deployment, apply `db/releases/2026-10-08-attachment-direct-intros.sql`: one guarded update of four default summaries and the template revision. Any managed summary edit makes the whole update a no-op. Existing paid chapters, questions, prices and report snapshots are untouched. The archived release corpus remains unchanged.
+
+Validation: TypeScript/build and all 111 tests pass, including idempotent migration, concurrent managed-summary protection, unchanged paid fields/snapshots and exact-only legacy display corrections. Five 390px browser cases include the owner's avoidant 5 / secure 4 / fearful 3 / anxious 2 proportions. Verified one type heading, no metaphor headline or score block, three free examples, functional mobile purchase jump/callback, all 20 paid answers, and no overflow or JS exceptions. Visual screenshots reviewed in ignored `work/result-copy/`.

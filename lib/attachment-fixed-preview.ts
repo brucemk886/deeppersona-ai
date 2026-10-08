@@ -1,3 +1,4 @@
+import {fixedResultIntro} from './attachment-result-copy';
 import {hasUsefulFixedReading, type FixedBlock, type FixedOverview, type FixedReport} from './attachment-fixed';
 
 // Only an unfinished opening is public. The continuation is never sent as
@@ -17,6 +18,7 @@ export function fixedFreeOverview(report:FixedReport):FixedOverview {
  const {readingSample:_retiredSample,...overview}=report.overview;
  const permitted=overview.state!=='insufficient';
  return {...overview,
+  summary:fixedResultIntro(overview),
   evidence:permitted?overview.evidence.slice(0,3):[],
   traits:[],
   riskPreviews:permitted?report.risks.slice(0,3).map(fixedChapterOpening):[],
