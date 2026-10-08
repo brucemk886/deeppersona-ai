@@ -1,3 +1,4 @@
+import { restoreRetiredCoreSkips } from "@/lib/attachment-fixed-compat";
 import { getFixedTemplates } from "@/db/fixed-report-store";
 import { FIXED_VERSION, isFixedQuestion } from "@/lib/attachment-fixed";
 import { getD1, getProfileSummary, listQuestions, listTests, submitQuiz } from "@/db/quiz-store";
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
     if (!test) throw new PaymentError("This test is unavailable.", 404);
     let questions = await listQuestions(test.id);
     const choices = body.answerChoices;
+    questions = restoreRetiredCoreSkips(questions, choices, body.answerOptionIds);
     // Only the two explicitly retired, complete attachment editions can finish.
     // Read their retained managed rows; never accept mixed or arbitrary inactive sets.
     if (!hasCompleteAnswers(questions, choices) && test.id === ATTACHMENT_TEST_ID &&

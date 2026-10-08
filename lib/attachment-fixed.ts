@@ -26,7 +26,7 @@ export function fixedValidation(question: import('./quiz').QuizQuestion):string|
  if(config.kind==='core'&&f.tag!=='skip'&&!FIXED_KEYS.includes(o.styleKey as FixedKey))return '计分选项必须选择依恋倾向。';
  if((config.kind!=='core'||f.tag==='skip')&&o.styleKey)return '背景题和跳过选项不能计入依恋类型。';
  }
- if(!question.options.some(o=>o.fixed?.tag==='skip'))return '请保留不适用／不确定选项。';
+ if(config.kind!=='core'&&!question.options.some(o=>o.fixed?.tag==='skip'))return '背景题请保留不适用／不确定选项。';
  return null;
 }
 export function validTemplates(value:unknown):value is FixedTemplates {

@@ -45,5 +45,19 @@ test('fixed V2 managed lifecycle: private templates, immutable reports, retained
  const paid=await call('/api/reports/'+id,{cookie});assert.equal(paid.data.unlocked,true);assert.deepEqual(paid.data.deepResult.fixedReport,frozen);assert.equal(outbound,0,'report creation/read never calls AI or external services');
  const stats=(await call('/api/admin/stats?range=all',{cookie:admin})).data.traffic;assert.ok(stats.editions.find(e=>e.edition==='attachment-fixed-v2'&&e.started>=3));assert.ok(stats.editions.find(e=>e.edition==='attachment-launch-v1'));
  await db.prepare("UPDATE payment_orders SET status='refunded' WHERE report_id=?").bind(id).run();const refunded=await call('/api/reports/'+id,{cookie});assert.equal(refunded.data.deepResult,undefined);assert.equal(JSON.stringify(refunded.data).includes(frozen.deeper[0].paragraphs[0]),false);
+ // Current core bank has four choices; pages loaded before correction still finish using exact retired IDs.
+ const correction=readFileSync('db/releases/2026-10-08-attachment-core-four-options.sql','utf8');
+ for(const statement of correction.split(/\n\n+/).filter(s=>s.trim()))await db.prepare(statement).run();
+ const four=(await call('/api/questions?test=attachment-style')).data.questions;
+ assert.ok(four.slice(0,14).every(q=>q.options.length===4));assert.equal(four.flatMap(q=>q.options).length,87);
+ const correctedManaged=(await call('/api/questions?test=attachment-style&all=1',{cookie:admin})).data.questions.find(q=>q.id===qs[0].id);
+ assert.equal((await call('/api/questions',{method:'PUT',cookie:admin,body:correctedManaged})).status,200);
+ const afterCorrection=await submit({},cookie);assert.equal(afterCorrection.status,200);
+ const legacyChoices={...choices,[qs[0].id]:4},legacyIds={...ids,[qs[0].id]:qs[0].options[4].optionId};
+ const legacySaved=await submit({answerChoices:legacyChoices,answerOptionIds:legacyIds},cookie);assert.equal(legacySaved.status,200,JSON.stringify(legacySaved.data));
+ const legacyFree=(await call('/api/reports/'+legacySaved.data.reportId,{cookie})).data;
+ assert.equal(legacyFree.preview.fixedOverview.validCore,13);assert.equal(legacyFree.preview.fixedOverview.primary,'avoidant');
+ assert.equal((await submit({answerChoices:legacyChoices,answerOptionIds:undefined},cookie)).status,409);
+ assert.equal((await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(id).first()).snapshot_json,snapshot);
  }finally{await mf.dispose();}
 });

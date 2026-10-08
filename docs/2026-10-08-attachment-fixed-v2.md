@@ -4,7 +4,7 @@
 The owner approved the Chinese answer-mapping preview and explicitly authorized publication and corresponding backend changes. Ship the English quiz and predetermined report composition; no AI request at result creation or viewing.
 
 ## Product decisions
-- Twenty questions: 14 current relationship reactions across five domains; two relationship-background, three family-background and one later-experience question. All have a not-applicable/uncertain option; the last also has no such experience. 101 stored options.
+- Twenty questions: 14 current relationship reactions across five domains; two relationship-background, three family-background and one later-experience question. The 14 scored questions have four choices. Only the six context questions retain a not-applicable/uncertain option; the last also has no such experience. 87 stored options after the same-day four-choice correction.
 - Four authored main reports: anxious, avoidant, fearful-avoidant and secure. Background does not change the type. At least 10 valid core answers and five domains are needed. A leading pattern requires at least 40%, a two-answer margin and evidence in three domains. Otherwise show mixed or insufficient context; insufficient results have no purchase offer and the checkout API rejects payment. These are product-routing heuristics, not validated diagnostic cutoffs.
 - Free: named tendency, 3–5 actual answer examples, behavior themes. Do not restore the rejected positive Q13 counterexample. Two detailed teaser sections (relationship risks, origins) precede the single purchase card. Teasers use separately authored copy; full paragraphs are never merely hidden by CSS.
 - Full: selected relationship interactions, three relevant main-type risk chapters, selected family/later-experience interpretations, two deeper-pattern chapters, and the complete answer record at the bottom. No advice worksheets or conversation-script bundle.
@@ -39,3 +39,12 @@ The owner approved the Chinese answer-mapping preview and explicitly authorized 
 4. Review V2 starts, per-question reach/answer, email submission, result views, checkout clicks and confirmed purchases after real traffic arrives. An unanswered question is not necessarily abandonment. Further question/rule redesign should use a new edition rather than merge distinct cohorts.
 
 No Factory schedule, publishing job, account pool, content pool or external alert changes are included. No further content decision is required for this approved release. Acquiring traffic and measuring actual conversion remain the next business steps.
+
+## Same-day four-choice correction
+The owner rejected the extra fifth answer on scored questions. Remove only the 14 core skip options; keep the first four option IDs, order, wording and scoring unchanged, and preserve all six background questions. The public helper no longer suggests skipping. Admin validation and preview presets follow the four-choice core bank.
+
+Apply `db/releases/2026-10-08-attachment-core-four-options.sql` after the matching code deployment. It atomically removes the fifth option only when all 14 live rows match the expected core configuration, preserves managed wording, and is idempotent. The initial V2 release input remains historical and must not be reapplied over this correction.
+
+Already-loaded five-option pages can finish when the selected fifth index is accompanied by its exact retired stable option ID; this compatibility is submission-only and does not reinsert options into the catalog. Existing report snapshots, historical editions, background interpretations, report templates and the managed price remain unchanged. All new completed quizzes have 14 scored answers. Existing mixed-pattern rules remain; legacy skip/insufficient handling remains for in-flight pages and old reports.
+
+Validation: TypeScript check and all 104 tests pass, including real Worker/D1 submission, current four-choice admin editing, exact retired-ID compatibility, immutable existing reports, all four scoring types, and guarded migration safety.

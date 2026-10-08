@@ -13,7 +13,7 @@ The owner has authorized ongoing GitHub synchronization after production changes
 
 ## Product direction
 
-As authorized on 2026-10-08, the attachment quiz uses fixed V2: 14 relationship-reaction questions and six unscored context questions, four authored main reports, actual-choice evidence, and one optional payment for relationship risks and origins. Report creation and viewing do not use AI. See `docs/2026-10-08-attachment-fixed-v2.md`. Keep historical report snapshots and previously purchased deep-report rights intact. Evaluate new iterations using edition-specific funnel data; do not overwrite the managed catalog on reads. Other image quizzes are not changed by this decision.
+As authorized on 2026-10-08, the attachment quiz uses fixed V2: 14 four-choice relationship-reaction questions and six unscored context questions (only context questions retain not-applicable choices), four authored main reports, actual-choice evidence, and one optional payment for relationship risks and origins. Report creation and viewing do not use AI. See `docs/2026-10-08-attachment-fixed-v2.md`. Keep historical report snapshots and previously purchased deep-report rights intact. Evaluate new iterations using edition-specific funnel data; do not overwrite the managed catalog on reads. Other image quizzes are not changed by this decision.
 
 Quiz options should describe reactions and actions directly. Avoid decorative body metaphors, neurochemical buzzwords, and ambiguous figurative language that can turn into misleading literal translations.
 
