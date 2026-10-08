@@ -23,9 +23,9 @@ test('fixed V2 managed lifecycle: private templates, immutable reports, retained
  const submit=async(extra={},cookie)=>call('/api/submit',{cookie,body:{sessionId:crypto.randomUUID(),testId:'attachment-style',email:'fixed-qa@deeppersonaai.com',answerChoices:choices,answerOptionIds:ids,...extra}});
  const wrong=await submit({answerOptionIds:{...ids,[qs[0].id]:'wrong'}});assert.equal(wrong.status,409);
  const saved=await submit();assert.equal(saved.status,200,JSON.stringify(saved.data));const id=saved.data.reportId,cookie=saved.headers.get('set-cookie').split(';')[0];
- const free=await call('/api/reports/'+id,{cookie});assert.equal(free.status,200);assert.equal(free.data.preview.fixedOverview.primary,'avoidant');assert.equal(free.data.deepResult,undefined);assert.equal(free.data.amountCents,999);assert.equal(free.data.deepAmountCents,0);assert.equal(free.data.preview.fixedOverview.answers,undefined);
+ const free=await call('/api/reports/'+id,{cookie});assert.equal(free.status,200);assert.equal(free.data.preview.fixedOverview.primary,'avoidant');assert.equal(free.data.deepResult,undefined);assert.equal(free.data.amountCents,999);assert.equal(free.data.deepAmountCents,0);assert.equal(free.data.preview.fixedOverview.answers,undefined);assert.equal(free.data.preview.fixedOverview.evidence.length,3);assert.equal('readingSample' in free.data.preview.fixedOverview,false);
  const snapshot=(await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(id).first()).snapshot_json;const frozen=JSON.parse(snapshot).deepResult.fixedReport;
- assert.equal(frozen.answers.length,20);assert.equal(frozen.origins[0].evidence.length,2);assert.equal(JSON.stringify(free.data).includes(frozen.deeper[0].paragraphs[1]),false);assert.equal((await call('/api/reports/'+id)).status,401);
+ assert.equal(frozen.answers.length,20);assert.equal(JSON.stringify(free.data).includes(frozen.deeper[0].paragraphs[0]),false);assert.equal(frozen.origins[0].evidence.length,2);assert.equal(JSON.stringify(free.data).includes(frozen.deeper[0].paragraphs[1]),false);assert.equal((await call('/api/reports/'+id)).status,401);
  assert.equal((await call('/api/checkout',{cookie,body:{reportId:id,tier:'deep',expectedAmountCents:1999}})).status,409);
  const skip=await submit({answerChoices:Object.fromEntries(qs.map(q=>[q.id,q.options.length-1])),answerOptionIds:undefined},cookie);assert.equal(skip.status,200);const skipId=skip.data.reportId;assert.equal((await call('/api/reports/'+skipId,{cookie})).data.preview.fixedOverview.state,'insufficient');assert.equal((await call('/api/checkout',{cookie,body:{reportId:skipId,expectedAmountCents:999}})).status,409);
  const oldResult=await submit({answerChoices:Object.fromEntries(old.map(q=>[q.id,0])),answerOptionIds:undefined},cookie);assert.equal(oldResult.status,200,JSON.stringify(oldResult.data));assert.equal((await call('/api/reports/'+oldResult.data.reportId,{cookie})).data.preview.launchOverview.answered,20);
@@ -33,7 +33,7 @@ test('fixed V2 managed lifecycle: private templates, immutable reports, retained
  assert.equal((await call('/api/admin/fixed-reports',{method:'PUT',cookie:admin,origin:'https://other.example',body:templates})).status,403);
  assert.equal((await call('/api/admin/fixed-reports/preview',{cookie:admin,origin:'https://other.example',body:{choices,templates}})).status,403);
  const countBefore=(await db.prepare('SELECT COUNT(*) n FROM quiz_reports').first()).n;
- const preview=await call('/api/admin/fixed-reports/preview',{cookie:admin,body:{choices,templates}});assert.equal(preview.status,200);assert.equal(preview.data.report.overview.primary,'avoidant');assert.equal((await db.prepare('SELECT COUNT(*) n FROM quiz_reports').first()).n,countBefore);
+ const preview=await call('/api/admin/fixed-reports/preview',{cookie:admin,body:{choices,templates}});assert.equal(preview.status,200);assert.equal(preview.data.report.overview.primary,'avoidant');assert.equal(preview.data.report.overview.evidence.length,3);assert.equal(preview.data.report.overview.readingSample,undefined);assert.equal((await db.prepare('SELECT COUNT(*) n FROM quiz_reports').first()).n,countBefore);
  const changed=structuredClone(templates);changed.profiles.avoidant.headline='Managed later report headline';
  assert.equal((await call('/api/admin/fixed-reports',{cookie:admin,body:changed,method:'PUT'})).data.templates.revision,2);assert.equal((await call('/api/admin/fixed-reports',{cookie:admin,body:changed,method:'PUT'})).status,409);
  const edited=structuredClone(managed[0]);edited.options[1].fixed.reading='Managed later option interpretation for new reports only.';
@@ -71,6 +71,17 @@ test('fixed V2 managed lifecycle: private templates, immutable reports, retained
  assert.equal(correctedFree.preview.fixedOverview.evidence[0].answer,revised[0].options[1].label);
  assert.equal(correctedFree.preview.fixedOverview.purchasable,true);
  assert.equal((await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(id).first()).snapshot_json,snapshot);
+ // Existing saved free results adopt the public layout without rewriting paid content.
+ const legacySnapshot=JSON.parse((await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(correctedSaved.data.reportId).first()).snapshot_json);
+ const historical=legacySnapshot.deepResult.fixedReport;
+ historical.overview.evidence=historical.answers.filter(a=>a.kind==='core').slice(0,5);
+ historical.overview.readingSample={title:historical.deeper[0].title,text:historical.deeper[0].paragraphs[0]};
+ const historicalJson=JSON.stringify(legacySnapshot);
+ await db.prepare('UPDATE quiz_reports SET snapshot_json=? WHERE id=?').bind(historicalJson,correctedSaved.data.reportId).run();
+ const projected=(await call('/api/reports/'+correctedSaved.data.reportId,{cookie})).data;
+ assert.equal(projected.preview.fixedOverview.evidence.length,3);assert.equal('readingSample' in projected.preview.fixedOverview,false);
+ assert.equal(JSON.stringify(projected).includes(historical.deeper[0].paragraphs[0]),false);
+ assert.equal((await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(correctedSaved.data.reportId).first()).snapshot_json,historicalJson);
  // Old thin mixed snapshots stay readable but cannot create a checkout or an order.
  const legacyThin=JSON.parse((await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(correctedSaved.data.reportId).first()).snapshot_json);
  const thin=legacyThin.deepResult.fixedReport;thin.ruleVersion='fixed-rules-v1';thin.overview.state='mixed';thin.overview.primary=null;thin.risks=[];thin.origins=[];thin.deeper=thin.deeper.slice(0,1);

@@ -26,3 +26,6 @@ Quiz options should describe reactions and actions directly. Avoid decorative bo
 
 
 The 2026-10-08 report correction (`fixed-rules-v2`) routes new completed quizzes to one of four authored main reports by the highest core-answer count. Show named close/tied tendencies and actual counts; tied report ordering is only a stable presentation choice, not evidence that one tied type is stronger. Do not silently reintroduce a generic paid mixed-type result. Relationship chapters require supporting selected tags. Never invent testimonials or family experiences. Old report snapshots remain frozen; thin legacy mixed results cannot start a new checkout.
+
+
+The approved free result layout uses a large attachment-type label, exactly three answer interpretations, and unfinished openings from the corresponding frozen paid chapters. Do not restore the early green purchase link, repeated traits, or complete paragraph sample. Retain the bottom purchase card, mobile sticky jump link, and paid 20-answer record. Public projection also applies to older saved results without rewriting snapshots.

@@ -1,6 +1,7 @@
+import {fixedFreeOverview} from './attachment-fixed-preview';
 import type { QuizQuestion, ResultProfile } from './quiz';
 import type { DeepResultContent } from './deep-results';
-import { FIXED_VERSION, FIXED_KEYS, FIXED_LABELS, hasUsefulFixedReading, validTemplates, type FixedAnswer, type FixedBlock, type FixedKey, type FixedReport, type FixedTemplates } from './attachment-fixed';
+import { FIXED_VERSION, FIXED_KEYS, FIXED_LABELS, validTemplates, type FixedAnswer, type FixedBlock, type FixedKey, type FixedReport, type FixedTemplates } from './attachment-fixed';
 
 export function buildFixedReport(questions:QuizQuestion[], choices:Record<string,number>, templates:FixedTemplates):{result:ResultProfile;deepResult:DeepResultContent} {
  if(!validTemplates(templates))throw new Error('The report edition is not ready. Please try again shortly.');
@@ -56,8 +57,7 @@ export function buildFixedReport(questions:QuizQuestion[], choices:Record<string
  overview.secondary=secondary;overview.scoreNote=scoreNote;
  overview.contents={risks:risks.length,origins:origins.length,deeper:deeper.length,answers:answers.length};
  overview.deeperPreviews=insufficient?[]:deeper.map(({id,title,preview})=>({id,title,preview}));
- if(!insufficient&&deeper[0]?.paragraphs[0])overview.readingSample={title:deeper[0].title,text:deeper[0].paragraphs[0]};
  const report:FixedReport={version:FIXED_VERSION,ruleVersion:'fixed-rules-v2',templateRevision:templates.revision,overview,risks:insufficient?[]:risks,origins:insufficient?[]:origins,deeper:insufficient?[]:deeper,answers};
- overview.purchasable=hasUsefulFixedReading(report);
+ report.overview=fixedFreeOverview(report);
  return {result:{key:primary||'choices',eyebrow:profile?.label||'Your relationship responses',title:headline,summary,strength:'',watchout:'',nextStep:''},deepResult:{fixedReport:report,lens:{title:'Your choices, in context',explanation:'A fixed reading of your selected answers, for reflection rather than diagnosis.',reflectionPrompt:''}}};
 }

@@ -14,7 +14,7 @@ test('fixed edition covers every approved option and keeps background out of all
  const optionIds=new Set(qs.flatMap(q=>q.options.map(o=>o.optionId)));assert.equal(optionIds.size,101);
  for(const q of qs){assert.equal(fixedValidation(q),null);assert.equal(publicQuestion(q).options.some(o=>o.fixed),false);const order=optionOrder('a',q.id,q.options.length);assert.deepEqual(order.slice(4),Array.from({length:q.options.length-4},(_,i)=>i+4));}
  for(const style of ['anxious','avoidant','secure','fearful'])for(const background of ['skip',0,1,2,3]){
-  const r=report(choose(style,background));assert.equal(r.overview.primary,style);assert.equal(r.overview.counts[style],14);assert.equal(r.overview.validCore,14);assert.ok(r.overview.evidence.length>=3);assert.ok(r.overview.evidence.every(a=>a.response===style));assert.equal(r.overview.evidence.some(a=>a.questionNumber===11),false);
+  const r=report(choose(style,background));assert.equal(r.overview.primary,style);assert.equal(r.overview.counts[style],14);assert.equal(r.overview.validCore,14);assert.equal(r.overview.evidence.length,3);assert.ok(r.overview.evidence.every(a=>a.response===style));assert.equal(r.overview.evidence.some(a=>a.questionNumber===11),false);
   if(background==='skip')assert.equal(r.origins.length,0);
  }
 });
@@ -30,9 +30,28 @@ test('actual background chooses specific loops and unpaid preview never contains
  const c=choose('anxious',0);const partner=qs[14].options.findIndex(o=>o.fixed.tag==='partner_disappears');assert.ok(partner>=0);c[qs[14].id]=partner;
  const built=buildFixedReport(qs,c,templates),r=built.deepResult.fixedReport;assert.equal(r.risks[0].id,'cycle-pursue-withdraw');
  const p=reportPreview({test:{id:'attachment-style'},questions:qs.map(publicQuestion),answerChoices:c,...built});assert.equal(p.fixedOverview.primary,'anxious');assert.equal(p.fixedOverview.riskPreviews.length,3);
- assert.equal(JSON.stringify(p).includes(r.risks[0].paragraphs[0]),false);assert.equal(p.fixedOverview.readingSample.text,r.deeper[0].paragraphs[0]);assert.equal(JSON.stringify(p).includes(r.deeper[0].paragraphs[1]),false);assert.equal(p.fixedOverview.answers,undefined);
+ assert.equal(JSON.stringify(p).includes(r.risks[0].paragraphs[0]),false);assert.equal(p.fixedOverview.readingSample,undefined);assert.equal(JSON.stringify(p).includes(r.deeper[0].paragraphs[0]),false);assert.equal(JSON.stringify(p).includes(r.deeper[0].paragraphs[1]),false);assert.equal(p.fixedOverview.answers,undefined);
  const bad=structuredClone(qs[0]);bad.options[0].optionId='different';assert.ok(fixedValidation(bad));
  const badBackground=structuredClone(qs[16]);badBackground.options[0].styleKey='anxious';assert.ok(fixedValidation(badBackground));
+});
+test('free openings continue the matching paid chapter, and legacy samples are stripped without changing snapshots',()=>{
+ for(const style of ['anxious','avoidant','secure','fearful'])for(const background of ['skip',0,1,2,3]){
+  const built=buildFixedReport(qs,choose(style,background),templates),r=built.deepResult.fixedReport;
+  // Recreate the shape saved before this display refinement.
+  r.overview.evidence=r.answers.filter(a=>a.kind==='core').slice(0,5);
+  r.overview.traits=r.overview.evidence.map(a=>a.title);
+  r.overview.readingSample={title:r.deeper[0].title,text:r.deeper[0].paragraphs[0]};
+  const before=JSON.stringify(r),p=reportPreview({questions:qs,answerChoices:choose(style,background),deepResult:built.deepResult}).fixedOverview;
+  assert.equal(p.evidence.length,3);assert.deepEqual(p.evidence,r.overview.evidence.slice(0,3));assert.deepEqual(p.traits,[]);
+  assert.equal('readingSample' in p,false);assert.equal(JSON.stringify(r),before,'viewing does not rewrite saved results');
+  for(const [previews,chapters] of [[p.riskPreviews,r.risks],[p.familyPreviews,r.origins],[p.deeperPreviews,r.deeper]])for(const teaser of previews){
+   const chapter=chapters.find(b=>b.id===teaser.id);assert.ok(chapter);assert.equal(teaser.title,chapter.title);
+   assert.ok(teaser.preview.endsWith('…'));const prefix=teaser.preview.slice(0,-1);
+   assert.ok(chapter.paragraphs[0].startsWith(prefix));assert.ok(prefix.length>20);assert.ok(prefix.length<chapter.paragraphs[0].length);
+   assert.equal(JSON.stringify(p).includes(chapter.paragraphs[0]),false);
+  }
+  assert.equal(r.answers.length,20,'complete paid answer record stays intact');
+ }
 });
 test('fixed migration is atomic at the bank switch, preserves snapshots and does not clobber managed edits',()=>{
  const sql=readFileSync('db/releases/2026-10-08-attachment-fixed-v2.sql','utf8');

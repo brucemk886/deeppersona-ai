@@ -70,7 +70,7 @@ export function FreeAttachmentResults({
     const o=preview.fixedOverview,canBuy=o.purchasable===true&&status!=="refunded";
     const offerLink=<a className="fixed-offer-link" href="#unlock-full-results">See my complete reading <span>{amountCents===0?"Free":price+" · one time"}</span></a>;
     return <article className="ap-results fixed-results fixed-free-reading">
-      <FixedSummary overview={o} afterHero={canBuy?<div className="fixed-early-offer">{offerLink}</div>:undefined}/>
+      <FixedSummary overview={o}/>
       <FixedPreviews overview={o}/>
       {canBuy?<section className="ap-paywall" id="unlock-full-results">
         <h2>Your complete relationship reading</h2>

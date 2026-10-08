@@ -19,7 +19,7 @@ test('all 680 complete count vectors select one of four reports independent of q
 test('reliable partner never receives ungrounded broken-promise or one-sided-care chapters',()=>{
  for(const style of keys){const choices=choicesFor(Array(14).fill(style));choices[qs[14].id]=0;choices[qs[15].id]=0;const r=report(choices);
   for(const id of ['secure-promises','secure-one-sided','secure-boundaries','anxious-unfinished','anxious-warmth','anxious-repair','avoidant-pressure','fearful-unpredictable'])assert.equal(r.risks.some(b=>b.id===id),false,id);
-  assert.equal(r.overview.familyPreviews.length,0);assert.equal(r.overview.contents.origins,0);assert.equal(r.overview.readingSample.text,r.deeper[0].paragraphs[0]);
+  assert.equal(r.overview.familyPreviews.length,0);assert.equal(r.overview.contents.origins,0);assert.equal(r.overview.readingSample,undefined);
  }
  const c=choicesFor(Array(14).fill('secure'));c[qs[15].id]=1;assert.ok(report(c).risks.some(b=>b.id==='secure-promises'));
  const legacy=report(choicesFor(Array(14).fill('anxious')));legacy.overview.state='mixed';legacy.overview.primary=null;assert.equal(hasUsefulFixedReading(legacy),false);
