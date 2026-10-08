@@ -18,9 +18,9 @@ test('fixed edition covers every approved option and keeps background out of all
   if(background==='skip')assert.equal(r.origins.length,0);
  }
 });
-test('ties stay mixed; missing evidence suppresses offers; no family story is guessed from type',()=>{
+test('ties disclose both named patterns; missing evidence suppresses offers; no family story is guessed from type',()=>{
  const choices=choose('anxious');qs.slice(7,14).forEach(q=>choices[q.id]=1);
- const mixed=report(choices);assert.equal(mixed.overview.state,'mixed');assert.equal(mixed.overview.primary,null);assert.equal(mixed.overview.counts.fearful,0);assert.equal(mixed.origins.length,0);
+ const mixed=report(choices);assert.equal(mixed.overview.state,'primary');assert.equal(mixed.overview.primary,'anxious');assert.deepEqual(mixed.overview.secondary,['avoidant']);assert.match(mixed.overview.scoreNote,/equally represented/);assert.equal(mixed.overview.counts.fearful,0);assert.equal(mixed.origins.length,0);
  const skipped=Object.fromEntries(qs.map(q=>[q.id,q.options.findIndex(o=>o.fixed.tag==='skip')]));const r=report(skipped);assert.equal(r.overview.state,'insufficient');assert.deepEqual(r.overview.riskPreviews,[]);assert.deepEqual(r.overview.evidence,[]);
  const missingDomain=choose('anxious');for(const q of qs.filter(q=>q.reportConfig.domain==='Stability and trust'))missingDomain[q.id]=q.options.length-1;assert.equal(report(missingDomain).overview.state,'insufficient');
  const family=choose('avoidant');family[qs[16].id]=2;family[qs[17].id]=2;const supported=report(family);assert.equal(supported.origins.length,1);assert.equal(supported.origins[0].evidence.length,2);assert.match(supported.origins[0].paragraphs[0],/asking does not change much/);
@@ -30,7 +30,7 @@ test('actual background chooses specific loops and unpaid preview never contains
  const c=choose('anxious',0);const partner=qs[14].options.findIndex(o=>o.fixed.tag==='partner_disappears');assert.ok(partner>=0);c[qs[14].id]=partner;
  const built=buildFixedReport(qs,c,templates),r=built.deepResult.fixedReport;assert.equal(r.risks[0].id,'cycle-pursue-withdraw');
  const p=reportPreview({test:{id:'attachment-style'},questions:qs.map(publicQuestion),answerChoices:c,...built});assert.equal(p.fixedOverview.primary,'anxious');assert.equal(p.fixedOverview.riskPreviews.length,3);
- assert.equal(JSON.stringify(p).includes(r.risks[0].paragraphs[0]),false);assert.equal(JSON.stringify(p).includes(r.deeper[0].paragraphs[0]),false);assert.equal(p.fixedOverview.answers,undefined);
+ assert.equal(JSON.stringify(p).includes(r.risks[0].paragraphs[0]),false);assert.equal(p.fixedOverview.readingSample.text,r.deeper[0].paragraphs[0]);assert.equal(JSON.stringify(p).includes(r.deeper[0].paragraphs[1]),false);assert.equal(p.fixedOverview.answers,undefined);
  const bad=structuredClone(qs[0]);bad.options[0].optionId='different';assert.ok(fixedValidation(bad));
  const badBackground=structuredClone(qs[16]);badBackground.options[0].styleKey='anxious';assert.ok(fixedValidation(badBackground));
 });

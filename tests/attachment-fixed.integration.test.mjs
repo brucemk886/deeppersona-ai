@@ -25,7 +25,7 @@ test('fixed V2 managed lifecycle: private templates, immutable reports, retained
  const saved=await submit();assert.equal(saved.status,200,JSON.stringify(saved.data));const id=saved.data.reportId,cookie=saved.headers.get('set-cookie').split(';')[0];
  const free=await call('/api/reports/'+id,{cookie});assert.equal(free.status,200);assert.equal(free.data.preview.fixedOverview.primary,'avoidant');assert.equal(free.data.deepResult,undefined);assert.equal(free.data.amountCents,999);assert.equal(free.data.deepAmountCents,0);assert.equal(free.data.preview.fixedOverview.answers,undefined);
  const snapshot=(await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(id).first()).snapshot_json;const frozen=JSON.parse(snapshot).deepResult.fixedReport;
- assert.equal(frozen.answers.length,20);assert.equal(frozen.origins[0].evidence.length,2);assert.equal(JSON.stringify(free.data).includes(frozen.deeper[0].paragraphs[0]),false);assert.equal((await call('/api/reports/'+id)).status,401);
+ assert.equal(frozen.answers.length,20);assert.equal(frozen.origins[0].evidence.length,2);assert.equal(JSON.stringify(free.data).includes(frozen.deeper[0].paragraphs[1]),false);assert.equal((await call('/api/reports/'+id)).status,401);
  assert.equal((await call('/api/checkout',{cookie,body:{reportId:id,tier:'deep',expectedAmountCents:1999}})).status,409);
  const skip=await submit({answerChoices:Object.fromEntries(qs.map(q=>[q.id,q.options.length-1])),answerOptionIds:undefined},cookie);assert.equal(skip.status,200);const skipId=skip.data.reportId;assert.equal((await call('/api/reports/'+skipId,{cookie})).data.preview.fixedOverview.state,'insufficient');assert.equal((await call('/api/checkout',{cookie,body:{reportId:skipId,expectedAmountCents:999}})).status,409);
  const oldResult=await submit({answerChoices:Object.fromEntries(old.map(q=>[q.id,0])),answerOptionIds:undefined},cookie);assert.equal(oldResult.status,200,JSON.stringify(oldResult.data));assert.equal((await call('/api/reports/'+oldResult.data.reportId,{cookie})).data.preview.launchOverview.answered,20);
@@ -44,7 +44,7 @@ test('fixed V2 managed lifecycle: private templates, immutable reports, retained
  await db.prepare("INSERT INTO payment_orders(id,report_id,amount_cents,livemode,status,paid_at) VALUES(?,?,999,1,'paid',CURRENT_TIMESTAMP)").bind(crypto.randomUUID(),id).run();
  const paid=await call('/api/reports/'+id,{cookie});assert.equal(paid.data.unlocked,true);assert.deepEqual(paid.data.deepResult.fixedReport,frozen);assert.equal(outbound,0,'report creation/read never calls AI or external services');
  const stats=(await call('/api/admin/stats?range=all',{cookie:admin})).data.traffic;assert.ok(stats.editions.find(e=>e.edition==='attachment-fixed-v2'&&e.started>=3));assert.ok(stats.editions.find(e=>e.edition==='attachment-launch-v1'));
- await db.prepare("UPDATE payment_orders SET status='refunded' WHERE report_id=?").bind(id).run();const refunded=await call('/api/reports/'+id,{cookie});assert.equal(refunded.data.deepResult,undefined);assert.equal(JSON.stringify(refunded.data).includes(frozen.deeper[0].paragraphs[0]),false);
+ await db.prepare("UPDATE payment_orders SET status='refunded' WHERE report_id=?").bind(id).run();const refunded=await call('/api/reports/'+id,{cookie});assert.equal(refunded.data.deepResult,undefined);assert.equal(JSON.stringify(refunded.data).includes(frozen.deeper[0].paragraphs[1]),false);
  // Current core bank has four choices; pages loaded before correction still finish using exact retired IDs.
  const correction=readFileSync('db/releases/2026-10-08-attachment-core-four-options.sql','utf8');
  for(const statement of correction.split(/\n\n+/).filter(s=>s.trim()))await db.prepare(statement).run();
@@ -59,5 +59,25 @@ test('fixed V2 managed lifecycle: private templates, immutable reports, retained
  assert.equal(legacyFree.preview.fixedOverview.validCore,13);assert.equal(legacyFree.preview.fixedOverview.primary,'avoidant');
  assert.equal((await submit({answerChoices:legacyChoices,answerOptionIds:undefined},cookie)).status,409);
  assert.equal((await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(id).first()).snapshot_json,snapshot);
+ // Q1 content correction uses current managed questions in public, preview and new saved reports.
+ await db.prepare('UPDATE quiz_questions SET prompt=?,options_json=? WHERE id=?').bind(managed[0].prompt,JSON.stringify(managed[0].options.slice(0,4)),managed[0].id).run();
+ await db.prepare(readFileSync('db/releases/2026-10-08-attachment-q1-parallel.sql','utf8')).run();
+ const revised=(await call('/api/questions?test=attachment-style')).data.questions;
+ assert.match(revised[0].prompt,/Your partner/);assert.equal(revised[0].options.length,4);
+ const correctedPreview=await call('/api/admin/fixed-reports/preview',{cookie:admin,body:{choices}});
+ assert.equal(correctedPreview.status,200);assert.equal(correctedPreview.data.report.answers[0].answer,revised[0].options[1].label);assert.match(correctedPreview.data.report.answers[0].reading,/care less and pull back/);
+ const correctedSaved=await submit({},cookie);assert.equal(correctedSaved.status,200);
+ const correctedFree=(await call('/api/reports/'+correctedSaved.data.reportId,{cookie})).data;
+ assert.equal(correctedFree.preview.fixedOverview.evidence[0].answer,revised[0].options[1].label);
+ assert.equal(correctedFree.preview.fixedOverview.purchasable,true);
+ assert.equal((await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(id).first()).snapshot_json,snapshot);
+ // Old thin mixed snapshots stay readable but cannot create a checkout or an order.
+ const legacyThin=JSON.parse((await db.prepare('SELECT snapshot_json FROM quiz_reports WHERE id=?').bind(correctedSaved.data.reportId).first()).snapshot_json);
+ const thin=legacyThin.deepResult.fixedReport;thin.ruleVersion='fixed-rules-v1';thin.overview.state='mixed';thin.overview.primary=null;thin.risks=[];thin.origins=[];thin.deeper=thin.deeper.slice(0,1);
+ await db.prepare('UPDATE quiz_reports SET snapshot_json=? WHERE id=?').bind(JSON.stringify(legacyThin),correctedSaved.data.reportId).run();
+ assert.equal((await call('/api/reports/'+correctedSaved.data.reportId,{cookie})).data.preview.fixedOverview.purchasable,false);
+ const orderCount=(await db.prepare('SELECT COUNT(*) n FROM payment_orders').first()).n;
+ assert.equal((await call('/api/checkout',{cookie,body:{reportId:correctedSaved.data.reportId,expectedAmountCents:999}})).status,409);
+ assert.equal((await db.prepare('SELECT COUNT(*) n FROM payment_orders').first()).n,orderCount);
  }finally{await mf.dispose();}
 });

@@ -1,4 +1,5 @@
 "use client";
+import { currentFixedChoices } from '@/lib/attachment-fixed';
 import { FixedFullReport } from "@/app/_components/attachment-fixed-result";
 import { isFixedQuestion } from "@/lib/attachment-fixed";
 import { BrandLogo, BrandMark } from "@/app/_components/brand";
@@ -263,7 +264,7 @@ export function QuizApp({ initialTests, initialTestId, initialQuestions, initial
           signal: controller.signal,
         });
         const data = (await response.json()) as { error?: string; questions?: QuizQuestion[] };
-        const publicQuestions = (data.questions ?? []).filter((question) => question.testId === testId && question.active).sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
+        const publicQuestions = currentFixedChoices(data.questions ?? []).filter((question) => question.testId === testId && question.active).sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
         if (!response.ok || !publicQuestions.length) {
           throw new Error(data.error ?? "This test is not available yet.");
         }

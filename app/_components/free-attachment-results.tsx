@@ -66,9 +66,30 @@ export function FreeAttachmentResults({
   };
   const price = `$${(amountCents / 100).toFixed(2)}`;
   if (preview.fixedOverview?.state === "insufficient") return <article className="ap-results fixed-results"><FixedSummary overview={preview.fixedOverview}/></article>;
+  if(preview.fixedOverview){
+    const o=preview.fixedOverview,canBuy=o.purchasable===true&&status!=="refunded";
+    const offerLink=<a className="fixed-offer-link" href="#unlock-full-results">See my complete reading <span>{amountCents===0?"Free":price+" · one time"}</span></a>;
+    return <article className="ap-results fixed-results fixed-free-reading">
+      <FixedSummary overview={o} afterHero={canBuy?<div className="fixed-early-offer">{offerLink}</div>:undefined}/>
+      <FixedPreviews overview={o}/>
+      {canBuy?<section className="ap-paywall" id="unlock-full-results">
+        <h2>Your complete relationship reading</h2>
+        <p className="fixed-offer-price">{amountCents===0?"Free":price}<small>{amountCents>0?"USD · one-time payment":""}</small></p>
+        {sandbox?<p className="sandbox-notice">Test checkout — no real money will be charged.</p>:null}
+        <button className="unlock-button unlock-button-primary" disabled={submitting||(!checkoutReady&&amountCents>0)} onClick={onCheckout} type="button">{submitting?"Opening checkout…":amountCents===0?"Open my complete reading":"Unlock my complete reading"}</button>
+        {!checkoutReady&&amountCents>0?<p>Checkout is unavailable right now. Your result is saved.</p>:null}
+        {error?<p className="form-error" role="alert">{error}</p>:null}
+        {paymentQuery==="cancelled"?<p>Checkout was cancelled. Your result is saved.</p>:null}
+        {paymentQuery==="success"?<p role="status">Checking your payment…</p>:null}
+        <p className="checkout-legal"><Link href="/terms">Terms</Link> · <Link href={refundPolicy==="14-day-2026-09-08"?"/refunds/legacy-2026-09":"/refunds"}>Refunds &amp; delivery</Link> · <Link href="/privacy">Privacy</Link></p>
+        <details className="fixed-delivery"><summary>Report access &amp; payment help</summary><p>Your reading opens online after payment confirmation. We also email a private access link. PDF downloads are not included.</p><button className="text-button" onClick={onRefresh} type="button">Check payment status</button><p><Link href="/recover">Find my report / Resend email</Link></p></details>
+      </section>:<section className="fixed-section"><p>{status==="refunded"?"This purchase has been refunded. Full report access has ended.":"This saved result does not include enough material to offer a complete report for purchase. You can take the current quiz for a new result."}</p><Link href="/tests/attachment-style">Take the current quiz →</Link></section>}
+      {canBuy?<nav className="fixed-mobile-offer" aria-label="Complete reading">{offerLink}</nav>:null}
+    </article>;
+  }
   return (
-    <article className={`ap-results ${preview.fixedOverview ? "fixed-results" : preview.launchOverview ? "launch-free" : ""}`}>
-      {preview.fixedOverview ? <><FixedSummary overview={preview.fixedOverview}/><FixedPreviews overview={preview.fixedOverview}/></> : preview.launchOverview ? <><LaunchSummary overview={preview.launchOverview} offerPrice={amountCents === 0 ? "Free" : price} /><LaunchOffer overview={preview.launchOverview} /></> : <>
+    <article className={`ap-results ${preview.launchOverview ? "launch-free" : ""}`}>
+      {preview.launchOverview ? <><LaunchSummary overview={preview.launchOverview} offerPrice={amountCents === 0 ? "Free" : price} /><LaunchOffer overview={preview.launchOverview} /></> : <>
       <header className="ap-hero">
         <p className="ap-kicker">{testTitle}</p>
         <h1>{title}</h1>
@@ -137,8 +158,7 @@ export function FreeAttachmentResults({
 
       </>}
       <section className="ap-paywall" id="unlock-full-results">
-        <h2>{preview.fixedOverview ? "See the risks and experiences behind your pattern" : preview.launchOverview ? "Your complete relationship reading" : "Unlock full results"} · {amountCents === 0 ? "Free" : price}</h2>
-        {preview.fixedOverview ? <p>Understand the interactions that can leave you doubting yourself, and the experiences that may make them feel familiar. Your complete reading connects these themes to the answers you chose.</p> : null}
+        <h2>{preview.launchOverview ? "Your complete relationship reading" : "Unlock full results"} · {amountCents === 0 ? "Free" : price}</h2>
         <p>{amountCents > 0 ? `USD ${(amountCents / 100).toFixed(2)}, one time. ` : ""}This page unlocks after confirmation, plus an email backup link to the address you used with the test.</p>
         <p className="service-context">For entertainment and self-reflection. This is not a clinical diagnosis, a validated psychological assessment, or professional advice. <Link href="/disclaimer">How to use these results</Link></p>
         {sandbox ? <p className="sandbox-notice">Test checkout — no real money will be charged.</p> : null}
@@ -157,7 +177,7 @@ export function FreeAttachmentResults({
               onClick={onCheckout}
               type="button"
             >
-              {submitting ? "Opening checkout…" : amountCents === 0 ? "Open my full results" : `${preview.fixedOverview ? "Unlock my risks & origins" : preview.launchOverview ? "Unlock my complete reading" : "Unlock full results"} · ${price}`}
+              {submitting ? "Opening checkout…" : amountCents === 0 ? "Open my full results" : `${preview.launchOverview ? "Unlock my complete reading" : "Unlock full results"} · ${price}`}
             </button>
             {!checkoutReady && amountCents > 0 ? <p>Checkout is being set up. Your result is saved; please come back later.</p> : null}
           </>

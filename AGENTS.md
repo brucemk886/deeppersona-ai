@@ -23,3 +23,6 @@ Quiz options should describe reactions and actions directly. Avoid decorative bo
 - Show saved question text verbatim on the public site regardless of browser language. Do not overlay built-in translations on the managed catalog.
 - Code defaults initialize an empty database only. Do not overwrite the existing catalog on reads, filter published questions by a fixed list of IDs, or resurrect deleted rows during deployment.
 - Update existing production content through the admin or an explicitly scoped data migration. Changing the seed files alone does not update a live catalog. Preserve completed report snapshots.
+
+
+The 2026-10-08 report correction (`fixed-rules-v2`) routes new completed quizzes to one of four authored main reports by the highest core-answer count. Show named close/tied tendencies and actual counts; tied report ordering is only a stable presentation choice, not evidence that one tied type is stronger. Do not silently reintroduce a generic paid mixed-type result. Relationship chapters require supporting selected tags. Never invent testimonials or family experiences. Old report snapshots remain frozen; thin legacy mixed results cannot start a new checkout.

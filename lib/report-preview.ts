@@ -1,3 +1,4 @@
+import { hasUsefulFixedReading } from './attachment-fixed';
 import {
   ATTACHMENT_RESULTS,
   ATTACHMENT_STYLE_META,
@@ -66,7 +67,7 @@ export function reportPreview(snapshot: ReportSnapshot): ReportPreview {
     .filter((x) => Number.isInteger(x.selectedIndex) && x.q.options[x.selectedIndex]);
   const modules = snapshot.deepResult.modules ?? [];
   if (snapshot.deepResult.fixedReport) {
-    return {totalChoices:snapshot.questions.length,modules:[],fixedOverview:snapshot.deepResult.fixedReport.overview};
+    return {totalChoices:snapshot.questions.length,modules:[],fixedOverview:{...snapshot.deepResult.fixedReport.overview,purchasable:hasUsefulFixedReading(snapshot.deepResult.fixedReport)}};
   }
   if (snapshot.deepResult.launchReport) {
     const overview = snapshot.deepResult.launchReport.overview;

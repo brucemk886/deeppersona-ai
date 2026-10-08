@@ -9,8 +9,8 @@ export type FixedBlock = { id:string; title:string; preview:string; paragraphs:s
 export type FixedTemplate = { label:string; headline:string; summary:string; traits:string[]; risks:FixedBlock[]; deeper:FixedBlock[] };
 export type FixedTemplates = { version:typeof FIXED_VERSION; revision:number; profiles:Record<FixedKey,FixedTemplate> };
 export type FixedAnswer = { questionId:string; optionId:string; questionNumber:number; prompt:string; answer:string; kind:FixedKind; domain:string; response:FixedKey|null; tag:string; title:string; reading:string; preview:string };
-export type FixedOverview = { version:typeof FIXED_VERSION; state:'primary'|'mixed'|'insufficient'; primary:FixedKey|null; typeLabel:string; headline:string; summary:string; counts:Record<FixedKey,number>; validCore:number; totalCore:number; traits:string[]; evidence:FixedAnswer[]; riskPreviews:Pick<FixedBlock,'id'|'title'|'preview'>[]; familyPreviews:Pick<FixedBlock,'id'|'title'|'preview'>[]; missingBackground:number };
-export type FixedReport = { version:typeof FIXED_VERSION; templateRevision:number; ruleVersion:'fixed-rules-v1'; overview:FixedOverview; risks:FixedBlock[]; origins:FixedBlock[]; deeper:FixedBlock[]; answers:FixedAnswer[] };
+export type FixedOverview = { version:typeof FIXED_VERSION; state:'primary'|'mixed'|'insufficient'; primary:FixedKey|null; typeLabel:string; headline:string; summary:string; counts:Record<FixedKey,number>; validCore:number; totalCore:number; traits:string[]; evidence:FixedAnswer[]; riskPreviews:Pick<FixedBlock,'id'|'title'|'preview'>[]; familyPreviews:Pick<FixedBlock,'id'|'title'|'preview'>[]; missingBackground:number; secondary?:FixedKey[]; scoreNote?:string; purchasable?:boolean; contents?:{risks:number;origins:number;deeper:number;answers:number}; deeperPreviews?:Pick<FixedBlock,'id'|'title'|'preview'>[]; readingSample?:{title:string;text:string} };
+export type FixedReport = { version:typeof FIXED_VERSION; templateRevision:number; ruleVersion:'fixed-rules-v1'|'fixed-rules-v2'; overview:FixedOverview; risks:FixedBlock[]; origins:FixedBlock[]; deeper:FixedBlock[]; answers:FixedAnswer[] };
 export const isFixedQuestion = (id:string) => id.startsWith(FIXED_PREFIX);
 export const FIXED_LABELS:Record<FixedKey,string>={anxious:'Anxious attachment',avoidant:'Avoidant attachment',secure:'Secure attachment',fearful:'Fearful-avoidant attachment'};
 export const FIXED_KIND_LABELS:Record<FixedKind,string>={core:'关系反应 · 计分',relationship:'关系互动 · 不计分',family:'家庭经历 · 不计分',history:'后来经历 · 不计分'};
@@ -34,4 +34,13 @@ export function validTemplates(value:unknown):value is FixedTemplates {
  const t=value as FixedTemplates;
  if(t.version!==FIXED_VERSION||!Number.isSafeInteger(t.revision)||t.revision<1||!t.profiles)return false;
  return FIXED_KEYS.every(key=>{const p=t.profiles[key];return p&&[p.label,p.headline,p.summary].every(v=>typeof v==='string'&&v.trim()&&v.length<3000)&&Array.isArray(p.traits)&&p.traits.length>=3&&p.traits.length<=8&&p.traits.every(x=>typeof x==='string'&&x.trim()&&x.length<500)&&[p.risks,p.deeper].every(blocks=>Array.isArray(blocks)&&blocks.length>=1&&blocks.length<=5&&new Set(blocks.map(b=>b.id)).size===blocks.length&&blocks.every(b=>b&&typeof b.id==='string'&&/^[a-z0-9_-]{1,100}$/.test(b.id)&&typeof b.title==='string'&&b.title.trim()&&b.title.length<250&&typeof b.preview==='string'&&b.preview.length<600&&Array.isArray(b.paragraphs)&&b.paragraphs.length>=1&&b.paragraphs.length<=8&&b.paragraphs.every(x=>typeof x==='string'&&x.trim()&&x.length<5000)));});
+}
+// Offer only a substantive reading; old mixed/insufficient snapshots remain readable.
+export function hasUsefulFixedReading(report:FixedReport):boolean {
+ const meaningful=[...report.risks,...report.origins,...report.deeper].filter(b=>b.paragraphs.some(p=>p.trim().length>=80));
+ return report.overview.state==='primary'&&Boolean(report.overview.primary)&&report.overview.validCore>=10&&meaningful.length>=2;
+}
+// A stale five-choice catalog response must not reintroduce the retired core skip.
+export function currentFixedChoices(questions:import('./quiz').QuizQuestion[]):import('./quiz').QuizQuestion[]{
+ return questions.map(q=>q.reportConfig?.version===FIXED_VERSION&&q.reportConfig.kind==='core'&&q.options.length===5&&q.options[4].optionId===q.id.replace(FIXED_PREFIX,'q')+'-skip'?{...q,options:q.options.slice(0,4)}:q);
 }
