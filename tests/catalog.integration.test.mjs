@@ -56,15 +56,20 @@ test("admin catalog edits persist across public reads and fresh Worker isolates"
         assert.deepEqual(await questions({ locale }), english, `all question fields must be independent of ${locale}`);
       }
       const editor = await mf.getWorker("editor");
-      for (const path of ["/", "/?test=attachment-style", "/tests/attachment-style"]) {
-        const response = await editor.fetch(base + path, { headers: { "accept-language": "zh-CN,zh;q=0.9" } });
-        assert.equal(response.status, 200);
-        const html = await response.text();
-        assert.ok(html.includes(first[0].prompt), `${path} must initialize with the saved English prompt`);
-        assert.ok(html.includes(first[0].options[0].label));
-        assert.ok(!html.includes("短信显示"), `${path} must not inject the old Chinese question`);
-        assert.equal(first[0].options[0].meaning, "");
-        assert.ok(!html.includes("PRIVATE_ADMIN_MEANING"), "SSR must not invent paid interpretations");
+      const home = await editor.fetch(base + "/", { headers: { "accept-language": "zh-CN,zh;q=0.9" } });
+      assert.equal(home.status, 200);
+      const html = await home.text();
+      assert.match(html, /Your Cosmic Blueprint/);
+      assert.ok(!html.includes(first[0].prompt));
+      assert.ok(!html.includes("短信显示"));
+      assert.equal(first[0].options[0].meaning, "");
+      assert.ok(!html.includes("PRIVATE_ADMIN_MEANING"), "SSR must not invent paid interpretations");
+      for (const path of ["/?test=attachment-style", "/tests", "/tests/attachment-style"]) {
+        const response = await editor.fetch(base + path, { redirect: "manual", headers: { "accept-language": "zh-CN,zh;q=0.9" } });
+        assert.equal(response.status, 301, path);
+        const location = new URL(response.headers.get("location") ?? "", base);
+        assert.equal(location.pathname, "/", path);
+        assert.equal(location.searchParams.get("test"), null, path);
       }
     });
 
@@ -102,10 +107,9 @@ test("admin catalog edits persist across public reads and fresh Worker isolates"
       assert.equal((await questions())[0].id, added.id);
       assert.equal((await request("/api/tests")).data.tests[0].questionCount, 21);
       const editor = await mf.getWorker("editor");
-      const detail = await (await editor.fetch(base + "/tests/attachment-style", { headers: { "accept-language": "en" } })).text();
-      assert.ok(detail.includes(added.prompt), "SSR preview follows the first published question, even when its position is 0");
-      assert.ok(detail.includes(added.atlasPath));
-      assert.ok(!detail.includes("PRIVATE_ADMIN_MEANING"));
+      const preview = await editor.fetch(base + "/tests/attachment-style", { redirect: "manual", headers: { "accept-language": "en" } });
+      assert.equal(preview.status, 301);
+      assert.equal(new URL(preview.headers.get("location") ?? "", base).pathname, "/");
       assert.equal((await request("/api/questions?id=" + first.at(-1).id, { method: "DELETE", admin: true })).status, 200);
       for (let i = 0; i < 2; i++) assert.ok(!(await questions({ admin: true })).some(q => q.id === first.at(-1).id));
       await save({ ...edited, active: false });

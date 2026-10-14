@@ -163,7 +163,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(adminStatsRange, /datetime\('now', '\+8 hours', '-29 days', 'start of day'\)/);
   assert.match(adminStatsRange, /today[\s\S]*yesterday[\s\S]*7d[\s\S]*30d/);
   assert.doesNotMatch(store, /COUNT\(DISTINCT session_id\) AS users FROM quiz_sessions/);
-  assert.match(layout, /DeepPersona AI — Free Attachment Style Quiz/);
+  assert.match(layout, /Your Cosmic Blueprint/);
   assert.match(layout, /og-deep-persona\.png/);
   assert.match(layout, /favicon-v2-32\.png/);
   assert.match(layout, /width: "device-width"/);

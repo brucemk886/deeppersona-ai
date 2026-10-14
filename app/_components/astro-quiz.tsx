@@ -156,8 +156,9 @@ export function AstroQuiz() {
       break;
     case "gender": case "status": case "challenge": case "overthink": case "q_drain": case "q_love": case "q_others": case "q_decide": {
       const q = screen === "challenge" ? challengeQuestion(answers.status) : QUESTIONS[screen];
+      const hint = "sub" in q ? q.sub : undefined;
       view = (<>
-        <h2>{q.q}</h2>{q.sub ? <p className={s.sub}>{q.sub}</p> : <div style={{ height: 14 }} />}
+        <h2>{q.q}</h2>{hint ? <p className={s.sub}>{hint}</p> : <div style={{ height: 14 }} />}
         <div className={screen === "gender" ? s.grid2 : s.opts}>
           {q.opts.map((o) => <OptionButton key={o[1]} option={o} selected={answers[screen] === o[1]} onClick={() => {
             // A new relationship status can make the previous challenge answer invalid.
