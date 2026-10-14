@@ -7,7 +7,13 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#0d0b24",
 };
+
+const TITLE = "DeepPersona AI — Your Cosmic Blueprint: Free Astrology Reading";
+const DESCRIPTION = "Discover your Sun sign, Moon sign and Life Path number in a 3-minute quiz. Get a free personality reading and an optional full reading on love, matches and career. For entertainment and self-reflection.";
+const SHARE_TITLE = "What do your Sun and Moon say about you?";
+const SHARE_DESCRIPTION = "Take the free 3-minute astrology quiz from DeepPersona AI. For entertainment and self-reflection.";
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
@@ -17,9 +23,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     metadataBase,
-    title: "DeepPersona AI — Free Attachment Style Quiz",
-    description:
-      "Explore your relationship responses through 20 everyday moments. Get a free answer-based summary and an optional complete report with conversation tools. Self-reflection, not a diagnosis.",
+    title: TITLE,
+    description: DESCRIPTION,
     applicationName: "DeepPersona AI",
     icons: {
       icon: [
@@ -30,15 +35,15 @@ export async function generateMetadata(): Promise<Metadata> {
       apple: [{ url: "/brand/apple-touch-icon-v2.png", sizes: "180x180", type: "image/png" }],
     },
     openGraph: {
-      title: "Why do you react this way in relationships?",
-      description: "Take the free 20-question quiz from DeepPersona AI. Educational self-reflection, not a diagnosis.",
+      title: SHARE_TITLE,
+      description: SHARE_DESCRIPTION,
       type: "website",
       images: metadataBase ? [{ url: new URL("/og-deep-persona.png", metadataBase) }] : undefined,
     },
     twitter: {
       card: "summary_large_image",
-      title: "Why do you react this way in relationships?",
-      description: "Take the free 20-question quiz from DeepPersona AI. Educational self-reflection, not a diagnosis.",
+      title: SHARE_TITLE,
+      description: SHARE_DESCRIPTION,
       images: metadataBase ? [new URL("/og-deep-persona.png", metadataBase)] : undefined,
     },
     robots: { index: true, follow: true },
