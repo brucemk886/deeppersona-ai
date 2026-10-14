@@ -14,6 +14,11 @@ const allowedEvents = new Set([
   "upgrade_clicked",
   "affiliate_link_clicked",
   "heartbeat",
+  // Astro quiz funnel.
+  "reveal_viewed",
+  "quiz_completed",
+  "plan_selected",
+  "checkout_started",
 ]);
 
 export async function POST(request: Request) {

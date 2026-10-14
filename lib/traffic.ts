@@ -13,10 +13,27 @@ export function resolveAttribution(search: string, referrer: string, host: strin
   return previous ?? { source: /(^|\.)tiktok\.com$/.test(external) ? 'tiktok' : external || 'direct', campaign: '', medium: '', content: '' };
 }
 
+const ATTRIBUTION_KEY = 'dp_attr';
+const CLICK_ID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+
+function storedAttribution(): Attribution | undefined {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(ATTRIBUTION_KEY) || 'null') as Attribution | null;
+    if (saved && typeof saved.source === 'string') return saved;
+  } catch { /* Storage unavailable. */ }
+  return undefined;
+}
+
+// The landing URL is kept for the browser session, so attribution survives redirects and in-app navigation.
 export function currentAttribution(): Attribution {
   if (typeof window === 'undefined') return { source: 'direct', campaign: '', medium: '', content: '' };
-  const attribution = resolveAttribution(location.search, document.referrer, location.hostname);
+  const consent = getAnalyticsConsent();
+  const attribution = resolveAttribution(location.search, document.referrer, location.hostname, consent === 'denied' ? undefined : storedAttribution());
   const clickId = new URLSearchParams(location.search).get('lf_click');
-  if (getAnalyticsConsent() !== 'denied' && attribution.source === 'tiktok' && attribution.campaign.startsWith('factory-') && /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(clickId || '')) attribution.visitId = clickId!;
+  const linkedSource = (attribution.source === 'tiktok' && attribution.campaign.startsWith('factory-')) || attribution.source === 'tiktok_one';
+  if (consent !== 'denied' && linkedSource && CLICK_ID.test(clickId || '')) attribution.visitId = clickId!;
+  if (consent !== 'denied') {
+    try { sessionStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(attribution)); } catch { /* Storage unavailable. */ }
+  }
   return attribution;
 }

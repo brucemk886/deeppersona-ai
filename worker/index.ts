@@ -22,6 +22,18 @@ interface ExecutionContext {
   passThroughOnException(): void;
 }
 
+// Retired psychology pages move to the astro quiz on the homepage. Tracking parameters are kept.
+export function legacyRedirect(request: Request): Response | null {
+  if (request.method !== "GET" && request.method !== "HEAD") return null;
+  const url = new URL(request.url);
+  const retiredPath = /^\/(tests|other|insights|blog)(\/|$)/.test(url.pathname);
+  const retiredQuery = url.pathname === "/" && url.searchParams.has("test");
+  if (!retiredPath && !retiredQuery) return null;
+  const target = new URL("/", url);
+  for (const [key, value] of url.searchParams) if (key !== "test") target.searchParams.append(key, value);
+  return new Response(null, { status: 301, headers: { Location: target.pathname + target.search, "Cache-Control": "public, max-age=3600" } });
+}
+
 // Image security config. SVG sources with .svg extension auto-skip the
 // optimization endpoint on the client side (served directly, no proxy).
 // To route SVGs through the optimizer (with security headers), set
@@ -35,6 +47,8 @@ const worker = {
     if (arrival) return arrival;
     const shortLink = await routeShortLink(request, env.FACTORY_LINKS, env.DB);
     if (shortLink) return shortLink;
+    const legacy = legacyRedirect(request);
+    if (legacy) return legacy;
 
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
