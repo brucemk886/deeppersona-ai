@@ -25,6 +25,9 @@ const QUIZ_SCREENS = SCREENS.filter((id) => !NO_PROGRESS.includes(id));
 const TRACKER_FROM = SCREENS.indexOf("dob");
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+// Birth place is picked from a list so we get clean, comparable values (no "usa" / "U.S." / typos).
+const TOP_COUNTRIES = ["United States", "United Kingdom", "Canada", "Australia", "New Zealand", "Ireland", "India", "Philippines", "South Africa", "Germany", "France", "Mexico", "Brazil"];
+const COUNTRIES = ("Afghanistan|Albania|Algeria|Andorra|Angola|Antigua and Barbuda|Argentina|Armenia|Australia|Austria|Azerbaijan|Bahamas|Bahrain|Bangladesh|Barbados|Belarus|Belgium|Belize|Benin|Bhutan|Bolivia|Bosnia and Herzegovina|Botswana|Brazil|Brunei|Bulgaria|Burkina Faso|Burundi|Cambodia|Cameroon|Canada|Cape Verde|Central African Republic|Chad|Chile|China|Colombia|Comoros|Congo|Costa Rica|Côte d'Ivoire|Croatia|Cuba|Cyprus|Czech Republic|Democratic Republic of the Congo|Denmark|Djibouti|Dominica|Dominican Republic|Ecuador|Egypt|El Salvador|Equatorial Guinea|Eritrea|Estonia|Eswatini|Ethiopia|Fiji|Finland|France|Gabon|Gambia|Georgia|Germany|Ghana|Greece|Grenada|Guatemala|Guinea|Guinea-Bissau|Guyana|Haiti|Honduras|Hong Kong|Hungary|Iceland|India|Indonesia|Iran|Iraq|Ireland|Israel|Italy|Jamaica|Japan|Jordan|Kazakhstan|Kenya|Kiribati|Kosovo|Kuwait|Kyrgyzstan|Laos|Latvia|Lebanon|Lesotho|Liberia|Libya|Liechtenstein|Lithuania|Luxembourg|Macau|Madagascar|Malawi|Malaysia|Maldives|Mali|Malta|Marshall Islands|Mauritania|Mauritius|Mexico|Micronesia|Moldova|Monaco|Mongolia|Montenegro|Morocco|Mozambique|Myanmar|Namibia|Nauru|Nepal|Netherlands|New Zealand|Nicaragua|Niger|Nigeria|North Korea|North Macedonia|Norway|Oman|Pakistan|Palau|Palestine|Panama|Papua New Guinea|Paraguay|Peru|Philippines|Poland|Portugal|Puerto Rico|Qatar|Romania|Russia|Rwanda|Saint Kitts and Nevis|Saint Lucia|Saint Vincent and the Grenadines|Samoa|San Marino|São Tomé and Príncipe|Saudi Arabia|Senegal|Serbia|Seychelles|Sierra Leone|Singapore|Slovakia|Slovenia|Solomon Islands|Somalia|South Africa|South Korea|South Sudan|Spain|Sri Lanka|Sudan|Suriname|Sweden|Switzerland|Syria|Taiwan|Tajikistan|Tanzania|Thailand|Timor-Leste|Togo|Tonga|Trinidad and Tobago|Tunisia|Turkey|Turkmenistan|Tuvalu|Uganda|Ukraine|United Arab Emirates|United Kingdom|United States|Uruguay|Uzbekistan|Vanuatu|Vatican City|Venezuela|Vietnam|Yemen|Zambia|Zimbabwe").split("|");
 
 type Chart = { sun: Sign; moon: ReturnType<typeof moonForDay>; lifePath: number };
 
@@ -238,11 +241,15 @@ export function AstroQuiz() {
       break;
     case "place":
       view = (<>
-        <h2>Where were you born?</h2><p className={s.sub}>City and country. Saved with your chart so we can add your Rising sign to your reading.</p>
-        <input className={s.field} type="text" maxLength={80} placeholder="e.g. Austin, USA" value={place} onChange={(e) => setPlace(e.target.value)} />
+        <h2>Where were you born?</h2><p className={s.sub}>Pick your country of birth. Saved with your chart so we can add your Rising sign to your reading.</p>
+        <select className={s.field} aria-label="Country of birth" value={place} onChange={(e) => setPlace(e.target.value)}>
+          <option value="">Select your country</option>
+          <optgroup label="Most common">{TOP_COUNTRIES.map((c) => <option key={`top-${c}`} value={c}>{c}</option>)}</optgroup>
+          <optgroup label="All countries">{COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}</optgroup>
+        </select>
         <div className={s.cta}>
-          <button type="button" className={s.btn} disabled={place.trim().length < 2} onClick={() => { flash("moon"); next(); }}>Continue</button>
-          <button type="button" className={s.link} onClick={() => { setPlace(""); flash("moon"); next(); }}>Skip</button>
+          <button type="button" className={s.btn} disabled={!place} onClick={() => { track("answer_selected", { questionId: "place", optionLabel: place }); flash("moon"); next(); }}>Continue</button>
+          <button type="button" className={s.link} onClick={() => { setPlace(""); track("answer_selected", { questionId: "place", optionLabel: "skipped" }); flash("moon"); next(); }}>Skip</button>
         </div>
       </>);
       break;
