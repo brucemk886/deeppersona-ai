@@ -96,9 +96,9 @@ export type Option = readonly [emoji: string, label: string];
 export type Question = { q: string; sub?: string; opts: readonly Option[] };
 
 export const QUESTIONS = {
-  gender: { q: "Select your gender", sub: "Used to fine-tune your reading.",
+  gender: { q: "Select your gender", sub: "Just so we know who's reading. It doesn't change your chart.",
     opts: [["♀", "Female"], ["♂", "Male"], ["⚧", "Non-binary"], ["✦", "Prefer not to say"]] },
-  goals: { q: "What do you want to discover?", sub: "Choose as many as you like — it makes your reading more precise.",
+  goals: { q: "What do you want to discover?", sub: "Choose as many as you like. Your first pick gets a free preview in your reading.",
     opts: [["💞", "Love & relationships"], ["💼", "Career & money"], ["🪞", "My true personality"], ["🌙", "Life purpose"], ["👥", "Friendships & people"]] },
   status: { q: "What's your relationship status?",
     opts: [["💑", "In a relationship"], ["💍", "Married"], ["🦋", "Single"], ["🌀", "It's complicated"], ["🩹", "Recently broke up"]] },
@@ -110,7 +110,7 @@ export const QUESTIONS = {
     opts: [["🌀", "All the time"], ["💭", "Often"], ["🌤️", "Sometimes"], ["😌", "Rarely"]] },
   q_drain: { q: "What drains your energy the most?",
     opts: [["😔", "Feeling misunderstood"], ["🌫️", "Uncertainty about the future"], ["🎭", "Pretending to be someone I'm not"], ["🔁", "Repeating the same mistakes"]] },
-  q_love: { q: "In love, what do you value most?",
+  q_love: { q: "In love, what do you value most?", sub: "This unlocks your love style.",
     opts: [["🔥", "Passion & chemistry"], ["🛡️", "Loyalty & safety"], ["🧠", "Deep conversations"], ["🕊️", "Freedom & space"]] },
   q_others: { q: "How often do you put other people's needs before your own?",
     opts: [["🔄", "Almost always"], ["⚖️", "About half the time"], ["🎯", "Rarely — I know what I want"]] },
@@ -165,7 +165,63 @@ export function sunMoonLine(sun: Sign, moon: Sign) {
   return `${sun.name} Sun + ${moon.name} Moon: people see your ${sun.element.toLowerCase()} side first, but inside you're ruled by ${moon.element.toLowerCase()}. This gap explains a lot.`;
 }
 
+// Mid-quiz reveal after the love question.
+export const LOVE_ARCHETYPE: Record<string, { name: string; glyph: string; line: string }> = {
+  "Passion & chemistry": { name: "The Flame", glyph: "🔥", line: "You love with intensity. When it's right you know within days, and you can't pretend when it isn't." },
+  "Loyalty & safety": { name: "The Anchor", glyph: "⚓", line: "You love by staying. You're slow to fall, but once you do, people feel safer with you than with anyone." },
+  "Deep conversations": { name: "The Mind Reader", glyph: "🔮", line: "You fall for how someone thinks. A 3 a.m. conversation means more to you than any grand gesture." },
+  "Freedom & space": { name: "The Free Heart", glyph: "🕊️", line: "You love best without a cage. The partner who gives you space is the one you keep coming back to." },
+};
+
+const ELEMENT_PARTNER: Record<Element, Element> = { Fire: "Air", Air: "Fire", Earth: "Water", Water: "Earth" };
+export function loveElements(element: Element): [Element, Element] {
+  return [element, ELEMENT_PARTNER[element]];
+}
+
 /* ---------- fixed report library ---------- */
+
+// Free sections only use lines the quiz has not already shown on screen.
+const SEEN_AS: Record<Element, string> = {
+  Fire: "someone confident, warm and a little impossible to ignore",
+  Earth: "someone calm, capable and completely put-together",
+  Air: "someone easy-going, funny and genuinely interested in people",
+  Water: "someone gentle, kind and quietly perceptive",
+};
+
+const HIDDEN_SIDE: Record<Element, string> = {
+  Fire: "you need to be chosen out loud, and being taken for granted hurts you more than any argument",
+  Earth: "you worry far more than you show, and you rarely let anyone see that you need help",
+  Air: "you keep a private room in your head that almost nobody is invited into",
+  Water: "you absorb other people's moods, and you need more time alone to recover than you admit",
+};
+
+const LP_CORE: Record<number, string> = {
+  1: "you're happiest when you choose the direction. Following someone else's plan quietly drains you.",
+  2: "you notice what others miss in a room, and people relax around you without knowing why.",
+  3: "you process life by expressing it. When you stop creating or talking, you start to feel stuck.",
+  4: "you feel safest when you're building something step by step, and chaos unsettles you more than you let on.",
+  5: "you need change to feel alive. The moment life gets too predictable, you start looking for the exit.",
+  6: "you're the one people come to, and you often carry their problems home with you.",
+  7: "you need to understand why before you commit to anything. Surface answers never satisfy you.",
+  8: "you're wired for big goals, and you judge yourself harder than anyone else ever could.",
+  9: "you care about meaning more than status, and you've often outgrown people before they noticed.",
+  11: "your intuition runs ahead of your logic. You often know things before you can explain how.",
+  22: "you see the big picture and the practical steps at the same time, which is rare and comes with a lot of pressure.",
+  33: "you lead by caring. People grow around you, sometimes at the cost of your own energy.",
+};
+
+const GOAL_FOCUS: Record<string, { label: string; section: string; line: number }> = {
+  "Love & relationships": { label: "your love life", section: "love", line: 0 },
+  "Career & money": { label: "your career & money", section: "career", line: 1 },
+  "My true personality": { label: "your true personality", section: "mind", line: 0 },
+  "Life purpose": { label: "your life purpose", section: "career", line: 1 },
+  "Friendships & people": { label: "your friendships", section: "energy", line: 1 },
+};
+
+// Keep the user's own wording inside quotes, but lower-case the first letter unless it is "I".
+function softQuote(text: string) {
+  return /^I\b/.test(text) ? text : text.charAt(0).toLowerCase() + text.slice(1);
+}
 
 const LOVE_STYLE: Record<Element, string> = {
   Fire: "You fall fast and you fall honestly. When you like someone, you show it — and you expect the same energy back. Slow, lukewarm signals feel like rejection to you, even when they aren't.",
@@ -233,6 +289,13 @@ const OVERTHINK_TXT: Record<string, string> = {
   "Rarely": "You rarely overthink. Your hidden strength is emotional clarity — you feel it, name it and move on faster than most people.",
 };
 
+const MIND_TIP: Record<Element, string> = {
+  Fire: "When your mind starts spinning, take the smallest possible action within 10 minutes. For your Moon, motion ends the loop faster than more thinking.",
+  Earth: "When your mind starts spinning, write the worry down next to one concrete next step. Your Moon lets go once it sees a plan on paper.",
+  Air: "When your mind starts spinning, say the thought out loud to one person or record a voice note. Thoughts you speak lose half their weight.",
+  Water: "When your mind starts spinning, name the feeling first ('I'm hurt', 'I'm scared') before you try to solve anything. Your Moon settles once the feeling is acknowledged.",
+};
+
 const DECIDE_TXT: Record<string, string> = {
   "Heart": "You decide with your heart. Your best decisions come when you ask 'which choice would I be proud of?'",
   "Head": "You decide with your head. Your best decisions come when you set a deadline — more analysis past that point only adds doubt.",
@@ -259,6 +322,13 @@ const ELEMENT_WORK: Record<Element, string> = {
   Earth: "Your Earth Sun adds staying power: you win by being the most reliable person in the room.",
   Air: "Your Air Sun adds ideas: you're at your best connecting people, information and possibilities.",
   Water: "Your Water Sun adds empathy: you understand what people need before they can say it — a rare edge in any career.",
+};
+
+const CAREER_NEXT: Record<Element, string> = {
+  Fire: "Your next move: pick one thing you've been putting off and give it a start date this week. Momentum is your real advantage.",
+  Earth: "Your next move: choose one skill to master this quarter. Depth, not variety, is where your income grows.",
+  Air: "Your next move: say yes to one new conversation a week — a coffee, a call, a collaboration. Opportunities reach you through people.",
+  Water: "Your next move: notice which tasks leave you energised rather than drained, and steer your role toward them. Your feelings are career data.",
 };
 
 /* ---------- input parsing ---------- */
@@ -358,28 +428,26 @@ export function buildSections(chart: AstroChart, input: AstroInput): Section[] {
   const { sun, moon, lifePath, lifePathTitle } = chart;
   const a = input.answers;
   const challenge = a.challenge;
-  const hits = ["st0", "st1", "st2"].filter((k) => a[k] && a[k] !== "Not really").length;
   const overthinker = a.overthink === "All the time" || a.overthink === "Often";
   const { matches, avoid } = matchesFor(sun);
+  const top = matches[0].sign;
+
   const coreBody = [
-    `${ELEMENT[sun.element].core} ${MOON_TXT[moon.element]}`,
-    sunMoonLine(sun, moon),
-    hits >= 2
-      ? `You matched ${hits} of 3 core ${sun.element} traits, so your ${sun.name} Sun is strongly expressed — people meet the real you quickly.`
-      : `You matched fewer ${sun.element} traits than most ${sun.name}s, which usually means your ${moon.name} Moon shapes you more than your Sun. People who only know your sign often misread you.`,
+    `People who meet you see ${SEEN_AS[sun.element]}. What they don't see: ${HIDDEN_SIDE[moon.element]}.`,
+    `As Life Path ${lifePath}, ${lifePathTitle}, ${LP_CORE[lifePath] ?? ""}`.trim(),
   ];
   if (!moon.certain) coreBody.push(`Note: the Moon changed sign on your birth day (${moon.early} early, ${moon.late} later). We used midday, ${moon.name}.`);
-  return [
-    { id: "core", icon: "🪞", title: "Your core personality", access: "free", teaser: coreBody[0], body: coreBody },
+
+  const paid: Section[] = [
     {
       id: "love", icon: "💞", access: "basic",
-      title: challenge && challenge !== "No real challenges" ? `Why “${challenge.toLowerCase()}” keeps happening to you` : "What you really need in love",
+      title: challenge && challenge !== "No real challenges" ? `Why “${softQuote(challenge)}” keeps happening to you` : "What you really need in love",
       teaser: `With a ${sun.name} Sun and ${moon.name} Moon, your heart and your head want different things. The pattern starts when…`,
       body: [LOVE_STYLE[sun.element], LOVE_NEED[moon.element], CHALLENGE_TXT[challenge] ?? "", LOVE_VALUE_TXT[a.q_love] ?? ""].filter(Boolean),
     },
     {
       id: "matches", icon: "⭐", access: "full", title: "Your top 3 matches (and the sign to avoid)",
-      teaser: `Your strongest match balances your ${moon.element.toLowerCase()} Moon. The sign to be careful with is one most ${sun.name}s are drawn to…`,
+      teaser: `Your #1 match is ${top.name}. Match #2 balances your ${moon.element.toLowerCase()} Moon, and the sign to be careful with is one most ${sun.name}s are drawn to…`,
       body: [
         ...matches.map(({ sign, kind }, n) => `${n + 1}. ${sign.glyph} ${sign.name} — ${MATCH_TXT[kind]}`),
         `Be careful with: ${avoid.glyph} ${avoid.name} — ${MATCH_TXT.square}`,
@@ -387,21 +455,44 @@ export function buildSections(chart: AstroChart, input: AstroInput): Section[] {
       ],
     },
     {
-      id: "energy", icon: "🔋", access: "full", title: `The real reason “${(a.q_drain || "stress").toLowerCase()}” drains you`,
-      teaser: `This isn't random — it's tied to your Life Path ${lifePath} and shows up most when…`,
+      id: "energy", icon: "🔋", access: "full", title: `The real reason “${softQuote(a.q_drain || "Stress")}” drains you`,
+      teaser: `This isn't random — it's tied to your ${moon.name} Moon and shows up most when…`,
       body: [DRAIN_TXT[a.q_drain] ?? "", OTHERS_TXT[a.q_others] ?? "", RESET_TXT[moon.element]].filter(Boolean),
     },
     {
       id: "mind", icon: "🧠", access: "full", title: overthinker ? "How to stop overthinking (made for your chart)" : "Your hidden emotional strength",
       teaser: `Your ${moon.name} Moon processes feelings in a specific way. The fastest way for you to reset is…`,
-      body: [OVERTHINK_TXT[a.overthink] ?? "", RESET_TXT[moon.element], DECIDE_TXT[a.q_decide] ?? ""].filter(Boolean),
+      body: [OVERTHINK_TXT[a.overthink] ?? "", MIND_TIP[moon.element], DECIDE_TXT[a.q_decide] ?? ""].filter(Boolean),
     },
     {
       id: "career", icon: "🧭", access: "full", title: "Your hidden talent & best career direction",
       teaser: `Life Path ${lifePath} (${lifePathTitle}) with a ${sun.element} Sun thrives when…`,
-      body: [CAREER_TXT[lifePath] ?? "", ELEMENT_WORK[sun.element], DECIDE_TXT[a.q_decide] ?? ""].filter(Boolean),
+      body: [CAREER_TXT[lifePath] ?? "", ELEMENT_WORK[sun.element], CAREER_NEXT[sun.element]].filter(Boolean),
     },
   ];
+
+  const sections: Section[] = [{ id: "core", icon: "🪞", title: "Your core personality", access: "free", teaser: coreBody[0], body: coreBody }];
+
+  // Free preview for the first goal the user picked. The previewed line is moved out of the paid section so it isn't repeated.
+  const goal = input.goals.find((g) => g in GOAL_FOCUS) ?? "Love & relationships";
+  const focus = GOAL_FOCUS[goal];
+  const linked = paid.find((section) => section.id === focus.section);
+  const preview = linked?.body[focus.line];
+  if (linked && preview && linked.body.length > 1) {
+    linked.body = linked.body.filter((_, i) => i !== focus.line);
+    sections.push({
+      id: "focus", icon: "🔭", access: "free", title: `First look: ${focus.label}`, teaser: preview,
+      body: [preview, `That's only the first layer. The rest of this pattern is in “${linked.title}” below.`],
+    });
+  }
+
+  sections.push({
+    id: "match1", icon: "💫", access: "free", title: `Your #1 match: ${top.glyph} ${top.name}`,
+    teaser: `${top.name} — ${MATCH_TXT.opposite}`,
+    body: [`${top.glyph} ${top.name} — ${MATCH_TXT.opposite}`, `Your other 2 matches, and the sign most ${sun.name}s should be careful with, are in your Complete Reading.`],
+  });
+
+  return [...sections, ...paid];
 }
 
 function adminQuestions(input: AstroInput) {

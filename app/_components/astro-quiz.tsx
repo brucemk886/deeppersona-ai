@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ASTRO_TEST_ID, ELEMENT, LOADING_QUESTIONS, LP_TXT, MOON_TXT, QUESTIONS, STATEMENT_OPTS,
-  challengeQuestion, lifePathNumber, moonForDay, sunMoonLine, sunSign, isValidDate,
+  ASTRO_TEST_ID, ELEMENT, LOADING_QUESTIONS, LOVE_ARCHETYPE, LP_TXT, MOON_TXT, QUESTIONS, STATEMENT_OPTS,
+  challengeQuestion, lifePathNumber, loveElements, moonForDay, sunMoonLine, sunSign, isValidDate,
   type Option, type PublicReading, type Sign,
 } from "@/lib/astro";
 import { currentAttribution, type Attribution } from "@/lib/traffic";
@@ -12,12 +12,12 @@ import s from "./astro.module.css";
 
 type ScreenId =
   | "welcome" | "gender" | "goals" | "echo_goals" | "status" | "challenge" | "dob" | "reveal_sun" | "time" | "place"
-  | "reveal_moon" | "st0" | "st1" | "st2" | "insight" | "overthink" | "q_drain" | "q_love" | "q_others" | "q_decide"
+  | "reveal_moon" | "st0" | "st1" | "st2" | "insight" | "overthink" | "q_drain" | "q_love" | "reveal_love" | "q_others" | "q_decide"
   | "reveal_lp" | "yes_compat" | "yes_career" | "email" | "loading" | "report";
 
 const SCREENS: ScreenId[] = [
   "welcome", "gender", "goals", "echo_goals", "status", "challenge", "dob", "reveal_sun", "time", "place", "reveal_moon",
-  "st0", "st1", "st2", "insight", "overthink", "q_drain", "q_love", "q_others", "q_decide", "reveal_lp",
+  "st0", "st1", "st2", "insight", "overthink", "q_drain", "q_love", "reveal_love", "q_others", "q_decide", "reveal_lp",
   "yes_compat", "yes_career", "email", "loading", "report",
 ];
 const NO_PROGRESS: ScreenId[] = ["welcome", "loading", "report"];
@@ -238,7 +238,7 @@ export function AstroQuiz() {
       break;
     case "place":
       view = (<>
-        <h2>Where were you born?</h2><p className={s.sub}>City and country. We save it with your chart so your reading can be refined later.</p>
+        <h2>Where were you born?</h2><p className={s.sub}>City and country. Saved with your chart so we can add your Rising sign to your reading.</p>
         <input className={s.field} type="text" maxLength={80} placeholder="e.g. Austin, USA" value={place} onChange={(e) => setPlace(e.target.value)} />
         <div className={s.cta}>
           <button type="button" className={s.btn} disabled={place.trim().length < 2} onClick={() => { flash("moon"); next(); }}>Continue</button>
@@ -281,6 +281,20 @@ export function AstroQuiz() {
         </>);
       }
       break;
+    case "reveal_love": {
+      const style = LOVE_ARCHETYPE[answers.q_love];
+      if (chart && style) {
+        const [same, partner] = loveElements(chart.sun.element);
+        view = (<>
+          <div className={s.center}><p className={s.kicker}>✨ Love style unlocked</p><div className={s.sign}>{style.glyph}</div><h1>{style.name}</h1>
+            <div className={s.report}><p>{style.line}</p></div>
+            <p className={s.sub}>As a {chart.sun.element} sign, you click fastest with other {same} signs and with {partner} signs. Your exact top 3 matches are in your reading.</p>
+          </div>
+          <div className={s.cta}><button type="button" className={s.btn} onClick={next}>Continue</button></div>
+        </>);
+      }
+      break;
+    }
     case "reveal_lp":
       if (chart) view = (<>
         <div className={s.center}><p className={s.kicker}>✨ Life Path number unlocked</p><div className={s.big} style={{ fontSize: 84 }}>{chart.lifePath}</div><h1>{LP_TXT[chart.lifePath]}</h1>
