@@ -88,7 +88,7 @@ export function AstroReport({ reportId, initialReading, track, embedded = false 
       ) : (
         <>
           <p className={s.kicker}>{access === "free" ? "✨ Your chart is complete" : "✨ Your reading is unlocked"}</p>
-          <h2>{access === "free" ? "We found 5 patterns in your chart" : "Your Cosmic Blueprint"}</h2>
+          <h2>{access === "free" ? `We found ${reading.sections.filter((section) => section.locked).length} hidden patterns in your chart` : "Your Cosmic Blueprint"}</h2>
           <div className={s.summary}>
             <div><b>{reading.chart.sun.glyph}</b><span>{reading.chart.sun.name} Sun</span></div>
             <div><b>{reading.chart.moon.glyph}</b><span>{reading.chart.moon.name} Moon</span></div>
@@ -100,12 +100,33 @@ export function AstroReport({ reportId, initialReading, track, embedded = false 
               The Moon changed sign on your birth day ({reading.chart.moon.early} early, {reading.chart.moon.late} later). We used midday.
             </p>
           )}
+          {access === "free" && (() => {
+            const total = reading.sections.length;
+            const open = reading.sections.filter((section) => !section.locked).length;
+            return (
+              <div className={s.progress}>
+                <div className={s.progressTop}><span>Your reading</span><b>{open} of {total} unlocked</b></div>
+                <div className={s.progressBar}><i style={{ width: `${Math.round((open / total) * 100)}%` }} /></div>
+              </div>
+            );
+          })()}
           <div style={{ height: 8 }} />
           {reading.sections.map((section) => (
             <div key={section.id} className={`${s.report} ${section.locked ? s.locked : ""}`}>
               <h4>{section.icon} {section.title}{section.access === "free" && <span className={s.free}>FREE</span>}</h4>
+              {section.tag && <div className={s.tag}>{section.tag}</div>}
+              {section.score !== undefined && (
+                <div className={s.score}><div className={s.scoreBar}><i style={{ width: `${section.score}%` }} /></div><b>{section.score}%</b></div>
+              )}
               {section.locked
-                ? <><p>{section.teaser} Your full reading explains where this comes from, how it shows up for you and what to do about it.</p><div className={s.lock}>🔒 {section.access === "basic" ? "Included in both plans" : "Complete Reading"}</div></>
+                ? <>
+                    <p className={s.hook}>{section.teaser}</p>
+                    <div className={s.peekWrap}>
+                      {section.peek && <p className={s.peek}>{section.peek}</p>}
+                      <p className={s.blurLine} aria-hidden="true">Your full reading continues here with the details written for your chart and your answers.</p>
+                      <div className={s.lock}>🔒 {section.access === "basic" ? "Included in both plans" : "Complete Reading"}</div>
+                    </div>
+                  </>
                 : (section.body ?? [section.teaser]).map((line, i) => <p key={i}>{line}</p>)}
             </div>
           ))}
@@ -124,7 +145,8 @@ export function AstroReport({ reportId, initialReading, track, embedded = false 
               ))}
               <ul className={s.feat}>
                 <li>✨ Written around your Sun, Moon &amp; Life Path</li>
-                <li>💞 Your love pattern{plan === "full" ? " & top 3 matches" : ""}</li>
+                <li>🌗 The side of you people don't see</li>
+                <li>💞 Your love pattern{plan === "full" ? " & top 3 matches with scores" : ""}</li>
                 {plan === "full" && <li>🧭 Hidden talent &amp; career direction</li>}
                 <li>📄 Yours to keep on this page</li>
               </ul>

@@ -61,11 +61,11 @@ test("input parsing validates dates and answers", () => {
 test("projection never leaks locked sections", () => {
   const snapshot = snapshotFor(raw);
   assert.equal(snapshot.test.title, "Your Cosmic Blueprint");
-  assert.equal(snapshot.sections.length, 8);
+  assert.equal(snapshot.sections.length, 9);
   const free = projectReading(snapshot, "free");
   assert.deepEqual(free.sections.filter((s) => !s.locked).map((s) => s.id), ["core", "focus", "match1"]);
   assert.ok(free.sections.filter((s) => s.locked).every((s) => s.body === undefined));
-  assert.deepEqual(projectReading(snapshot, "basic").sections.filter((s) => !s.locked).map((s) => s.id), ["core", "focus", "match1", "love"]);
+  assert.deepEqual(projectReading(snapshot, "basic").sections.filter((s) => !s.locked).map((s) => s.id), ["core", "focus", "match1", "hidden", "love"]);
   assert.ok(projectReading(snapshot, "full").sections.every((s) => !s.locked && s.body.length > 0));
   // Admin answer view needs questions + answerChoices.
   assert.ok(Array.isArray(snapshot.questions) && snapshot.answerChoices.gender === 0);
@@ -81,7 +81,9 @@ test("free sections show new content, not lines already seen in the quiz", () =>
   // The previewed line is not repeated in the paid section it came from.
   assert.ok(!section(snapshot, "love").body.includes(section(snapshot, "focus").body[0]));
   // The free #1 match is the first of the paid top 3.
-  assert.ok(section(snapshot, "matches").body[0].includes(section(snapshot, "match1").title.replace("Your #1 match: ", "")));
+  const top = section(snapshot, "matches").body[0].match(/^1\. \S+ (\w+)/)[1];
+  assert.equal(section(snapshot, "match1").title, `Your #1 match: ${top[0]}${"•".repeat(Math.max(top.length - 1, 3))}`);
+  assert.ok(!["core", "focus", "match1"].some((id) => JSON.stringify(projectReading(snapshot, "free").sections.find((s) => s.id === id)).includes(top)));
 });
 
 test("every goal gets a free first look and no section is empty", () => {
@@ -113,4 +115,18 @@ test("plans map to fixed prices", () => {
   assert.equal(planForAmount(499), "basic");
   assert.equal(planForAmount(999), "full");
   assert.equal(planForAmount(1999), null);
+});
+
+test("locked cards use their own hooks and never leak the full body", () => {
+  const snapshot = snapshotFor(raw);
+  const free = projectReading(snapshot, "free");
+  const locked = free.sections.filter((s) => s.locked);
+  assert.equal(new Set(locked.map((s) => s.teaser)).size, locked.length);
+  for (const s of locked) {
+    assert.ok(!s.teaser.endsWith("…"), s.id);
+    if (s.peek) assert.ok(s.peek.endsWith("…") && s.peek.length < 90, s.id);
+  }
+  assert.equal(locked.find((s) => s.id === "matches").peek, undefined);
+  assert.ok(!JSON.stringify(free).includes(" a Air ") && !JSON.stringify(free).includes(" a Earth "));
+  assert.ok(projectReading(snapshot, "full").sections.every((s) => s.peek === undefined));
 });

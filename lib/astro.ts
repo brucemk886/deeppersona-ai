@@ -3,7 +3,7 @@
 
 export const ASTRO_TEST_ID = "astro-reading";
 export const ASTRO_TITLE = "Your Cosmic Blueprint";
-export const ASTRO_VERSION = 1;
+export const ASTRO_VERSION = 2;
 
 export type Element = "Fire" | "Earth" | "Air" | "Water";
 export type Sign = { name: string; glyph: string; element: Element };
@@ -11,8 +11,8 @@ export type PlanId = "basic" | "full";
 export type Access = "free" | PlanId;
 
 export const PLANS: Record<PlanId, { cents: number; name: string; blurb: string }> = {
-  basic: { cents: 499, name: "Personality Report", blurb: "Core personality + your love pattern" },
-  full: { cents: 999, name: "Complete Reading", blurb: "All 5 patterns: love, matches, energy, mind & career" },
+  basic: { cents: 499, name: "Personality Report", blurb: "Your hidden side + your love pattern" },
+  full: { cents: 999, name: "Complete Reading", blurb: "Every pattern: hidden side, love, matches, energy, mind & career" },
 };
 
 export function planForAmount(cents: number | null | undefined): PlanId | null {
@@ -331,6 +331,62 @@ const CAREER_NEXT: Record<Element, string> = {
   Water: "Your next move: notice which tasks leave you energised rather than drained, and steer your role toward them. Your feelings are career data.",
 };
 
+
+/* ---------- locked-section hooks ---------- */
+// Each locked card gets its own specific promise instead of a shared sentence.
+
+const LOVE_HOOK: Record<string, string> = {
+  "I attract the wrong people": "There's one early signal you keep mistaking for chemistry. Your reading names it, so you can spot it in the first week instead of the third month.",
+  "I struggle to open up": "You run a quiet test on everyone who gets close, and most people fail it without knowing it existed. Your reading shows what the test is and the one small step that lets the right person pass.",
+  "I'm still healing from the past": "Part of you is still comparing new people to an old story. Your reading shows which part, and the one question that tells you if someone is different.",
+  "I'm not sure what I want": "Your Sun and Moon pull you toward two different kinds of partner. Your reading shows which one actually makes you calm, and which one only feels exciting.",
+  "We don't communicate well": "There's a specific moment in every argument where one of you pushes and the other pulls away. Your reading names it and gives you one change that makes the next talk go differently.",
+  "The spark is fading": "The spark didn't disappear, it got buried under routine. Your reading shows what brings it back for your chart, and it isn't another deep talk.",
+  "Trust issues": "When something feels uncertain, your mind writes the worst version of the story. Your reading shows why your chart does this, and how to ask for the reassurance you actually need.",
+  "We want different things": "You've been compromising quietly and keeping score without meaning to. Your reading shows how to say what you want before it turns into resentment.",
+  "No real challenges": "What's working between you has a weak spot most couples miss. Your reading shows where it is, so you can protect it.",
+};
+
+const HIDDEN_HOOK: Record<Element, string> = {
+  Fire: "There's a need behind your confidence that almost nobody sees. When it isn't met, you feel invisible, even in a full room.",
+  Earth: "There's a worry you carry quietly that most people around you would never guess. It explains why you find it so hard to ask for help.",
+  Air: "There's a part of you that you keep completely private. It explains why you can feel lonely even when you're surrounded by people.",
+  Water: "You pick up on what other people feel and carry it home. Your reading shows what it costs you, and why you need more time alone than you admit.",
+};
+
+const DRAIN_HOOK: Record<string, string> = {
+  "Feeling misunderstood": "Being misunderstood costs you more than it costs most people, and there's a clear reason in your chart. Your reading shows why it hits so hard and how to get your energy back fast.",
+  "Uncertainty about the future": "Your mind keeps running 'what if' scenarios to protect you. Your reading shows why it never switches off and what finally lets it rest.",
+  "Pretending to be someone I'm not": "Every hour you spend adapting to others costs you about twice the energy. Your reading shows where that comes from and how to stop paying it.",
+  "Repeating the same mistakes": "You can see the loop while you're in it, and that's what makes it so frustrating. Your reading shows the point where you can break it.",
+};
+
+const MIND_HOOK: Record<Element, string> = {
+  Fire: "Thinking harder never ends the loop for your Moon. Your reading gives you a 10-minute reset that does.",
+  Earth: "Your Moon only lets go of a worry when it sees one specific thing. Your reading shows you what it is.",
+  Air: "There's a simple trick that cuts your racing thoughts in half, made for how your Moon processes feelings.",
+  Water: "Your Moon settles once one thing happens, and it isn't solving the problem. Your reading shows what it is.",
+};
+
+const CAREER_HOOK = (lifePath: number, title: string, element: Element) =>
+  `The kind of work where Life Path ${lifePath} people (${title}) do best, how your ${element} Sun changes it, and the one move to make this week.`;
+
+const MATCH_SCORE = { opposite: 92, trine1: 88, trine2: 84, avoid: 41 } as const;
+
+function an(word: string) {
+  return /^[AEIOU]/i.test(word) ? `an ${word}` : `a ${word}`;
+}
+
+function mask(name: string) {
+  return name.charAt(0) + "•".repeat(Math.max(name.length - 1, 3));
+}
+
+// First few words of the real paragraph, so the locked card shows how the reading actually starts.
+function peekOf(text: string, words = 11) {
+  const parts = text.split(/\s+/);
+  return parts.length <= words ? text : `${parts.slice(0, words).join(" ")}…`;
+}
+
 /* ---------- input parsing ---------- */
 
 export type AstroAnswers = Record<string, string>;
@@ -385,7 +441,7 @@ export function parseAstroInput(raw: unknown, now = new Date()): { ok: true; val
 
 /* ---------- reading snapshot ---------- */
 
-export type Section = { id: string; icon: string; title: string; teaser: string; access: Access; body: string[] };
+export type Section = { id: string; icon: string; title: string; teaser: string; access: Access; body: string[]; tag?: string; peek?: string; score?: number };
 export type AstroChart = {
   sun: Sign;
   moon: Sign & { certain: boolean; early: string; late: string };
@@ -432,41 +488,57 @@ export function buildSections(chart: AstroChart, input: AstroInput): Section[] {
   const { matches, avoid } = matchesFor(sun);
   const top = matches[0].sign;
 
+  const archetype = LOVE_ARCHETYPE[a.q_love];
   const coreBody = [
-    `People who meet you see ${SEEN_AS[sun.element]}. What they don't see: ${HIDDEN_SIDE[moon.element]}.`,
-    `As Life Path ${lifePath}, ${lifePathTitle}, ${LP_CORE[lifePath] ?? ""}`.trim(),
+    `People who meet you see ${SEEN_AS[sun.element]}.`,
+    `But your ${moon.name} Moon tells a different story, and there's a side of you most people never get to see. That part is in your reading below.`,
   ];
   if (!moon.certain) coreBody.push(`Note: the Moon changed sign on your birth day (${moon.early} early, ${moon.late} later). We used midday, ${moon.name}.`);
+  const hiddenBody = [
+    `What people don't see: ${HIDDEN_SIDE[moon.element]}.`,
+    `As Life Path ${lifePath}, ${lifePathTitle}, ${LP_CORE[lifePath] ?? ""}`.trim(),
+  ];
 
   const paid: Section[] = [
     {
+      id: "hidden", icon: "🌗", access: "basic", title: "The side of you people don't see",
+      tag: `${sun.name} Sun · ${moon.name} Moon`,
+      teaser: HIDDEN_HOOK[moon.element],
+      body: hiddenBody,
+    },
+    {
       id: "love", icon: "💞", access: "basic",
+      tag: [archetype ? `${archetype.glyph} ${archetype.name}` : "", challenge && challenge !== "No real challenges" ? `You said: “${softQuote(challenge)}”` : ""].filter(Boolean).join(" · ") || undefined,
       title: challenge && challenge !== "No real challenges" ? `Why “${softQuote(challenge)}” keeps happening to you` : "What you really need in love",
-      teaser: `With a ${sun.name} Sun and ${moon.name} Moon, your heart and your head want different things. The pattern starts when…`,
+      teaser: LOVE_HOOK[challenge] ?? `With a ${sun.name} Sun and ${moon.name} Moon, your heart and your head want different things. Your reading shows where that pulls you in love.`,
       body: [LOVE_STYLE[sun.element], LOVE_NEED[moon.element], CHALLENGE_TXT[challenge] ?? "", LOVE_VALUE_TXT[a.q_love] ?? ""].filter(Boolean),
     },
     {
       id: "matches", icon: "⭐", access: "full", title: "Your top 3 matches (and the sign to avoid)",
-      teaser: `Your #1 match is ${top.name}. Match #2 balances your ${moon.element.toLowerCase()} Moon, and the sign to be careful with is one most ${sun.name}s are drawn to…`,
+      tag: "3 matches scored · 1 sign to avoid",
+      teaser: `Match #2 is the sign you'd probably overlook, and it fits your ${moon.name} Moon best. The sign to avoid is one ${sun.name}s fall for again and again.`,
       body: [
-        ...matches.map(({ sign, kind }, n) => `${n + 1}. ${sign.glyph} ${sign.name} — ${MATCH_TXT[kind]}`),
-        `Be careful with: ${avoid.glyph} ${avoid.name} — ${MATCH_TXT.square}`,
+        ...matches.map(({ sign, kind }, n) => `${n + 1}. ${sign.glyph} ${sign.name} (${[MATCH_SCORE.opposite, MATCH_SCORE.trine1, MATCH_SCORE.trine2][n]}%) — ${MATCH_TXT[kind]}`),
+        `Be careful with: ${avoid.glyph} ${avoid.name} (${MATCH_SCORE.avoid}%) — ${MATCH_TXT.square}`,
         `Tip: with a ${moon.name} Moon, the partner who lasts is the one who meets this need — ${LOVE_NEED[moon.element].replace(/^Your Moon needs /, "")}`,
       ],
     },
     {
       id: "energy", icon: "🔋", access: "full", title: `The real reason “${softQuote(a.q_drain || "Stress")}” drains you`,
-      teaser: `This isn't random — it's tied to your ${moon.name} Moon and shows up most when…`,
+      tag: a.q_drain ? `You said: “${softQuote(a.q_drain)}”` : undefined,
+      teaser: DRAIN_HOOK[a.q_drain] ?? `This is tied to your ${moon.name} Moon. Your reading shows why, and how to get your energy back.`,
       body: [DRAIN_TXT[a.q_drain] ?? "", OTHERS_TXT[a.q_others] ?? "", RESET_TXT[moon.element]].filter(Boolean),
     },
     {
       id: "mind", icon: "🧠", access: "full", title: overthinker ? "How to stop overthinking (made for your chart)" : "Your hidden emotional strength",
-      teaser: `Your ${moon.name} Moon processes feelings in a specific way. The fastest way for you to reset is…`,
+      tag: a.overthink ? `You said you overthink: ${a.overthink.toLowerCase()}` : undefined,
+      teaser: MIND_HOOK[moon.element],
       body: [OVERTHINK_TXT[a.overthink] ?? "", MIND_TIP[moon.element], DECIDE_TXT[a.q_decide] ?? ""].filter(Boolean),
     },
     {
       id: "career", icon: "🧭", access: "full", title: "Your hidden talent & best career direction",
-      teaser: `Life Path ${lifePath} (${lifePathTitle}) with a ${sun.element} Sun thrives when…`,
+      tag: `Life Path ${lifePath} · ${an(sun.element)} Sun`,
+      teaser: CAREER_HOOK(lifePath, lifePathTitle, sun.element),
       body: [CAREER_TXT[lifePath] ?? "", ELEMENT_WORK[sun.element], CAREER_NEXT[sun.element]].filter(Boolean),
     },
   ];
@@ -482,16 +554,20 @@ export function buildSections(chart: AstroChart, input: AstroInput): Section[] {
     linked.body = linked.body.filter((_, i) => i !== focus.line);
     sections.push({
       id: "focus", icon: "🔭", access: "free", title: `First look: ${focus.label}`, teaser: preview,
-      body: [preview, `That's only the first layer. The rest of this pattern is in “${linked.title}” below.`],
+      tag: focus.section === "love" && archetype ? `Your love style: ${archetype.glyph} ${archetype.name}` : undefined,
+      body: [preview, "That's only the first layer. The rest of this pattern, and what to do about it, is in your reading below."],
     });
   }
 
   sections.push({
-    id: "match1", icon: "💫", access: "free", title: `Your #1 match: ${top.glyph} ${top.name}`,
-    teaser: `${top.name} — ${MATCH_TXT.opposite}`,
-    body: [`${top.glyph} ${top.name} — ${MATCH_TXT.opposite}`, `Your other 2 matches, and the sign most ${sun.name}s should be careful with, are in your Complete Reading.`],
+    id: "match1", icon: "💫", access: "free", title: `Your #1 match: ${mask(top.name)}`,
+    score: MATCH_SCORE.opposite,
+    teaser: `${MATCH_SCORE.opposite}% compatible with your ${sun.name} Sun.`,
+    body: [`${MATCH_SCORE.opposite}% compatible with your ${sun.name} Sun. ${MATCH_TXT.opposite}`, `Their name, your other 2 matches and the sign most ${sun.name}s should be careful with are in your Complete Reading.`],
   });
 
+  // The matches list starts with the sign name, which stays hidden until purchase.
+  for (const section of paid) if (section.id !== "matches") section.peek = peekOf(section.body[0] ?? "", 9);
   return [...sections, ...paid];
 }
 
@@ -528,7 +604,7 @@ export function buildAstroSnapshot(input: AstroInput): AstroSnapshot {
 
 /* ---------- public projection ---------- */
 
-export type PublicSection = { id: string; icon: string; title: string; teaser: string; access: Access; locked: boolean; body?: string[] };
+export type PublicSection = { id: string; icon: string; title: string; teaser: string; access: Access; locked: boolean; body?: string[]; tag?: string; peek?: string; score?: number };
 export type PublicReading = { chart: AstroChart; goals: string[]; sections: PublicSection[]; access: Access };
 
 const RANK: Record<Access, number> = { free: 0, basic: 1, full: 2 };
@@ -545,6 +621,8 @@ export function projectReading(snapshot: AstroSnapshot, access: Access): PublicR
     sections: snapshot.sections.map((section) => {
       const locked = !canRead(access, section.access);
       return { id: section.id, icon: section.icon, title: section.title, teaser: section.teaser, access: section.access, locked,
+        ...(section.tag ? { tag: section.tag } : {}), ...(section.score ? { score: section.score } : {}),
+        ...(locked && section.peek ? { peek: section.peek } : {}),
         ...(locked ? {} : { body: section.body }) };
     }),
   };
