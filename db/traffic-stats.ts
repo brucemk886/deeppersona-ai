@@ -1,4 +1,5 @@
 import { getD1 } from './quiz-store';
+import { ASTRO_QUESTION_ORDER, ASTRO_TEST_ID, astroQuestionPrompt } from '@/lib/astro';
 import { ensurePaymentSchema } from './payment-store';
 import { ensureTrafficSchema } from './traffic-store';
 import {
@@ -12,6 +13,10 @@ export const productionSession = `s.id NOT IN (SELECT session_id FROM admin_test
  AND NOT EXISTS (SELECT 1 FROM quiz_reports xr JOIN payment_orders xo ON xo.report_id=xr.id
  WHERE xr.session_id=s.id AND (xo.livemode=0 OR substr(xo.id,1,8)='preview_'))`;
 
+const behavioralSession = `s.id NOT IN (SELECT session_id FROM admin_test_sessions)
+ AND NOT EXISTS (SELECT 1 FROM quiz_reports xr JOIN payment_orders xo ON xo.report_id=xr.id
+ WHERE xr.session_id=s.id AND substr(xo.id,1,8)='preview_')`;
+
 export async function getTrafficStats(rangeInput?: string | null) {
   await ensureTrafficSchema();
   await ensurePaymentSchema();
@@ -23,19 +28,22 @@ export async function getTrafficStats(rangeInput?: string | null) {
   const dayExpr = hourly
     ? `strftime('%Y-%m-%d %H:00', started_at, '+8 hours')`
     : `date(started_at, '+8 hours')`;
-  const base = `WITH cohort AS (SELECT s.*, a.visit_id,
+  const cohort = (sessionFilter: string) => `WITH cohort AS (SELECT s.*, a.visit_id,
     COALESCE(a.source, CASE WHEN s.source IN ('deeppersonaai.com','www.deeppersonaai.com') THEN 'unknown' ELSE s.source END, 'unknown') AS acquisition,
-    CASE WHEN EXISTS (SELECT 1 FROM quiz_events v WHERE v.session_id=s.id AND v.question_id LIKE 'attachment-style-fixed-v2-q%') OR EXISTS (SELECT 1 FROM quiz_reports vr WHERE vr.session_id=s.id AND json_extract(vr.snapshot_json,'$.deepResult.fixedReport.version')='attachment-fixed-v2') THEN 'attachment-fixed-v2' WHEN EXISTS (SELECT 1 FROM quiz_events v WHERE v.session_id=s.id AND v.question_id LIKE 'attachment-style-launch-v1-q%') OR EXISTS (SELECT 1 FROM quiz_reports vr WHERE vr.session_id=s.id AND json_extract(vr.snapshot_json,'$.deepResult.launchReport.overview.version')='attachment-launch-v1') THEN 'attachment-launch-v1' ELSE 'legacy-or-unknown' END AS edition,
+    CASE WHEN s.test_id='astro-reading' OR EXISTS (SELECT 1 FROM quiz_events v WHERE v.session_id=s.id AND v.test_id='astro-reading') THEN 'astro-v' || COALESCE((SELECT json_extract(vr.snapshot_json,'$.version') FROM quiz_reports vr WHERE vr.session_id=s.id LIMIT 1),'x')
+    WHEN EXISTS (SELECT 1 FROM quiz_events v WHERE v.session_id=s.id AND v.question_id LIKE 'attachment-style-fixed-v2-q%') OR EXISTS (SELECT 1 FROM quiz_reports vr WHERE vr.session_id=s.id AND json_extract(vr.snapshot_json,'$.deepResult.fixedReport.version')='attachment-fixed-v2') THEN 'attachment-fixed-v2' WHEN EXISTS (SELECT 1 FROM quiz_events v WHERE v.session_id=s.id AND v.question_id LIKE 'attachment-style-launch-v1-q%') OR EXISTS (SELECT 1 FROM quiz_reports vr WHERE vr.session_id=s.id AND json_extract(vr.snapshot_json,'$.deepResult.launchReport.overview.version')='attachment-launch-v1') THEN 'attachment-launch-v1' ELSE 'legacy-or-unknown' END AS edition,
     CASE WHEN EXISTS (SELECT 1 FROM quiz_events v WHERE v.session_id=s.id AND v.event_name='result_viewed') THEN 1 ELSE 0 END AS result_viewed,
-    CASE WHEN EXISTS (SELECT 1 FROM quiz_events v WHERE v.session_id=s.id AND v.event_name='checkout_opened') THEN 1 ELSE 0 END AS checkout_clicked,
-    CASE WHEN EXISTS (SELECT 1 FROM quiz_events v WHERE v.session_id=s.id AND v.event_name='full_report_viewed') AND EXISTS (SELECT 1 FROM quiz_reports r JOIN payment_orders o ON o.report_id=r.id WHERE r.session_id=s.id AND o.livemode=1 AND o.amount_cents>0 AND o.paid_at IS NOT NULL AND o.status IN ('paid','refunded')) THEN 1 ELSE 0 END AS paid_opened,
+    CASE WHEN EXISTS (SELECT 1 FROM quiz_events v WHERE v.session_id=s.id AND v.event_name IN ('checkout_opened','checkout_started')) THEN 1 ELSE 0 END AS checkout_clicked,
+    CASE WHEN EXISTS (SELECT 1 FROM quiz_events v WHERE v.session_id=s.id AND v.event_name='full_report_viewed') THEN 1 ELSE 0 END AS paid_opened,
     COALESCE(a.campaign,s.campaign,'') AS campaign_label, COALESCE(a.medium,'') AS medium, COALESCE(a.content,'') AS content,
     CASE WHEN s.completed_at IS NOT NULL OR EXISTS (SELECT 1 FROM quiz_events e WHERE e.session_id=s.id AND e.event_name='email_gate_viewed') THEN 1 ELSE 0 END AS finished,
     CASE WHEN s.completed_at IS NOT NULL AND s.email IS NOT NULL THEN 1 ELSE 0 END AS submitted,
     CASE WHEN EXISTS (SELECT 1 FROM quiz_reports r JOIN payment_orders o ON o.report_id=r.id WHERE r.session_id=s.id AND o.livemode=1 AND (o.stripe_session_id IS NOT NULL OR o.paid_at IS NOT NULL OR EXISTS (SELECT 1 FROM lemon_payments lp WHERE lp.order_id=o.id AND lp.prepared=0 AND lp.checkout_url IS NOT NULL))) THEN 1 ELSE 0 END AS checkout,
     CASE WHEN EXISTS (SELECT 1 FROM quiz_reports r JOIN payment_orders o ON o.report_id=r.id WHERE r.session_id=s.id AND o.livemode=1 AND o.amount_cents>0 AND o.paid_at IS NOT NULL AND o.status IN ('paid','refunded')) THEN 1 ELSE 0 END AS paid
     FROM quiz_sessions s LEFT JOIN quiz_attribution a ON a.session_id=s.id
-    WHERE ${productionSession} AND ${sessionPredicate})`;
+    WHERE ${sessionFilter} AND ${sessionPredicate})`;
+  const base = cohort(productionSession);
+  const editionBase = cohort(behavioralSession);
   const [operations, sources, daily, questions, anonymous, editions] = await Promise.all([
     db.prepare(`${base} SELECT COUNT(*) AS started, COALESCE(SUM(finished),0) AS finished, COALESCE(SUM(submitted),0) AS submitted, COUNT(DISTINCT CASE WHEN submitted=1 THEN lower(email) END) AS emails, COALESCE(SUM(checkout),0) AS checkout, COALESCE(SUM(paid),0) AS paid FROM cohort`).first(),
     db.prepare(`${base} SELECT acquisition AS source, campaign_label AS campaign, medium, content, COUNT(*) AS started, SUM(finished) AS finished, SUM(submitted) AS submitted, SUM(checkout) AS checkout, SUM(paid) AS paid FROM cohort GROUP BY acquisition,campaign_label,medium,content ORDER BY started DESC`).all(),
@@ -43,12 +51,17 @@ export async function getTrafficStats(rangeInput?: string | null) {
     db.prepare(`${base}, per_question AS (SELECT e.test_id,e.question_id,e.session_id,MAX(CASE WHEN e.event_name='answer_selected' THEN 1 ELSE 0 END) AS answered FROM quiz_events e JOIN cohort c ON c.id=e.session_id WHERE e.question_id IS NOT NULL AND e.event_name IN ('question_viewed','answer_selected') GROUP BY e.test_id,e.question_id,e.session_id)
       SELECT p.test_id,p.question_id,COALESCE(t.title,p.test_id) AS test_title,COALESCE(q.prompt,p.question_id) AS prompt,COUNT(*) AS reached,SUM(answered) AS answered FROM per_question p LEFT JOIN quiz_questions q ON q.id=p.question_id LEFT JOIN quiz_tests t ON t.id=p.test_id GROUP BY p.test_id,p.question_id ORDER BY p.test_id,q.position`).all(),
     db.prepare(`SELECT COUNT(*) AS pageviews FROM traffic_anonymous_pages WHERE ${pagePredicate}`).first<{ pageviews: number }>(),
-    db.prepare(`${base} SELECT edition, COUNT(*) AS started, SUM(finished) AS finished, SUM(submitted) AS submitted, SUM(result_viewed) AS result_viewed, SUM(checkout_clicked) AS checkout_clicked, SUM(paid) AS paid, SUM(paid_opened) AS paid_opened FROM cohort GROUP BY edition ORDER BY edition`).all(),
+    db.prepare(`${editionBase} SELECT edition, COUNT(*) AS started, SUM(finished) AS finished, SUM(submitted) AS submitted, SUM(result_viewed) AS result_viewed, SUM(checkout_clicked) AS checkout_clicked, SUM(paid) AS paid, SUM(paid_opened) AS paid_opened FROM cohort GROUP BY edition ORDER BY edition`).all(),
   ]);
   const days = completeAdminStatsSeries(range, daily.results.map((row) => ({
     day: row.day,
     sessions: Number(row.started ?? 0),
     leads: Number(row.finished ?? 0),
   }))).map((row) => ({ day: row.day, started: row.sessions, finished: row.leads }));
-  return { updatedAt: new Date().toISOString(), range, anonymous, operations, sources: sources.results, editions: editions.results, days, questions: questions.results };
+  // Astro questions live in code, not in quiz_questions: give them readable prompts and quiz order.
+  const astroOrder = (id: string) => { const i = ASTRO_QUESTION_ORDER.indexOf(id); return i < 0 ? 99 : i; };
+  const questionRows = (questions.results as { test_id: string | null; question_id: string; test_title: string; prompt: string }[]).map((row) =>
+    row.test_id === ASTRO_TEST_ID ? { ...row, test_title: row.test_title === ASTRO_TEST_ID ? '星座测试（首页）' : row.test_title, prompt: row.prompt === row.question_id ? astroQuestionPrompt(row.question_id) ?? row.prompt : row.prompt } : row);
+  questionRows.sort((x, y) => (x.test_id === ASTRO_TEST_ID && y.test_id === ASTRO_TEST_ID ? astroOrder(x.question_id) - astroOrder(y.question_id) : 0));
+  return { updatedAt: new Date().toISOString(), range, anonymous, operations, sources: sources.results, editions: editions.results, days, questions: questionRows };
 }

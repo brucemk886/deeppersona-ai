@@ -571,7 +571,29 @@ export function buildSections(chart: AstroChart, input: AstroInput): Section[] {
   return [...sections, ...paid];
 }
 
-function adminQuestions(input: AstroInput) {
+const YES_PROMPTS: Record<string, string> = {
+  yes_compat: "Do you want to know which signs you're most compatible with?",
+  yes_career: "Do you want to discover your hidden talent?",
+};
+
+// Order of questions in the quiz, used by admin tables.
+export const ASTRO_QUESTION_ORDER = ["gender", "goals", "status", "challenge", "dob", "time", "place", "st0", "st1", "st2", "overthink", "q_drain", "q_love", "q_others", "q_decide", "yes_compat", "yes_career", "loading_q34", "loading_q72"];
+
+// Readable prompt for an astro question id (admin only). Statements depend on the Sun element.
+export function astroQuestionPrompt(id: string, sunElement?: Element): string | null {
+  if (id in QUESTIONS) return QUESTIONS[id as keyof typeof QUESTIONS].q;
+  if (id === "challenge") return "Biggest love challenge (question depends on relationship status)";
+  const st = /^st([0-2])$/.exec(id);
+  if (st) return sunElement ? `Do you relate: “${ELEMENT[sunElement].statements[Number(st[1])]}”` : `Statement ${Number(st[1]) + 1} (text depends on Sun element)`;
+  if (id in YES_PROMPTS) return YES_PROMPTS[id];
+  if (id in LOADING_QUESTIONS) return LOADING_QUESTIONS[id as keyof typeof LOADING_QUESTIONS];
+  if (id === "dob") return "Date of birth";
+  if (id === "time") return "Birth time";
+  if (id === "place") return "Birth place";
+  return null;
+}
+
+function adminQuestions(input: AstroInput, chart: AstroChart, version?: number) {
   const questions: AstroSnapshot["questions"] = [];
   const answerChoices: Record<string, number> = {};
   const push = (id: string, prompt: string, options: string[], value: string | undefined) => {
@@ -579,26 +601,37 @@ function adminQuestions(input: AstroInput) {
     questions.push({ id, prompt, options: options.map((label) => ({ label })) });
     if (index >= 0) answerChoices[id] = index;
   };
+  const fixed = (id: string, prompt: string, value: string) => push(id, prompt, [value], value);
   const a = input.answers;
-  push("dob", "Date of birth", [`${input.dob.y}-${String(input.dob.m).padStart(2, "0")}-${String(input.dob.d).padStart(2, "0")}`], undefined);
-  answerChoices.dob = 0;
-  push("time", "Birth time", [input.time ?? "Unknown"], input.time ?? "Unknown");
-  push("place", "Birth place", [input.place || "Skipped"], input.place || "Skipped");
-  push("goals", QUESTIONS.goals.q, [input.goals.join(", ")], input.goals.join(", "));
+  const { sun, moon } = chart;
+  fixed("chart", "星盘结果", `${sun.glyph} ${sun.name} Sun · ${moon.glyph} ${moon.name} Moon${moon.certain ? "" : "（当天换座，按中午计算）"} · Life Path ${chart.lifePath}`);
+  const style = LOVE_ARCHETYPE[a.q_love];
+  if (style) fixed("love_style", "爱情风格", `${style.glyph} ${style.name}`);
+  if (version !== undefined) fixed("report_version", "报告版本", `v${version}`);
+  fixed("dob", "Date of birth", `${input.dob.y}-${String(input.dob.m).padStart(2, "0")}-${String(input.dob.d).padStart(2, "0")}`);
+  fixed("time", "Birth time", input.time ?? "Unknown");
+  fixed("place", "Birth place", input.place || "Skipped");
+  fixed("goals", QUESTIONS.goals.q, input.goals.join(", "));
   for (const id of ["gender", "status", "overthink", "q_drain", "q_love", "q_others", "q_decide"] as const) push(id, QUESTIONS[id].q, labels(QUESTIONS[id]), a[id]);
   const ch = challengeQuestion(a.status);
   push("challenge", ch.q, labels(ch), a.challenge);
   for (const id of ["st0", "st1", "st2", "yes_compat", "yes_career", ...Object.keys(LOADING_QUESTIONS)]) {
-    if (a[id]) push(id, id, id.startsWith("st") ? labels({ q: "", opts: STATEMENT_OPTS }) : ["yes", "no"], a[id]);
+    if (a[id]) push(id, astroQuestionPrompt(id, sun.element) ?? id, id.startsWith("st") ? labels({ q: "", opts: STATEMENT_OPTS }) : ["yes", "no"], a[id]);
   }
   return { questions, answerChoices };
+}
+
+// Rebuild the admin answer list from a stored snapshot, so older readings also show readable prompts.
+export function astroAdminAnswers(snapshot: { input?: AstroInput; chart?: AstroChart; version?: number }) {
+  if (!snapshot.input || !snapshot.chart) return null;
+  return adminQuestions(snapshot.input, snapshot.chart, snapshot.version);
 }
 
 export function buildAstroSnapshot(input: AstroInput): AstroSnapshot {
   const chart = buildChart(input);
   return {
     kind: "astro", version: ASTRO_VERSION, test: { id: ASTRO_TEST_ID, title: ASTRO_TITLE },
-    chart, input, sections: buildSections(chart, input), ...adminQuestions(input),
+    chart, input, sections: buildSections(chart, input), ...adminQuestions(input, chart, ASTRO_VERSION),
   };
 }
 

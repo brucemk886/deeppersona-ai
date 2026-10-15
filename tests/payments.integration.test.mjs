@@ -408,6 +408,28 @@ test("report payments: authorization, pricing, delivery and refunds", async (t) 
       assert.equal(current.operations.finished,before.operations.finished);
     });
 
+    await t.test("astro edition keeps sandbox page behavior while counting only live orders as sales", async () => {
+      const issuedAt=String(Math.floor(Date.now()/1000));
+      const cookie='deeppersona_admin='+issuedAt+'.'+createHmac('sha256','local-admin-fixture').update('admin.'+issuedAt).digest('hex');
+      const sessionId=crypto.randomUUID(), profileId=crypto.randomUUID(), reportId=crypto.randomUUID(), orderId=crypto.randomUUID();
+      const event={sessionId,testId:'astro-reading',source:'direct'};
+      for (const eventName of ['session_started','quiz_started','email_gate_viewed','result_viewed','checkout_started']) {
+        assert.equal((await call('/api/events',{body:{...event,eventName}})).status,200);
+      }
+      await db.prepare("INSERT INTO quiz_profiles (id,email) VALUES (?,?)").bind(profileId,'astro-sandbox@example.org').run();
+      await db.prepare("UPDATE quiz_sessions SET email=?, completed_at=CURRENT_TIMESTAMP WHERE id=?").bind('astro-sandbox@example.org',sessionId).run();
+      await db.prepare("INSERT INTO quiz_reports (id,session_id,profile_id,test_id,email,snapshot_json,free) VALUES (?,?,?,?,?,?,1)")
+        .bind(reportId,sessionId,profileId,'astro-reading','astro-sandbox@example.org',JSON.stringify({version:2})).run();
+      await db.prepare("INSERT INTO payment_orders (id,report_id,amount_cents,livemode,status,paid_at) VALUES (?,?,999,0,'paid',CURRENT_TIMESTAMP)").bind(orderId,reportId).run();
+      await db.prepare("INSERT INTO quiz_events (session_id,event_name,step,test_id,created_at) VALUES (?,'full_report_viewed',0,'astro-reading',CURRENT_TIMESTAMP)").bind(sessionId).run();
+      const traffic=(await call('/api/admin/stats?range=all',{cookie})).data.traffic;
+      const astro=traffic.editions.find((row)=>row.edition==='astro-v2');
+      assert.ok(astro);
+      assert.equal(astro.checkout_clicked,1);
+      assert.equal(astro.paid,0);
+      assert.equal(astro.paid_opened,1);
+    });
+
     await t.test("checkout limits repeated requests per report owner without blocking another owner", async () => {
       const report=await save(0);
       let last;

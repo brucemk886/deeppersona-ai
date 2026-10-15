@@ -42,6 +42,7 @@ test("builds the complete DeepPersona AI experience", async () => {
   const homeLanding = await readFile(new URL("../app/_components/home-landing.tsx", import.meta.url), "utf8");
   const siteChrome = await readFile(new URL("../app/_components/site-chrome.tsx", import.meta.url), "utf8");
   const attachment = await readFile(new URL("../lib/attachment.ts", import.meta.url), "utf8");
+  const adminPaymentsRoute = await readFile(new URL("../app/api/admin/payments/route.ts", import.meta.url), "utf8");
   const freeResults = await readFile(new URL("../app/_components/free-attachment-results.tsx", import.meta.url), "utf8");
   const resultsUi = quiz + freeResults;
   assert.match(quiz, /<BrandLogo/);
@@ -127,6 +128,11 @@ test("builds the complete DeepPersona AI experience", async () => {
   assert.match(admin + adminStatsRange, /近7天/);
   assert.match(admin + adminStatsRange, /近30天/);
   assert.match(admin, /\/api\/admin\/stats\?range=/);
+  assert.match(admin, /funnelOrder\.map/);
+  assert.match(admin, /stats\?\.funnel/);
+  assert.doesNotMatch(admin, /\['checkout','收银台已创建'\]/);
+  assert.match(adminPaymentsRoute, /SELECT \* FROM \(SELECT o\.id/);
+  assert.match(adminPaymentsRoute, /\) AS combined_orders ORDER BY created_at DESC/);
   assert.match(adminStyles, /\/\* Admin readability scale \*\//);
   assert.match(adminStyles, /\.test-card-image \.atlas-image img/);
   assert.match(adminStyles, /aspect-ratio: 4 \/ 5/);

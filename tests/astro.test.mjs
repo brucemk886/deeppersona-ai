@@ -130,3 +130,17 @@ test("locked cards use their own hooks and never leak the full body", () => {
   assert.ok(!JSON.stringify(free).includes(" a Air ") && !JSON.stringify(free).includes(" a Earth "));
   assert.ok(projectReading(snapshot, "full").sections.every((s) => s.peek === undefined));
 });
+
+test("admin answer list is readable for astro readings, including older snapshots", async () => {
+  const { astroAdminAnswers } = await import("../lib/astro.ts");
+  const records = (snap) => { const { questions, answerChoices } = astroAdminAnswers(snap); return questions.map((q) => ({ id: q.id, prompt: q.prompt, label: q.options[answerChoices[q.id]]?.label })); };
+  const snapshot = snapshotFor(raw);
+  const byId = Object.fromEntries(records(snapshot).map((r) => [r.id, r]));
+  assert.match(byId.chart.label, /Sun · .* Moon.* · Life Path \d+/);
+  assert.ok(byId.love_style.label.length > 0);
+  assert.equal(byId.report_version.label, "v2");
+  assert.match(byId.st0.prompt, /^Do you relate: “/);
+  assert.ok(!records(snapshot).some((r) => /^st\d$|^yes_/.test(r.prompt)));
+  assert.equal(records({ ...snapshot, version: 1 }).find((r) => r.id === "report_version").label, "v1");
+  assert.deepEqual(snapshot.questions.map((q) => q.id), records(snapshot).map((r) => r.id));
+});

@@ -1,5 +1,6 @@
 import { relationshipQuestions } from '@/lib/relationship-content';
 import { answerRecords } from '@/lib/admin-answer-records';
+import { ASTRO_TEST_ID, astroQuestionPrompt } from '@/lib/astro';
 import { ensureTrafficSchema } from './traffic-store';
 import { productionSession } from './traffic-stats';
 import {
@@ -783,7 +784,8 @@ export async function getAdminStats(rangeInput?: string | null) {
   const seriesSql = hourly
     ? `SELECT strftime('%Y-%m-%d %H:00', s.started_at,'+8 hours') AS day, COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL AND s.id NOT IN (SELECT session_id FROM admin_deleted_leads) THEN 1 ELSE 0 END) AS leads FROM quiz_sessions s WHERE ${productionSession} AND ${sessionPredicate} GROUP BY day ORDER BY day`
     : `SELECT date(s.started_at,'+8 hours') AS day, COUNT(*) AS sessions, SUM(CASE WHEN email IS NOT NULL AND s.id NOT IN (SELECT session_id FROM admin_deleted_leads) THEN 1 ELSE 0 END) AS leads FROM quiz_sessions s WHERE ${productionSession} AND ${sessionPredicate} GROUP BY date(s.started_at,'+8 hours') ORDER BY day`;
-  const [funnel, sources, emails, answerEvents, totals, period, online, today, seriesRows, popularQuestions, popularTests] = await Promise.all([
+  const paidPredicate = adminStatsTimePredicate("o.paid_at", range);
+  const [funnel, sources, emails, answerEvents, totals, period, online, today, seriesRows, popularQuestions, popularTests, checkoutAny, paidUsers] = await Promise.all([
     db.prepare(`SELECT e.event_name, COUNT(DISTINCT e.session_id) AS users FROM quiz_events e JOIN quiz_sessions s ON s.id=e.session_id WHERE ${productionSession} AND ${eventPredicate} GROUP BY e.event_name`).all<{ event_name: string; users: number }>(),
     db.prepare(`SELECT COALESCE(a.source, CASE WHEN s.source IN ('deeppersonaai.com','www.deeppersonaai.com') THEN 'unknown' ELSE s.source END, 'unknown') AS source, COUNT(DISTINCT s.id) AS users FROM quiz_sessions s LEFT JOIN quiz_attribution a ON a.session_id=s.id WHERE ${productionSession} AND ${sessionPredicate} GROUP BY 1 ORDER BY users DESC LIMIT 8`).all<{ source: string; users: number }>(),
     db.prepare(`SELECT EXISTS(SELECT 1 FROM admin_test_sessions WHERE session_id=s.id) AS is_test, (SELECT deleted_at FROM admin_deleted_leads WHERE session_id = s.id) AS deleted_at, s.id AS session_id, s.email, s.marketing_consent, r.snapshot_json, s.source, s.campaign, s.completed_at, s.test_id, COALESCE(t.title, s.test_id) AS test_title
@@ -802,6 +804,9 @@ export async function getAdminStats(rangeInput?: string | null) {
     db.prepare(seriesSql).all<{ day: string; leads: number; sessions: number }>(),
     db.prepare(`SELECT e.question_id, COALESCE(q.prompt, e.question_id) AS prompt, COUNT(*) AS answers, COUNT(DISTINCT e.session_id) AS users FROM quiz_events e JOIN quiz_sessions s ON s.id=e.session_id LEFT JOIN quiz_questions q ON q.id = e.question_id WHERE ${productionSession} AND ${eventPredicate} AND e.event_name = 'answer_selected' AND e.question_id IS NOT NULL GROUP BY e.question_id, q.prompt ORDER BY answers DESC LIMIT 10`).all<{ answers: number; prompt: string; question_id: string; users: number }>(),
     db.prepare(`SELECT e.test_id, COALESCE(t.title, e.test_id) AS title, COUNT(DISTINCT e.session_id) AS users FROM quiz_events e JOIN quiz_sessions s ON s.id=e.session_id LEFT JOIN quiz_tests t ON t.id = e.test_id WHERE ${productionSession} AND ${eventPredicate} AND e.event_name = 'quiz_started' AND e.test_id IS NOT NULL GROUP BY e.test_id, t.title ORDER BY users DESC LIMIT 8`).all<{ test_id: string; title: string; users: number }>(),
+    // Report page → checkout: astro sends checkout_started, the older flow sends checkout_opened.
+    db.prepare(`SELECT COUNT(DISTINCT e.session_id) AS users FROM quiz_events e JOIN quiz_sessions s ON s.id=e.session_id WHERE ${productionSession} AND ${eventPredicate} AND e.event_name IN ('checkout_started','checkout_opened')`).first<{ users: number }>(),
+    db.prepare(`SELECT COUNT(DISTINCT r.session_id) AS users FROM payment_orders o JOIN quiz_reports r ON r.id=o.report_id JOIN quiz_sessions s ON s.id=r.session_id WHERE ${productionSession} AND o.livemode=1 AND o.amount_cents>0 AND o.paid_at IS NOT NULL AND o.status IN ('paid','refunded') AND ${paidPredicate}`).first<{ users: number }>(),
   ]);
 
   const series = completeAdminStatsSeries(range, seriesRows.results);
@@ -814,7 +819,7 @@ export async function getAdminStats(rangeInput?: string | null) {
   return {
     range,
     seriesGranularity: hourly ? "hour" : "day",
-    funnel: funnel.results,
+    funnel: [...funnel.results, { event_name: "checkout_any", users: Number(checkoutAny?.users ?? 0) }, { event_name: "paid", users: Number(paidUsers?.users ?? 0) }],
     sources: sources.results,
     emails: emails.results.map(({snapshot_json, ...lead}) => ({ ...lead, answers: answerRecords(snapshot_json, answerEvents.results.filter(event => event.session_id === lead.session_id)) })),
     answerEvents: answerEvents.results,
@@ -823,8 +828,8 @@ export async function getAdminStats(rangeInput?: string | null) {
     period: countRow(period),
     series,
     sevenDays: series,
-    popularQuestions: popularQuestions.results,
-    popularTests: popularTests.results,
+    popularQuestions: popularQuestions.results.map((row) => row.prompt === row.question_id ? { ...row, prompt: astroQuestionPrompt(row.question_id) ?? row.prompt } : row),
+    popularTests: popularTests.results.map((row) => row.test_id === ASTRO_TEST_ID && row.title === ASTRO_TEST_ID ? { ...row, title: "星座测试（首页）" } : row),
     totals: countRow(totals),
   };
 }
