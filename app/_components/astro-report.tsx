@@ -72,6 +72,10 @@ export function AstroReport({ reportId, initialReading, track, embedded = false 
   }, [data, reportId]);
 
   const access: Access = data?.access ?? reading?.access ?? "free";
+  // Plan contents come from the reading itself, so the list always matches the locked cards (v3 soulmate, v4 partner or soulmate).
+  const lockedTitles = (id: PlanId) => (reading?.sections ?? []).filter((section) => section.access === id).map((section) => section.title);
+  const partnerReading = Boolean(reading?.sections.some((section) => section.id === "clash"));
+  const feelTitle = reading?.sections.find((section) => section.id === "them")?.title ?? "";
   const [unlockVisible, setUnlockVisible] = useState(false);
   useEffect(() => {
     const target = document.getElementById("unlock");
@@ -178,11 +182,18 @@ export function AstroReport({ reportId, initialReading, track, embedded = false 
                   onClick={() => { setPlan(id); track?.("plan_selected", { optionLabel: id }); }}>
                   {id === "full" && <span className={s.badge}>RECOMMENDED</span>}
                   <span className={s.radio} />
-                  <span className={s.info}><b>{PLANS[id].name}</b><span>{PLANS[id].blurb}</span></span>
+                  <span className={s.info}><b>{PLANS[id].name}</b><span>{reading.profile && reading.chart && (reading.sections.some((x) => x.id === "clash" || x.id === "wrong"))
+                    ? (id === "basic" ? `${lockedTitles("basic").length} chapters, incl. “${lockedTitles("basic")[0]}”` : `All ${lockedTitles("basic").length + lockedTitles("full").length} chapters, incl. your top 3 matches`)
+                    : PLANS[id].blurb}</span></span>
                   <span className={s.price}><b>{money(PLANS[id].cents)}</b></span>
                 </button>
               ))}
-              {reading.profile ? (
+              {reading.profile && reading.sections.some((x) => x.id === "clash" || x.id === "wrong") ? (
+                <ul className={s.feat}>
+                  {reading.sections.filter((x) => x.locked && (x.access === "basic" || plan === "full")).map((x) => <li key={x.id}>{x.icon} {x.title}</li>)}
+                  <li>📄 Yours to keep on this page</li>
+                </ul>
+              ) : reading.profile ? (
                 <ul className={s.feat}>
                   <li>💞 Your soulmate profile: sign, look, how they&apos;ll love you</li>
                   <li>💘 {reading.profile.partner ? `How ${reading.profile.partner.name} really sees you` : "What your soulmate notices first about you"}</li>
@@ -213,7 +224,7 @@ export function AstroReport({ reportId, initialReading, track, embedded = false 
           {access === "free" && reading.profile && !unlockVisible && (
             <div className={s.jump}>
               <a href="#unlock" className={s.btn} style={{ display: "block", textAlign: "center", textDecoration: "none" }}
-                onClick={() => track?.("unlock_jump", { questionId: "sticky" })}>See my soulmate — from {money(PLANS.basic.cents)}</a>
+                onClick={() => track?.("unlock_jump", { questionId: "sticky" })}>{partnerReading && feelTitle ? `See ${feelTitle.charAt(0).toLowerCase()}${feelTitle.slice(1).replace(/ about you$/, "")}` : "See my soulmate"} — from {money(PLANS.basic.cents)}</a>
             </div>
           )}
           {access === "basic" && (
