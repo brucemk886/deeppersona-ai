@@ -1,9 +1,12 @@
+import { astroAdminAnswers } from './astro';
+
 export type AnswerRecord = { questionId: string; prompt: string; optionLabel: string; optionIndex: number | null; atlasPath: string | null; source: 'snapshot' | 'event' };
 
 // Keep the original choice, never reconstruct it from a scoring/personality key.
 export function answerRecords(snapshotJson: string | null, events: { question_id: string; option_label: string | null }[]): AnswerRecord[] {
   try {
-    const snapshot = JSON.parse(snapshotJson ?? 'null');
+    let snapshot = JSON.parse(snapshotJson ?? 'null');
+    if (snapshot?.kind === 'astro') snapshot = { ...snapshot, ...(astroAdminAnswers(snapshot) ?? {}) };
     if (Array.isArray(snapshot?.questions) && snapshot?.answerChoices) {
       return snapshot.questions.map((question: { id: string; prompt: string; atlasPath?: string; options: { label: string }[] }) => {
         const index = snapshot.answerChoices[question.id];

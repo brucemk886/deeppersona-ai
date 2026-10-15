@@ -1,6 +1,7 @@
 "use client";
 import FixedReportsPanel from "./fixed-reports-panel";
 import { FIXED_KEYS, FIXED_KIND_LABELS } from "@/lib/attachment-fixed";
+import { ASTRO_TEST_ID, PLANS, planForAmount } from "@/lib/astro";
 import { BrandMark } from "@/app/_components/brand";
 
 import type { AnswerRecord } from "@/lib/admin-answer-records";
@@ -72,6 +73,8 @@ const funnelOrder = [
   ["email_gate_viewed", "完成答题（到达邮箱页）"],
   ["email_submitted", "提交邮箱"],
   ["result_viewed", "查看结果"],
+  ["checkout_any", "点击付款"],
+  ["paid", "付款成功（正式订单）"],
 ] as const;
 
 type EmailLead = Stats["emails"][number];
@@ -583,6 +586,7 @@ export function AdminDashboard({
             />
           ) : null}
 
+          {activeSection === "questions" || activeSection === "tests" ? <div className="fixed-admin-note" style={{ marginBottom: 16 }}><strong>首页星座测试由代码管理</strong><p>星座测试（{ASTRO_TEST_ID}）的题目、价格（{(PLANS.basic.cents / 100).toFixed(2)} / {(PLANS.full.cents / 100).toFixed(2)} 美金）和报告文案写在代码 lib/astro.ts 里，这里的修改不会影响它。此处只管理旧版心理学测试。</p></div> : null}
           {activeSection === "questions" ? (
             <QuestionManager
               addQuestion={addQuestion}
@@ -1137,7 +1141,7 @@ function AnswerThumbnail({ answer }: { answer: AnswerRecord }) {
 }
 
 function PaymentPanel() {
-  const [data, setData] = useState<{ provider: string; sandbox: boolean; ready: boolean; orders: { provider: string; id: string; email: string; test_title: string; amount_cents: number; currency: string; status: string; livemode: number; created_at: string; email_status?: string; email_error?: string; email_link_access_at?: number }[] } | null>(null);
+  const [data, setData] = useState<{ provider: string; sandbox: boolean; ready: boolean; orders: { provider: string; id: string; email: string; test_title: string; test_id?: string | null; report_id?: string; amount_cents: number; currency: string; status: string; livemode: number; created_at: string; email_status?: string; email_error?: string; email_link_access_at?: number }[] } | null>(null);
   const [error, setError] = useState("");
   const load = useCallback(async () => {
     try { const result = await fetchAdminJson<NonNullable<typeof data>>("/api/admin/payments"); setData(result); setError(""); }
@@ -1149,7 +1153,7 @@ function PaymentPanel() {
     <div className="admin-page-heading"><div><span className="admin-kicker">订单管理</span><h1>订单</h1><p>每份报告一次性付费，金额来自测试管理中的单价；设为 0 的测试免费。</p></div><button className="admin-primary-button" onClick={() => void load()}>刷新订单</button></div>
     {error ? <p role="alert">{error}</p> : null}
 
-    <section className="admin-card"><h2>最近 100 笔订单</h2><div className="table-scroll"><table className="lead-table-cn"><thead><tr><th>邮箱</th><th>测试</th><th>金额</th><th>收款平台</th><th>环境</th><th>状态</th><th>报告邮件</th><th>创建时间</th></tr></thead><tbody>{data?.orders.map((order) => <tr key={order.id}><td>{order.email}</td><td>{order.test_title}</td><td>${(order.amount_cents / 100).toFixed(2)} {order.currency.toUpperCase()}</td><td>{order.provider === "lemonsqueezy" ? "Lemon Squeezy" : "Stripe"}</td><td>{order.livemode ? "正式" : "沙盒"}</td><td>{order.id.startsWith("preview_") ? "内部预览（未收款）" : labels[order.status] ?? order.status}</td><td>{({pending:"待发送",retry:"重试中",accepted:"发送服务已接受",failed:"发送失败",sandbox_skipped:"沙盒不外发"} as Record<string,string>)[order.email_status || ""] || "—"}{order.email_error ? <small>{order.email_error}</small> : null}{order.email_link_access_at ? <small>邮件链接有访问记录（可能包含邮件安全扫描）</small> : null}<small>补发请到「邮件记录」操作</small></td><td>{formatDate(order.created_at)}</td></tr>)}</tbody></table></div>{data && !data.orders.length ? <EmptyState title="暂无订单" text="用户打开收银台后会在这里生成订单。" /> : null}</section>
+    <section className="admin-card"><h2>最近 100 笔订单</h2><div className="table-scroll"><table className="lead-table-cn"><thead><tr><th>邮箱</th><th>测试</th><th>金额</th><th>收款平台</th><th>环境</th><th>状态</th><th>报告邮件</th><th>创建时间</th></tr></thead><tbody>{data?.orders.map((order) => <tr key={order.id}><td>{order.email}</td><td>{order.test_id === ASTRO_TEST_ID ? <>星座测试<small>{(() => { const plan = planForAmount(order.amount_cents); return plan ? PLANS[plan].name : "未知套餐"; })()} · 报告 {order.report_id?.slice(0, 8)}</small></> : order.test_title}</td><td>${(order.amount_cents / 100).toFixed(2)} {order.currency.toUpperCase()}</td><td>{order.provider === "lemonsqueezy" ? "Lemon Squeezy" : "Stripe"}</td><td>{order.livemode ? "正式" : "沙盒"}</td><td>{order.id.startsWith("preview_") ? "内部预览（未收款）" : labels[order.status] ?? order.status}</td><td>{({pending:"待发送",retry:"重试中",accepted:"发送服务已接受",failed:"发送失败",sandbox_skipped:"沙盒不外发"} as Record<string,string>)[order.email_status || ""] || "—"}{order.email_error ? <small>{order.email_error}</small> : null}{order.email_link_access_at ? <small>邮件链接有访问记录（可能包含邮件安全扫描）</small> : null}<small>补发请到「邮件记录」操作</small></td><td>{formatDate(order.created_at)}</td></tr>)}</tbody></table></div>{data && !data.orders.length ? <EmptyState title="暂无订单" text="用户打开收银台后会在这里生成订单。" /> : null}</section>
     <section className="admin-card"><h2>{data?.provider === "lemonsqueezy" ? "Lemon Squeezy" : "Stripe Checkout"}</h2><p>{data ? `${data.sandbox ? "沙盒测试（不扣真钱）" : "正式收款"} · ${data.ready ? "密钥与 Webhook 已配置" : "尚未完成密钥或 Webhook 配置"}` : "正在读取配置…"}</p><p>密钥通过 Cloudflare Worker Secrets 配置。回调地址：<code>https://deeppersonaai.com/api/{data?.provider === "lemonsqueezy" ? "lemonsqueezy" : "stripe"}/webhook</code></p><p>修改测试单价影响新订单，已创建订单保留原价格。退款请在订单对应的收款平台后台操作，全额退款通知会撤销报告访问权限。</p></section>
   </>;
 }

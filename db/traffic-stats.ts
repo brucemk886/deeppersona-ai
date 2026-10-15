@@ -1,4 +1,5 @@
 import { getD1 } from './quiz-store';
+import { ASTRO_QUESTION_ORDER, ASTRO_TEST_ID, astroQuestionPrompt } from '@/lib/astro';
 import { ensurePaymentSchema } from './payment-store';
 import { ensureTrafficSchema } from './traffic-store';
 import {
@@ -25,9 +26,10 @@ export async function getTrafficStats(rangeInput?: string | null) {
     : `date(started_at, '+8 hours')`;
   const base = `WITH cohort AS (SELECT s.*, a.visit_id,
     COALESCE(a.source, CASE WHEN s.source IN ('deeppersonaai.com','www.deeppersonaai.com') THEN 'unknown' ELSE s.source END, 'unknown') AS acquisition,
-    CASE WHEN EXISTS (SELECT 1 FROM quiz_events v WHERE v.session_id=s.id AND v.question_id LIKE 'attachment-style-fixed-v2-q%') OR EXISTS (SELECT 1 FROM quiz_reports vr WHERE vr.session_id=s.id AND json_extract(vr.snapshot_json,'$.deepResult.fixedReport.version')='attachment-fixed-v2') THEN 'attachment-fixed-v2' WHEN EXISTS (SELECT 1 FROM quiz_events v WHERE v.session_id=s.id AND v.question_id LIKE 'attachment-style-launch-v1-q%') OR EXISTS (SELECT 1 FROM quiz_reports vr WHERE vr.session_id=s.id AND json_extract(vr.snapshot_json,'$.deepResult.launchReport.overview.version')='attachment-launch-v1') THEN 'attachment-launch-v1' ELSE 'legacy-or-unknown' END AS edition,
+    CASE WHEN s.test_id='astro-reading' OR EXISTS (SELECT 1 FROM quiz_events v WHERE v.session_id=s.id AND v.test_id='astro-reading') THEN 'astro-v' || COALESCE((SELECT json_extract(vr.snapshot_json,'$.version') FROM quiz_reports vr WHERE vr.session_id=s.id LIMIT 1),'x')
+    WHEN EXISTS (SELECT 1 FROM quiz_events v WHERE v.session_id=s.id AND v.question_id LIKE 'attachment-style-fixed-v2-q%') OR EXISTS (SELECT 1 FROM quiz_reports vr WHERE vr.session_id=s.id AND json_extract(vr.snapshot_json,'$.deepResult.fixedReport.version')='attachment-fixed-v2') THEN 'attachment-fixed-v2' WHEN EXISTS (SELECT 1 FROM quiz_events v WHERE v.session_id=s.id AND v.question_id LIKE 'attachment-style-launch-v1-q%') OR EXISTS (SELECT 1 FROM quiz_reports vr WHERE vr.session_id=s.id AND json_extract(vr.snapshot_json,'$.deepResult.launchReport.overview.version')='attachment-launch-v1') THEN 'attachment-launch-v1' ELSE 'legacy-or-unknown' END AS edition,
     CASE WHEN EXISTS (SELECT 1 FROM quiz_events v WHERE v.session_id=s.id AND v.event_name='result_viewed') THEN 1 ELSE 0 END AS result_viewed,
-    CASE WHEN EXISTS (SELECT 1 FROM quiz_events v WHERE v.session_id=s.id AND v.event_name='checkout_opened') THEN 1 ELSE 0 END AS checkout_clicked,
+    CASE WHEN EXISTS (SELECT 1 FROM quiz_events v WHERE v.session_id=s.id AND v.event_name IN ('checkout_opened','checkout_started')) THEN 1 ELSE 0 END AS checkout_clicked,
     CASE WHEN EXISTS (SELECT 1 FROM quiz_events v WHERE v.session_id=s.id AND v.event_name='full_report_viewed') AND EXISTS (SELECT 1 FROM quiz_reports r JOIN payment_orders o ON o.report_id=r.id WHERE r.session_id=s.id AND o.livemode=1 AND o.amount_cents>0 AND o.paid_at IS NOT NULL AND o.status IN ('paid','refunded')) THEN 1 ELSE 0 END AS paid_opened,
     COALESCE(a.campaign,s.campaign,'') AS campaign_label, COALESCE(a.medium,'') AS medium, COALESCE(a.content,'') AS content,
     CASE WHEN s.completed_at IS NOT NULL OR EXISTS (SELECT 1 FROM quiz_events e WHERE e.session_id=s.id AND e.event_name='email_gate_viewed') THEN 1 ELSE 0 END AS finished,
@@ -50,5 +52,10 @@ export async function getTrafficStats(rangeInput?: string | null) {
     sessions: Number(row.started ?? 0),
     leads: Number(row.finished ?? 0),
   }))).map((row) => ({ day: row.day, started: row.sessions, finished: row.leads }));
-  return { updatedAt: new Date().toISOString(), range, anonymous, operations, sources: sources.results, editions: editions.results, days, questions: questions.results };
+  // Astro questions live in code, not in quiz_questions: give them readable prompts and quiz order.
+  const astroOrder = (id: string) => { const i = ASTRO_QUESTION_ORDER.indexOf(id); return i < 0 ? 99 : i; };
+  const questionRows = (questions.results as { test_id: string | null; question_id: string; test_title: string; prompt: string }[]).map((row) =>
+    row.test_id === ASTRO_TEST_ID ? { ...row, test_title: row.test_title === ASTRO_TEST_ID ? '星座测试（首页）' : row.test_title, prompt: row.prompt === row.question_id ? astroQuestionPrompt(row.question_id) ?? row.prompt : row.prompt } : row);
+  questionRows.sort((x, y) => (x.test_id === ASTRO_TEST_ID && y.test_id === ASTRO_TEST_ID ? astroOrder(x.question_id) - astroOrder(y.question_id) : 0));
+  return { updatedAt: new Date().toISOString(), range, anonymous, operations, sources: sources.results, editions: editions.results, days, questions: questionRows };
 }

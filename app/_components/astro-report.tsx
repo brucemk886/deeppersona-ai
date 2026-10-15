@@ -59,6 +59,18 @@ export function AstroReport({ reportId, initialReading, track, embedded = false 
     if (reading && !viewed.current) { viewed.current = true; track?.("result_viewed", { questionId: ASTRO_TEST_ID }); }
   }, [reading, track]);
 
+  // Server-side view log (one per session and view type), also works when the reading is opened from email.
+  const loggedView = useRef<string | null>(null);
+  useEffect(() => {
+    if (!data) return;
+    const view = data.access === "free" ? "summary" : "full";
+    if (loggedView.current === view) return;
+    loggedView.current = view;
+    void fetch(`/api/reports/${encodeURIComponent(reportId)}/viewed`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ view }),
+    }).catch(() => undefined);
+  }, [data, reportId]);
+
   const access: Access = data?.access ?? reading?.access ?? "free";
 
   async function checkout() {

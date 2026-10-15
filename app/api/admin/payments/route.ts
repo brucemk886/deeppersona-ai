@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   try {
     await ensurePaymentSchema();
     const orders = await getD1().prepare(`SELECT o.id, o.amount_cents, o.currency, o.status, o.livemode, o.created_at,
-      o.paid_at, r.email, t.title AS test_title,
+      o.paid_at, r.email, t.title AS test_title, r.test_id, r.id AS report_id,
       CASE WHEN EXISTS (SELECT 1 FROM lemon_payments lp WHERE lp.order_id = o.id) THEN 'lemonsqueezy' ELSE 'stripe' END AS provider,
       (SELECT status FROM report_emails WHERE report_id = r.id ORDER BY created_at DESC LIMIT 1) AS email_status,
       (SELECT error FROM report_emails WHERE report_id = r.id ORDER BY created_at DESC LIMIT 1) AS email_error,
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
       WHERE NOT EXISTS (SELECT 1 FROM lemon_payments hidden WHERE hidden.order_id = o.id AND hidden.prepared = 1 AND o.status = 'pending')
       UNION ALL
       SELECT o.id, o.amount_cents, o.currency, o.status, o.livemode, o.created_at,
-      o.paid_at, r.email, t.title AS test_title,
+      o.paid_at, r.email, t.title AS test_title, r.test_id, r.id AS report_id,
       CASE WHEN EXISTS (SELECT 1 FROM lemon_payments lp WHERE lp.order_id = o.id) THEN 'lemonsqueezy' ELSE 'stripe' END AS provider,
       (SELECT status FROM report_emails WHERE report_id = r.id ORDER BY created_at DESC LIMIT 1) AS email_status,
       (SELECT error FROM report_emails WHERE report_id = r.id ORDER BY created_at DESC LIMIT 1) AS email_error,
