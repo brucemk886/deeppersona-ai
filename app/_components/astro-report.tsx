@@ -72,6 +72,14 @@ export function AstroReport({ reportId, initialReading, track, embedded = false 
   }, [data, reportId]);
 
   const access: Access = data?.access ?? reading?.access ?? "free";
+  const [unlockVisible, setUnlockVisible] = useState(false);
+  useEffect(() => {
+    const target = document.getElementById("unlock");
+    if (!target || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => setUnlockVisible(entry.isIntersecting));
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [reading, access]);
 
   async function checkout() {
     if (busy) return;
@@ -100,14 +108,26 @@ export function AstroReport({ reportId, initialReading, track, embedded = false 
       ) : (
         <>
           <p className={s.kicker}>{access === "free" ? "✨ Your chart is complete" : "✨ Your reading is unlocked"}</p>
-          <h2>{access === "free" ? `We found ${reading.sections.filter((section) => section.locked).length} hidden patterns in your chart` : "Your Cosmic Blueprint"}</h2>
-          <div className={s.summary}>
-            <div><b>{reading.chart.sun.glyph}</b><span>{reading.chart.sun.name} Sun</span></div>
-            <div><b>{reading.chart.moon.glyph}</b><span>{reading.chart.moon.name} Moon</span></div>
-            <div><b>{reading.chart.lifePath}</b><span>Life Path</span></div>
-          </div>
+          <h2>{access === "free"
+            ? (reading.profile ? `We found ${reading.sections.filter((section) => section.locked).length} hidden patterns in your love chart` : `We found ${reading.sections.filter((section) => section.locked).length} hidden patterns in your chart`)
+            : (reading.profile ? "Your Love Reading" : "Your Cosmic Blueprint")}</h2>
+          {reading.profile ? (
+            <div className={s.summary}>
+              <div><b>{reading.chart.sun.glyph}</b><span>{reading.chart.sun.name} Sun</span></div>
+              <div><b>{reading.profile.typeGlyph}</b><span>{reading.profile.type}</span></div>
+              {reading.profile.partner
+                ? <div><b>{reading.profile.partner.score}%</b><span>You &amp; {reading.profile.partner.name}</span></div>
+                : <div><b>🔒</b><span>Soulmate sign</span></div>}
+            </div>
+          ) : (
+            <div className={s.summary}>
+              <div><b>{reading.chart.sun.glyph}</b><span>{reading.chart.sun.name} Sun</span></div>
+              <div><b>{reading.chart.moon.glyph}</b><span>{reading.chart.moon.name} Moon</span></div>
+              <div><b>{reading.chart.lifePath}</b><span>Life Path</span></div>
+            </div>
+          )}
           {confirming && <div className={s.hint}>⏳ <span>Confirming your payment… this usually takes a few seconds.</span></div>}
-          {!reading.chart.moon.certain && (
+          {!reading.profile && !reading.chart.moon.certain && (
             <p className={`${s.sub} ${s.small}`} style={{ marginTop: 10 }}>
               The Moon changed sign on your birth day ({reading.chart.moon.early} early, {reading.chart.moon.late} later). We used midday.
             </p>
@@ -123,8 +143,12 @@ export function AstroReport({ reportId, initialReading, track, embedded = false 
             );
           })()}
           <div style={{ height: 8 }} />
-          {reading.sections.map((section) => (
-            <div key={section.id} className={`${s.report} ${section.locked ? s.locked : ""}`}>
+          {reading.sections.map((section, n) => (<div key={section.id}>
+            {access === "free" && reading.profile && n > 0 && reading.sections[n - 1].access === "free" && section.locked && (
+              <a href="#unlock" className={s.btn} style={{ display: "block", textAlign: "center", textDecoration: "none", margin: "6px 0 16px" }}
+                onClick={() => track?.("unlock_jump", { questionId: "inline" })}>Unlock my full love reading ↓</a>
+            )}
+            <div className={`${s.report} ${section.locked ? s.locked : ""}`}>
               <h4>{section.icon} {section.title}{section.access === "free" && <span className={s.free}>FREE</span>}</h4>
               {section.tag && <div className={s.tag}>{section.tag}</div>}
               {section.score !== undefined && (
@@ -133,6 +157,9 @@ export function AstroReport({ reportId, initialReading, track, embedded = false 
               {section.locked
                 ? <>
                     <p className={s.hook}>{section.teaser}</p>
+                    {section.preview && (
+                      <div className={s.previewChips}>{section.preview.map((label) => <span key={label}>{label}<i aria-hidden="true">••••••</i></span>)}</div>
+                    )}
                     <div className={s.peekWrap}>
                       {section.peek && <p className={s.peek}>{section.peek}</p>}
                       <p className={s.blurLine} aria-hidden="true">Your full reading continues here with the details written for your chart and your answers.</p>
@@ -141,11 +168,11 @@ export function AstroReport({ reportId, initialReading, track, embedded = false 
                   </>
                 : (section.body ?? [section.teaser]).map((line, i) => <p key={i}>{line}</p>)}
             </div>
-          ))}
+          </div>))}
 
           {access === "free" && (
             <div id="unlock" style={{ marginTop: 10 }}>
-              <h2>Unlock your full {reading.chart.sun.name} reading</h2>
+              <h2>{reading.profile ? `Unlock your full ${reading.chart.sun.name} love reading` : `Unlock your full ${reading.chart.sun.name} reading`}</h2>
               {(["basic", "full"] as const).map((id) => (
                 <button key={id} type="button" className={`${s.plan} ${plan === id ? s.planSel : ""}`}
                   onClick={() => { setPlan(id); track?.("plan_selected", { optionLabel: id }); }}>
@@ -155,13 +182,24 @@ export function AstroReport({ reportId, initialReading, track, embedded = false 
                   <span className={s.price}><b>{money(PLANS[id].cents)}</b></span>
                 </button>
               ))}
-              <ul className={s.feat}>
-                <li>✨ Written around your Sun, Moon &amp; Life Path</li>
-                <li>🌗 The side of you people don't see</li>
-                <li>💞 Your love pattern{plan === "full" ? " & top 3 matches with scores" : ""}</li>
-                {plan === "full" && <li>🧭 Hidden talent &amp; career direction</li>}
-                <li>📄 Yours to keep on this page</li>
-              </ul>
+              {reading.profile ? (
+                <ul className={s.feat}>
+                  <li>💞 Your soulmate profile: sign, look, how they&apos;ll love you</li>
+                  <li>💘 {reading.profile.partner ? `How ${reading.profile.partner.name} really sees you` : "What your soulmate notices first about you"}</li>
+                  <li>🌗 The moment they pull away, and what to do</li>
+                  {plan === "full" && <li>⭐ Your top 3 matches &amp; the sign to avoid</li>}
+                  {plan === "full" && <li>🗓️ The exact date of your next love window</li>}
+                  <li>📄 Yours to keep on this page</li>
+                </ul>
+              ) : (
+                <ul className={s.feat}>
+                  <li>✨ Written around your Sun, Moon &amp; Life Path</li>
+                  <li>🌗 The side of you people don&apos;t see</li>
+                  <li>💞 Your love pattern{plan === "full" ? " & top 3 matches with scores" : ""}</li>
+                  {plan === "full" && <li>🧭 Hidden talent &amp; career direction</li>}
+                  <li>📄 Yours to keep on this page</li>
+                </ul>
+              )}
               <button type="button" className={s.btn} disabled={busy || data?.checkoutReady === false} onClick={() => void checkout()}>
                 {busy ? "Opening secure checkout…" : `Get my reading — ${money(PLANS[plan].cents)}`}
               </button>
@@ -172,8 +210,14 @@ export function AstroReport({ reportId, initialReading, track, embedded = false 
               </p>
             </div>
           )}
+          {access === "free" && reading.profile && !unlockVisible && (
+            <div className={s.jump}>
+              <a href="#unlock" className={s.btn} style={{ display: "block", textAlign: "center", textDecoration: "none" }}
+                onClick={() => track?.("unlock_jump", { questionId: "sticky" })}>See my soulmate — from {money(PLANS.basic.cents)}</a>
+            </div>
+          )}
           {access === "basic" && (
-            <p className={s.legal}>Your Personality Report is unlocked. Questions? Email bruce@deeppersonaai.com.</p>
+            <p className={s.legal}>Your {PLANS.basic.name} is unlocked. Questions? Email bruce@deeppersonaai.com.</p>
           )}
           {access === "full" && (
             <p className={s.legal}>For entertainment and self-reflection. Bookmark this page to come back to your reading.</p>
