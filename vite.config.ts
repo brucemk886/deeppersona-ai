@@ -10,7 +10,8 @@ const localBindingConfig = {
   // Match the workerd version bundled with the local Vite runtime. Production
   // continues to use the newer date declared in wrangler.jsonc.
   compatibility_date: "2026-05-22",
-  compatibility_flags: ["nodejs_compat"],
+  // Do not repeat nodejs_compat here. The Cloudflare plugin concatenates this
+  // array with wrangler.jsonc, and workerd rejects a duplicated flag.
 };
 
 export default defineConfig(async ({ command }) => {
