@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ASTRO_TEST_ID, ELEMENT, LOADING_QUESTIONS, LOVE_TYPE, QUESTIONS, SUN_LOVE, ZODIAC,
-  compatLine, compatScore, fill, hasSomeone, matchesFor, pronounFor, sunSign, isValidDate,
+  compatLine, compatScore, fill, hasSomeone, matchesFor, pronounFor, questionApplies, sunSign, isValidDate,
   type Option, type PublicReading, type QuestionId, type Sign,
 } from "@/lib/astro";
 import { validateEmailAddress } from "@/lib/email-validation";
@@ -12,15 +12,15 @@ import { AstroReport, type AstroTrack } from "./astro-report";
 import s from "./astro.module.css";
 
 type ScreenId =
-  | "welcome" | QuestionId | "dob" | "reveal_sun" | "reveal_love" | "reveal_compat" | "reveal_patterns" | "email" | "loading" | "report";
+  | "welcome" | QuestionId | "dob" | "reveal_sun" | "reveal_love" | "reveal_compat" | "email" | "loading" | "report";
 
 const SCREENS: ScreenId[] = [
-  "welcome", "gender", "drawn_to", "status", "someone", "their_sign", "dob", "reveal_sun",
-  "falls_for", "fear", "past", "when_like", "reveal_love", "love_lang", "future", "want_now", "their_attitude", "anxious", "reveal_compat",
-  "looks", "loved_how", "dynamic", "effort", "destiny", "reveal_patterns", "email", "loading", "report",
+  "welcome", "gender", "drawn_to", "someone", "their_sign", "dob", "reveal_sun",
+  "falls_for", "fear", "past", "when_like", "reveal_love",
+  "their_attitude", "their_signals", "anxious", "loved_how", "love_lang",
+  "reveal_compat", "email", "loading", "report",
 ];
 const NO_PROGRESS: ScreenId[] = ["welcome", "loading", "report"];
-const CONDITIONAL: ScreenId[] = ["their_sign", "their_attitude"];
 const TRACKER_FROM = SCREENS.indexOf("dob");
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -86,7 +86,7 @@ export function AstroQuiz() {
   const soul = chart ? matchesFor(chart.sun).matches[0].sign : null;
   const type = LOVE_TYPE[answers.when_like];
 
-  const applies = useCallback((id: ScreenId) => !CONDITIONAL.includes(id) || hasSomeone(answers.someone), [answers.someone]);
+  const applies = useCallback((id: ScreenId) => questionApplies(id, answers.someone), [answers.someone]);
   const quizScreens = SCREENS.filter((id) => !NO_PROGRESS.includes(id) && applies(id));
 
   const track = useCallback<AstroTrack>((eventName, extra = {}) => {
@@ -116,20 +116,20 @@ export function AstroQuiz() {
   }, [screen, track]);
 
   const goTo = (target: number) => { setPast((list) => [...list, idx]); setIdx(target); };
-  // Skips follow-up questions about "someone" when there is nobody specific. `someoneNow` covers the answer being set in the same tick.
+  // Skips the questions that don't fit who is on their mind. `someoneNow` covers the answer being set in the same tick.
   const next = (someoneNow = answers.someone) => {
     let target = idx + 1;
-    while (CONDITIONAL.includes(SCREENS[target]) && !hasSomeone(someoneNow)) target++;
+    while (target < SCREENS.length - 1 && !questionApplies(SCREENS[target], someoneNow)) target++;
     goTo(target);
   };
   const back = () => setPast((list) => { if (!list.length) return list; setIdx(list[list.length - 1]); return list.slice(0, -1); });
   const answer = (id: QuestionId, label: string) => {
     setAnswers((a) => {
       const updated = { ...a, [id]: label };
-      // Changing "someone" to nobody drops the follow-up answers so they aren't submitted.
-      if (id === "someone" && !hasSomeone(label)) { delete updated.their_sign; delete updated.their_attitude; }
       return updated;
     });
+    // Changing "someone" drops answers to questions that no longer apply, so they aren't submitted.
+    if (id === "someone") setMulti((m) => Object.fromEntries(Object.entries(m).filter(([key]) => questionApplies(key, label))));
     track("answer_selected", { questionId: id, optionLabel: label, step });
     setTimeout(() => next(id === "someone" ? label : answers.someone), 220);
   };
@@ -139,7 +139,7 @@ export function AstroQuiz() {
     const current = session.current;
     if (!current || !dob) throw new Error("Please restart the quiz.");
     const all: Record<string, string | string[]> = { ...answers, ...multi, ...extra };
-    if (!hasSomeone(answers.someone)) { delete all.their_sign; delete all.their_attitude; }
+    for (const key of Object.keys(all)) if (!questionApplies(key, answers.someone)) delete all[key];
     const response = await fetch("/api/astro/submit", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId: current.id, email, source: current.attribution.source, campaign: current.attribution.campaign, dob, answers: all }),
@@ -154,8 +154,8 @@ export function AstroQuiz() {
   const slots: [string, string, string, string | null][] = [
     ["sun", "☉", "Sun", chart && after("dob") ? `${chart.sun.glyph} ${chart.sun.name}` : null],
     ["type", "💗", "Love type", type && after("when_like") ? type.name.replace(/^The /, "") : null],
-    ["match", "💫", partner ? "You & them" : "Soulmate", chart && after("anxious") ? (partner ? `${compatScore(chart.sun, partner)}%` : "Found 🔒") : null],
-    ["window", "🗓️", "Love window", null],
+    ["match", "💫", someone ? "You & them" : "Soulmate", chart && idx >= SCREENS.indexOf("reveal_compat") ? (partner ? `${compatScore(chart.sun, partner)}%` : "Found 🔒") : null],
+    ["feel", "💭", someone ? f("What {they} feel") : "Your pattern", null],
   ];
 
   let view: React.ReactNode = null;
@@ -186,8 +186,8 @@ export function AstroQuiz() {
     case "welcome":
       view = (<>
         <div className={s.hero}><div className={s.orb} />
-          <h1>Who is your soulmate? Your stars already know.</h1>
-          <p className={s.sub}>Answer a few quick questions about love. We&apos;ll find your soulmate&apos;s sign, how they&apos;ll love you, and the date of your next love window.</p>
+          <h1>What do they really feel about you? Your stars already know.</h1>
+          <p className={s.sub}>Answer a few quick questions about love. See how your signs match, what the person on your mind really feels, or who your soulmate is.</p>
         </div>
         <div className={s.cta}>
           <button type="button" className={s.btn} onClick={() => { track("quiz_started"); next(); }}>Start the quiz</button>
@@ -248,29 +248,15 @@ export function AstroQuiz() {
           <div className={s.sign}>{chart.sun.glyph} + {partner.glyph}</div><h1>You &amp; {partner.name}</h1>
           <div className={s.big}>{compatScore(chart.sun, partner)}%</div>
           <div className={s.report}><p>{compatLine(chart.sun, partner, p)}</p></div>
-          <p className={s.sub}>{f("What {they} really think{s} of you, and the moment {they} pull{s} away, are in your reading.")}</p>
+          <p className={s.sub}>{f("{They} may not show it. What {they} really feel{s} about you, and where you two clash, are in your reading.")}</p>
         </div>
         <div className={s.cta}><button type="button" className={s.btn} onClick={() => { flash("match"); next(); }}>Continue</button></div>
       </>) : (<>
         <div className={s.center}><p className={s.kicker}>✨ Soulmate sign found</p><div className={s.sign}>🔒</div><h1>Your soulmate is {an(soul.element)} sign</h1>
           <div className={s.big}>{compatScore(chart.sun, soul)}%</div>
-          <p className={s.sub}>{f("That's how well {they} match{es} your " + chart.sun.name + " Sun. A few more questions and we'll describe what {they} look{s} like.")}</p>
+          <p className={s.sub}>{f("That's how well {they} match{es} your " + chart.sun.name + " Sun. {Their} exact sign, what {they're} like and why you keep meeting the wrong people are in your reading.")}</p>
         </div>
         <div className={s.cta}><button type="button" className={s.btn} onClick={() => { flash("match"); next(); }}>Continue</button></div>
-      </>);
-      break;
-    case "reveal_patterns":
-      view = (<>
-        <div className={s.center} style={{ paddingTop: 12 }}><div className={s.big}>3</div>
-          <h2>We found 3 patterns in your love chart</h2>
-          <div className={s.chips}>
-            <span className={s.chip}>🔁 The type you keep choosing</span>
-            <span className={s.chip}>{f("🌗 The moment {they} pull{s} away")}</span>
-            <span className={s.chip}>🗓️ Your next love window</span>
-          </div>
-          <p className={s.sub}>Your reading is ready to be written around your answers.</p>
-        </div>
-        <div className={s.cta}><button type="button" className={s.btn} onClick={() => next()}>See my reading</button></div>
       </>);
       break;
     case "email":
@@ -291,8 +277,8 @@ export function AstroQuiz() {
     case "loading":
       if (chart) view = <Loading steps={[
         `Placing your ${chart.sun.name} Sun`, "Reading your love type",
-        partner ? `Matching you with ${partner.name}` : "Finding your soulmate's sign",
-        "Calculating your next love window", "Writing your reading",
+        partner ? `Matching you with ${partner.name}` : someone ? "Reading the signs they're giving" : "Finding your soulmate's sign",
+        someone ? f("Finding what {they} won't say out loud") : "Finding why the wrong people keep showing up", "Writing your reading",
       ]} onAnswer={(key, value) => {
         track("answer_selected", { questionId: key, optionLabel: value });
       }} onDone={async (extra) => {

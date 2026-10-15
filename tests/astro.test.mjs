@@ -1,16 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  buildAstroSnapshot, compatScore, fill, lifePathNumber, LOVE_TYPE, moonForDay, nextLoveWindow, parseAstroInput, planForAmount,
-  projectReading, PLANS, QUESTIONS, sunSign, venusLongitude, ZODIAC,
+  buildAstroSnapshot, compatScore, fill, lifePathNumber, LOVE_TYPE, moonForDay, parseAstroInput, planForAmount,
+  projectReading, PLANS, QUESTIONS, sunSign, ZODIAC,
 } from "../lib/astro.ts";
 
 const answers = {
-  gender: "Female", drawn_to: "Men", status: "Talking to someone", someone: "Yes, someone I like", their_sign: "Scorpio",
+  gender: "Female", drawn_to: "Men", someone: "Someone I'm talking to", their_sign: "Scorpio",
   falls_for: ["A great sense of humor", "A little mystery"], fear: ["Being left", "Mixed signals"], past: ["They weren't serious"],
-  when_like: "Read their messages again and again", love_lang: ["Time together"], future: ["A home together", "Travelling together"],
-  want_now: "Is this person right for me?", their_attitude: "Hot and cold", anxious: ["Slow replies"],
-  looks: "Tall and warm", loved_how: "Chosen, with no doubt", dynamic: "Sweet and affectionate", effort: "Give more than I get", destiny: "Yes",
+  when_like: "Read their messages again and again", their_attitude: "Hot and cold",
+  their_signals: ["Watches my stories", "Gets a little jealous"], anxious: ["Slow replies"],
   loading_q34: "yes",
 };
 const raw = { dob: { y: 1995, m: 7, d: 14 }, answers };
@@ -18,11 +17,11 @@ const now = new Date("2026-10-14T00:00:00Z");
 const snapshotFor = (input) => {
   const parsed = parseAstroInput(input, now);
   assert.ok(parsed.ok, parsed.error);
-  return buildAstroSnapshot(parsed.value, now);
+  return buildAstroSnapshot(parsed.value);
 };
 const section = (snapshot, id) => snapshot.sections.find((s) => s.id === id);
-const { their_sign: _s, their_attitude: _a, ...nobodyBase } = answers;
-const nobody = { ...nobodyBase, someone: "No, not right now", want_now: "When will I meet the one?" };
+const { their_sign: _s, their_attitude: _a, their_signals: _g, anxious: _n, ...nobodyBase } = answers;
+const nobody = { ...nobodyBase, someone: "No one right now", loved_how: "Chosen, with no doubt", love_lang: ["Time together"] };
 
 test("sun sign boundaries", () => {
   assert.equal(sunSign(3, 21).name, "Aries");
@@ -49,15 +48,19 @@ test("moon sign is deterministic and flags sign changes", () => {
   assert.equal(moonForDay(2000, 1, 1, "12:00").name, "Scorpio");
 });
 
-test("quiz has 20 questions, two of them only when there is someone", () => {
-  assert.equal(Object.keys(QUESTIONS).length + 1, 20); // + date of birth
-  assert.ok(Object.values(QUESTIONS).filter((q) => q.multi).length >= 5);
+test("quiz is short: 12 questions with someone, 10 with no one", async () => {
+  const { questionApplies } = await import("../lib/astro.ts");
+  const count = (someone) => Object.keys(QUESTIONS).filter((id) => questionApplies(id, someone)).length + 1; // + date of birth
+  assert.equal(count("My partner"), 12);
+  assert.equal(count("No one right now"), 10);
+  // The far-fetched promises are gone from the quiz.
+  assert.ok(!JSON.stringify(QUESTIONS).match(/look like|meet the one|love window/i));
 });
 
 test("input parsing validates answers and conditional questions", () => {
   assert.equal(parseAstroInput(raw, now).ok, true);
   assert.equal(parseAstroInput({ ...raw, dob: { y: 1995, m: 2, d: 30 } }, now).ok, false);
-  assert.equal(parseAstroInput({ ...raw, answers: { ...answers, looks: "Rich" } }, now).ok, false);
+  assert.equal(parseAstroInput({ ...raw, answers: { ...answers, their_attitude: "Rich" } }, now).ok, false);
   assert.equal(parseAstroInput({ ...raw, answers: { ...answers, fear: [] } }, now).ok, false);
   assert.equal(parseAstroInput({ ...raw, answers: { ...answers, fear: ["Spiders"] } }, now).ok, false);
   assert.equal(parseAstroInput({ ...raw, answers: { ...answers, fear: "Being left" } }, now).ok, false);
@@ -67,20 +70,15 @@ test("input parsing validates answers and conditional questions", () => {
   const parsed = parseAstroInput({ ...raw, answers: { ...nobody, their_sign: "Leo" } }, now);
   assert.ok(parsed.ok);
   assert.equal(parsed.value.answers.their_sign, undefined);
+  // The single-only questions are required for no one, and dropped when there is someone.
+  const { love_lang: _l, ...noLang } = nobody;
+  assert.equal(parseAstroInput({ ...raw, answers: noLang }, now).ok, false);
+  const withExtra = parseAstroInput({ ...raw, answers: { ...answers, loved_how: "Safe and steady" } }, now);
+  assert.ok(withExtra.ok);
+  assert.equal(withExtra.value.answers.loved_how, undefined);
   // Multi answers keep option order and drop duplicates.
   const ordered = parseAstroInput({ ...raw, answers: { ...answers, fear: ["Mixed signals", "Being left", "Mixed signals"] } }, now);
   assert.deepEqual(ordered.value.answers.fear, ["Being left", "Mixed signals"]);
-});
-
-test("venus ingress matches published 2025 dates within a day", () => {
-  const signAt = (iso) => ZODIAC[Math.floor(venusLongitude(Date.parse(iso)) / 30)].name;
-  assert.equal(signAt("2025-10-15T12:00:00Z"), "Libra"); // ingress Oct 13
-  assert.equal(signAt("2025-10-12T12:00:00Z"), "Virgo");
-  assert.equal(signAt("2025-11-08T12:00:00Z"), "Scorpio"); // ingress Nov 6
-  assert.equal(signAt("2025-11-05T12:00:00Z"), "Libra");
-  const win = nextLoveWindow(sunSign(7, 14), now); // Cancer: own sign Cancer, partner sign Capricorn
-  assert.ok(win && /^\d{4}-\d{2}-\d{2}$/.test(win.start) && win.end >= win.start);
-  assert.ok(["Cancer", "Capricorn"].includes(win.sign));
 });
 
 test("free cards are about love and the other person; paid cards never leak", () => {
@@ -89,21 +87,21 @@ test("free cards are about love and the other person; paid cards never leak", ()
   assert.deepEqual(free.sections.filter((s) => !s.locked).map((s) => s.id), ["type", "contrast", "compat"]);
   assert.equal(free.sections.length, 8);
   assert.ok(free.sections.filter((s) => s.locked).every((s) => s.body === undefined));
-  // Order follows "what do you most want to know".
-  assert.deepEqual(free.sections.slice(3).map((s) => s.id), ["them", "soulmate", "moment", "window", "pattern"]);
+  // With someone on their mind, "what they really feel" is the first locked card.
+  assert.deepEqual(free.sections.slice(3).map((s) => s.id), ["them", "clash", "moment", "last", "pattern"]);
+  assert.match(section(snapshot, "them").title, /What he really feels about you/);
+  assert.ok(section(snapshot, "them").body.some((line) => /stories/.test(line)), "signals are read back");
   assert.match(section(snapshot, "compat").title, /You & Scorpio: \d+% compatible/);
   assert.equal(free.profile.partner.name, "Scorpio");
-  // Soulmate sign, match names and the love-window date stay hidden on the free page.
+  // Soulmate sign and match names stay hidden on the free page.
   const soul = ZODIAC[(ZODIAC.findIndex((z) => z.name === "Cancer") + 6) % 12].name;
   const freeText = JSON.stringify(free);
   assert.ok(!freeText.includes(soul), "soulmate sign leaked");
-  assert.ok(!/20\d\d-\d\d-\d\d|[A-Z][a-z]+ \d{1,2}, 20\d\d/.test(freeText), "date leaked");
-  assert.match(free.sections.find((s) => s.id === "window").title, /•••/);
+  assert.ok(!/love window|where you('ll| will|'re likely to) meet|look like/i.test(JSON.stringify(snapshot.sections)), "far-fetched promise left");
   const full = projectReading(snapshot, "full");
   assert.ok(full.sections.every((s) => !s.locked && s.body.length > 0 && s.preview === undefined && s.peek === undefined));
-  assert.ok(!full.sections.find((s) => s.id === "window").title.includes("•"));
   assert.deepEqual(projectReading(snapshot, "basic").sections.filter((s) => !s.locked).map((s) => s.id).sort(),
-    ["compat", "contrast", "moment", "soulmate", "them", "type"]);
+    ["clash", "compat", "contrast", "moment", "them", "type"]);
 });
 
 test("pronouns follow who the user is drawn to and no placeholder survives", () => {
@@ -127,7 +125,25 @@ test("nobody on their mind gets a soulmate card instead of a partner card", () =
   assert.match(section(snapshot, "compat").title, /soulmate's sign/);
   assert.match(section(snapshot, "them").title, /notice first/);
   assert.equal(snapshot.profile.partner, undefined);
-  assert.equal(snapshot.sections[3].id, "soulmate");
+  assert.deepEqual(snapshot.sections.slice(3).map((s) => s.id), ["soulmate", "wrong", "them", "pattern", "moment"]);
+  assert.deepEqual(snapshot.sections.filter((s) => s.access === "basic").map((s) => s.id), ["soulmate", "wrong", "them"]);
+});
+
+test("someone with an unknown sign still gets the partner reading", () => {
+  const snapshot = snapshotFor({ ...raw, answers: { ...answers, someone: "My ex", their_sign: "I don't know their sign" } });
+  assert.equal(snapshot.profile.partner, undefined);
+  assert.deepEqual(snapshot.sections.slice(3).map((s) => s.id), ["them", "clash", "moment", "last", "pattern"]);
+  assert.match(section(snapshot, "clash").title, /Where you two clash/);
+});
+
+test("old v3 answers stay readable in the admin", async () => {
+  const { astroAdminAnswers } = await import("../lib/astro.ts");
+  const snapshot = snapshotFor(raw);
+  const v3 = { ...snapshot, version: 3, input: { ...snapshot.input, answers: { ...snapshot.input.answers, someone: "Yes, someone I like", want_now: "Will we last?" } } };
+  const { questions, answerChoices } = astroAdminAnswers(v3);
+  const label = (id) => questions.find((q) => q.id === id)?.options[answerChoices[id]]?.label;
+  assert.equal(label("someone"), "Yes, someone I like");
+  assert.equal(label("want_now"), "Will we last?");
 });
 
 test("compatibility scores are stable and bounded", () => {
@@ -155,7 +171,8 @@ test("admin answer list is readable for v3 and older astro readings", async () =
   assert.match(byId.chart.label, /Sun · Life Path \d+/);
   assert.match(byId.love_type.label, /The Dreamer/);
   assert.match(byId.partner.label, /Scorpio · \d+%/);
-  assert.equal(byId.report_version.label, "v3");
+  assert.equal(byId.report_version.label, "v4");
+  assert.match(byId.their_attitude.prompt, /How are they acting/);
   assert.equal(byId.fear.label, "Being left, Mixed signals");
   assert.deepEqual(snapshot.questions.map((q) => q.id), records(snapshot).map((r) => r.id));
   // A stored v2 snapshot keeps its own list.

@@ -3,7 +3,7 @@
 
 export const ASTRO_TEST_ID = "astro-reading";
 export const ASTRO_TITLE = "Your Love Reading";
-export const ASTRO_VERSION = 3;
+export const ASTRO_VERSION = 4;
 
 export type Element = "Fire" | "Earth" | "Air" | "Water";
 export type Sign = { name: string; glyph: string; element: Element };
@@ -11,8 +11,8 @@ export type PlanId = "basic" | "full";
 export type Access = "free" | PlanId;
 
 export const PLANS: Record<PlanId, { cents: number; name: string; blurb: string }> = {
-  basic: { cents: 499, name: "Soulmate Report", blurb: "Your soulmate profile, how they see you & the moment they pull away" },
-  full: { cents: 999, name: "Complete Love Reading", blurb: "Everything + your top 3 matches, the sign to avoid & your next love window" },
+  basic: { cents: 499, name: "Love Report", blurb: "The 3 core chapters of your love reading" },
+  full: { cents: 999, name: "Complete Love Reading", blurb: "Everything in the Love Report + the deeper chapters" },
 };
 
 export function planForAmount(cents: number | null | undefined): PlanId | null {
@@ -91,66 +91,6 @@ export function isValidDate(year: number, month: number, day: number) {
 }
 
 /* ---------- quiz content shared by the client and the server ---------- */
-/* ---------- Venus ingress (low-precision orbital elements, accurate to about a day) ---------- */
-
-const RAD = Math.PI / 180;
-const norm360 = (x: number) => ((x % 360) + 360) % 360;
-function kepler(M: number, e: number) {
-  let E = M + e * Math.sin(M) * (1 + e * Math.cos(M));
-  for (let k = 0; k < 5; k++) E -= (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
-  return E;
-}
-
-/** Geocentric ecliptic longitude of Venus (degrees) at a UTC timestamp. */
-export function venusLongitude(ms: number) {
-  const d = ms / 864e5 + 2440587.5 - 2451543.5;
-  const ws = 282.9404 + 4.70935e-5 * d, es = 0.016709 - 1.151e-9 * d, Ms = norm360(356.047 + 0.9856002585 * d) * RAD;
-  const Es = kepler(Ms, es);
-  const vs = Math.atan2(Math.sqrt(1 - es * es) * Math.sin(Es), Math.cos(Es) - es);
-  const rs = Math.hypot(Math.cos(Es) - es, Math.sqrt(1 - es * es) * Math.sin(Es));
-  const xs = rs * Math.cos(vs + ws * RAD), ys = rs * Math.sin(vs + ws * RAD);
-  const N = (76.6799 + 2.4659e-5 * d) * RAD, i = (3.3946 + 2.75e-8 * d) * RAD, w = (54.891 + 1.38374e-5 * d) * RAD;
-  const a = 0.72333, e = 0.006773 - 1.302e-9 * d, M = norm360(48.0052 + 1.6021302244 * d) * RAD;
-  const E = kepler(M, e);
-  const x1 = a * (Math.cos(E) - e), y1 = a * Math.sqrt(1 - e * e) * Math.sin(E);
-  const v = Math.atan2(y1, x1), r = Math.hypot(x1, y1);
-  const xh = r * (Math.cos(N) * Math.cos(v + w) - Math.sin(N) * Math.sin(v + w) * Math.cos(i));
-  const yh = r * (Math.sin(N) * Math.cos(v + w) + Math.cos(N) * Math.sin(v + w) * Math.cos(i));
-  return norm360(Math.atan2(yh + ys, xh + xs) / RAD);
-}
-
-const venusSignAt = (ms: number) => Math.floor(venusLongitude(ms) / 30) % 12;
-const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
-
-export type LoveWindow = { start: string; end: string; sign: string; kind: "sun" | "partner"; open: boolean };
-
-/** Next period when Venus is in the user's Sun sign or the opposite (partnership) sign. Scans day by day at 12:00 UTC. */
-export function nextLoveWindow(sun: Sign, now = new Date()): LoveWindow | null {
-  const own = signIndex(sun.name), partner = (own + 6) % 12;
-  const day = 864e5;
-  const t0 = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12);
-  let startMs: number | null = null, sign = -1;
-  const current = venusSignAt(t0);
-  const open = current === own || current === partner;
-  if (open) { startMs = t0; sign = current; }
-  else {
-    for (let t = t0 + day; t < t0 + 420 * day; t += day) {
-      const s = venusSignAt(t);
-      if (s === own || s === partner) { startMs = t; sign = s; break; }
-    }
-  }
-  if (startMs === null) return null;
-  let endMs = startMs;
-  while (venusSignAt(endMs + day) === sign && endMs < startMs + 160 * day) endMs += day;
-  return { start: isoDay(startMs), end: isoDay(endMs), sign: ZODIAC[sign].name, kind: sign === own ? "sun" : "partner", open };
-}
-
-const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-export function prettyDate(iso: string) {
-  const [y, m, d] = iso.split("-").map(Number);
-  return `${MONTH_NAMES[m - 1]} ${d}, ${y}`;
-}
-
 /* ---------- quiz definitions (v3: love & the other person) ---------- */
 
 export type Option = readonly [emoji: string, label: string];
@@ -162,10 +102,8 @@ export const QUESTIONS = {
   gender: { q: "Select your gender", sub: "So your reading speaks to you.", grid: true,
     opts: [["♀", "Female"], ["♂", "Male"], ["⚧", "Non-binary"], ["✦", "Prefer not to say"]] },
   drawn_to: { q: "Who are you drawn to?", opts: [["👨", "Men"], ["👩", "Women"], ["💞", "Both"]] },
-  status: { q: "What's your relationship status?",
-    opts: [["🦋", "Single"], ["💬", "Talking to someone"], ["💑", "In a relationship"], ["💍", "Married"], ["🌀", "It's complicated"], ["🩹", "Recently broke up"]] },
-  someone: { q: "Is there someone on your mind right now?", sub: "Be honest. Nobody else will see this.",
-    opts: [["💘", "Yes, someone I'm with or seeing"], ["🙈", "Yes, someone I like"], ["🔙", "Yes, an ex"], ["🌙", "No, not right now"]] },
+  someone: { q: "Who's on your mind right now?", sub: "Be honest. Nobody else will see this.",
+    opts: [["💑", "My partner"], ["💬", "Someone I'm talking to"], ["🙈", "Someone I like"], ["🔙", "My ex"], ["🌙", "No one right now"]] },
   their_sign: { q: "What's their zodiac sign?", sub: "We'll check how your two signs fit together.", grid: true,
     opts: [["♈", "Aries"], ["♉", "Taurus"], ["♊", "Gemini"], ["♋", "Cancer"], ["♌", "Leo"], ["♍", "Virgo"], ["♎", "Libra"], ["♏", "Scorpio"], ["♐", "Sagittarius"], ["♑", "Capricorn"], ["♒", "Aquarius"], ["♓", "Pisces"], ["❔", SIGN_UNKNOWN]] },
   falls_for: { q: "What makes you fall for someone?", sub: "Choose all that apply.", multi: true,
@@ -176,26 +114,16 @@ export const QUESTIONS = {
     opts: [["🔇", "We stopped communicating"], ["🙄", "They weren't serious"], ["🎁", "I gave too much"], ["⏳", "Bad timing"], ["🔓", "Trust broke down"], ["🌱", "I haven't had a serious one yet"]] },
   when_like: { q: "When you like someone, you usually…", sub: "This unlocks your love type.",
     opts: [["🧊", "Act like I'm not that interested"], ["📱", "Read their messages again and again"], ["💗", "Put them first right away"], ["👀", "Watch to see if they're consistent"]] },
-  love_lang: { q: "What makes you feel loved?", sub: "Choose all that apply.", multi: true,
-    opts: [["💌", "Sweet words"], ["⏰", "Time together"], ["🤍", "Touch and closeness"], ["🎁", "Thoughtful gifts"], ["🛠️", "Help without asking"]] },
-  future: { q: "What future do you dream of with your person?", sub: "Choose all that apply.", multi: true,
-    opts: [["🏡", "A home together"], ["✈️", "Travelling together"], ["👶", "Starting a family"], ["📈", "Building something together"], ["🌿", "A calm, peaceful life"]] },
-  want_now: { q: "What do you most want to know right now?",
-    opts: [["❓", "Is this person right for me?"], ["🔮", "When will I meet the one?"], ["♾️", "Will we last?"], ["🕊️", "How do I finally move on?"]] },
-  their_attitude: { q: "How are they acting toward you right now?",
+  their_attitude: { q: "How {are} {they} acting toward you right now?",
     opts: [["☀️", "Warm and consistent"], ["🎢", "Hot and cold"], ["🌫️", "Hard to read"], ["🔕", "We barely talk now"]] },
-  anxious: { q: "What makes you anxious when you like someone?", sub: "Choose all that apply.", multi: true,
+  their_signals: { q: "What {have} {they} done lately?", sub: "Choose all that apply. Small things say a lot.", multi: true,
+    opts: [["📲", "Texts me first"], ["👀", "Watches my stories"], ["🧠", "Remembers small things I said"], ["🔕", "Goes quiet for days"], ["😒", "Gets a little jealous"], ["🔮", "Talks about the future"]] },
+  anxious: { q: "What makes you anxious about {them}?", sub: "Choose all that apply.", multi: true,
     opts: [["📵", "They don't reach out first"], ["⌛", "Slow replies"], ["🤷", "Not knowing how they feel"], ["🧩", "We seem too different"], ["👥", "Someone else might be in the picture"], ["🏃", "Things moving too fast"]] },
-  looks: { q: "What does your ideal partner look like?",
-    opts: [["☀️", "Tall and warm"], ["🌸", "Soft and gentle"], ["🖤", "Cool and a little distant"], ["✨", "Looks don't matter much"]] },
   loved_how: { q: "How do you want to be loved?",
     opts: [["👑", "Chosen, with no doubt"], ["🏠", "Safe and steady"], ["🔮", "Understood without explaining"], ["🕊️", "Free to be myself"]] },
-  dynamic: { q: "Your ideal relationship feels…",
-    opts: [["💖", "Sweet and affectionate"], ["🌿", "Calm and grounded"], ["🎈", "Playful and light"], ["🌍", "Fun and adventurous"]] },
-  effort: { q: "In relationships, you usually…",
-    opts: [["🎁", "Give more than I get"], ["⚖️", "Feel it's balanced"], ["🧱", "Hold back a little"]] },
-  destiny: { q: "Do you believe there's one person meant for you?",
-    opts: [["💫", "Yes"], ["🤔", "I half-believe it"], ["🔍", "Not really, but I want to know"]] },
+  love_lang: { q: "What makes you feel loved?", sub: "Choose all that apply.", multi: true,
+    opts: [["💌", "Sweet words"], ["⏰", "Time together"], ["🤍", "Touch and closeness"], ["🎁", "Thoughtful gifts"], ["🛠️", "Help without asking"]] },
 } satisfies Record<string, Question>;
 export type QuestionId = keyof typeof QUESTIONS;
 
@@ -204,9 +132,18 @@ export const LOADING_QUESTIONS = {
   loading_q72: "Have you felt lately that something in your love life is about to change?",
 } as const;
 
-/** The "someone" follow-ups (their sign, how they act) only appear when there is a specific person. */
+export const NO_ONE = "No one right now";
+/** The "someone" follow-ups (their sign, how they act) only appear when there is a specific person. "No, not right now" is the v3 label. */
 export function hasSomeone(someone: string | undefined) {
-  return Boolean(someone) && someone !== "No, not right now";
+  return Boolean(someone) && someone !== NO_ONE && someone !== "No, not right now";
+}
+/** Questions only asked when there is someone on their mind, and only when there is no one. */
+export const SOMEONE_ONLY = ["their_sign", "their_attitude", "their_signals", "anxious"] as const;
+export const NO_ONE_ONLY = ["loved_how", "love_lang"] as const;
+export function questionApplies(id: string, someone: string | undefined) {
+  if ((SOMEONE_ONLY as readonly string[]).includes(id)) return hasSomeone(someone);
+  if ((NO_ONE_ONLY as readonly string[]).includes(id)) return !hasSomeone(someone);
+  return true;
 }
 
 export const ELEMENT: Record<Element, { traits: string[] }> = {
@@ -257,7 +194,7 @@ export const LOVE_TYPE: Record<string, { name: string; glyph: string; line: stri
     line: "You feel a lot and show a little. The people who get close to you are the ones patient enough to look twice.",
     free: "You protect your heart by staying cool, so people often don't realise how much you care until it's too late.",
     wins: "Small, steady effort. Big gestures make you pull back; a message that simply checks how your day went pulls you in.",
-    pull: "When you play it cool, {they} read{s} it as a no and step back, and then you take {their} step back as proof you were right to hold back." },
+    pull: "When you play it cool, {they} read{s} it as a no and step{s} back, and then you take {their} step back as proof you were right to hold back." },
   "Read their messages again and again": { name: "The Dreamer", glyph: "💭",
     line: "You love in your head long before you say it out loud. You see what a connection could become, and you hold on to it.",
     free: "You can build a whole future from one good conversation, and you feel the silence in between more than anyone.",
@@ -336,12 +273,6 @@ const SOUL_SIGN_LINE: Record<string, string> = {
   opposite: "Your opposite sign. {They} {have} exactly what you lack, which is why the pull is strong and why being together makes both of you grow.",
 };
 
-const LOOK_TXT: Record<string, string> = {
-  "Tall and warm": "Taller than you, with an easy smile and a warmth that makes strangers talk to {them}.",
-  "Soft and gentle": "Soft-spoken, with kind eyes and a calm way of moving through a room.",
-  "Cool and a little distant": "A little reserved at first, with a sharp, put-together look. Warm only once {they} trust{s} you.",
-  "Looks don't matter much": "Not the most obvious person in the room, but the one you keep looking back at.",
-};
 const ELEMENT_VIBE: Record<Element, string> = {
   Fire: "{They} {have} a bold energy: quick to laugh, quick to act, and impossible to ignore.",
   Earth: "{They} {have} a grounded presence: reliable, a little private, and calm in a crisis.",
@@ -361,13 +292,6 @@ const LANG_TXT: Record<string, string> = {
   "Thoughtful gifts": "{They} remember{s} the small thing you mentioned once, and bring{s} it home.",
   "Help without asking": "{They} fix{es} the thing you were dreading before you even ask.",
 };
-const MEET_TXT: Record<Element, string> = {
-  Fire: "Somewhere active and loud: an event, a trip, a class, a night you almost didn't go out. It starts with a bold first move, often from {them}.",
-  Earth: "Through your routine: work, a regular place, a friend of a friend. It starts slowly, and you only realise later that it was the start.",
-  Air: "Through conversation: a group chat, an app, a friend's party. It starts with talking for much longer than either of you planned.",
-  Water: "In a quiet, unplanned moment: a delay, a small favour, a night that ran late. It starts with a feeling you can't explain.",
-};
-
 const SEES_YOU: Record<Element, string> = {
   Fire: "A {sign} notices your energy first. To {them}, you feel like a challenge worth winning, and {they} like{s} that you don't make it easy.",
   Earth: "A {sign} notices whether you are reliable. To {them}, the small things you do say more than anything you could promise.",
@@ -391,6 +315,67 @@ const NOTICE_TXT: Record<Element, string> = {
   Earth: "The first thing your soulmate notices is how steady you are. In a world that feels rushed, you feel like a place to rest.",
   Air: "The first thing your soulmate notices is how you talk: quick, funny and curious. {They}'ll want to keep you talking.",
   Water: "The first thing your soulmate notices is how you listen. {They}'ll feel understood by you within minutes.",
+};
+
+// "What have they done lately?" read back to the user.
+const SIGNAL_TXT: Record<string, string> = {
+  "Texts me first": "{They} text{s} you first. People don't start conversations with someone they're unsure about. That's not politeness, it's a choice.",
+  "Watches my stories": "{They} watch{es} your stories but {don't} always say much. It's the quietest kind of interest: {they} want{s} to know what you're doing without showing how much {they} care{s}.",
+  "Remembers small things I said": "{They} remember{s} small things you said. Attention to detail is the hardest thing to fake. You're on {their} mind when you're not around.",
+  "Goes quiet for days": "{They} go{es} quiet for days. Silence like this usually means {they're} sorting out a feeling, not that the feeling is gone.",
+  "Gets a little jealous": "{They} get{s} a little jealous. Jealousy is the feeling people hide best and fake least. {They} see{s} you as someone {they} could lose.",
+  "Talks about the future": "{They} talk{s} about the future. When someone puts you in plans that are months away, {they're} quietly telling you {they} want{s} you there.",
+};
+// What the other person feels but keeps hidden, by their element.
+const HIDE_TXT: Record<Element | "unknown", string> = {
+  Fire: "What {they} won't say out loud: {they} need{s} to feel chosen by you, not just liked. When {they} act{s} like {they} {don't} care, {they're} testing whether you'll come closer.",
+  Earth: "What {they} won't say out loud: {they're} more attached than {they} show{s}. {They} hold{s} back the words because {they} want{s} to be sure before {they} promise{s} anything.",
+  Air: "What {they} won't say out loud: {they} think{s} about you more than {they} admit{s}. {They} keep{s} it light because getting serious feels riskier than it looks.",
+  Water: "What {they} won't say out loud: {they} felt something early, and {they're} afraid of being hurt by it. The distance is protection, not a lack of interest.",
+  unknown: "What {they} won't say out loud: {they're} less sure of {them}self than {they} look{s}. What reads as distance is often {them} waiting to see if you'll make it safe to come closer.",
+};
+const YOU_NEED: Record<Element, string> = {
+  Fire: "you need passion and quick, clear answers",
+  Earth: "you need consistency and plans you can count on",
+  Air: "you need freedom and someone you can talk everything through with",
+  Water: "you need to feel emotionally safe and noticed",
+};
+// Subject is "a <sign>", so the verb is always singular.
+const THEY_NEED: Record<Element, string> = {
+  Fire: "needs excitement and open admiration",
+  Earth: "needs calm, routine and proof over time",
+  Air: "needs space, lightness and good conversation",
+  Water: "needs closeness and reassurance",
+};
+const CLASH_TXT: Record<"same" | "complement" | "hard", string> = {
+  same: "Your clash is a mirror: you react the same way at the same moment, so when things get tense nobody steps back to calm it down.",
+  complement: "Your clash isn't about feelings, it's about pace. One of you moves faster, and the other reads the gap as distance.",
+  hard: "Your clash is about needs. What makes you feel loved can feel like pressure to {them}, and what {they} give{s} can feel like too little to you.",
+};
+const CLASH_FIX: Record<"same" | "complement" | "hard", string> = {
+  same: "How to fix it: agree that one of you calls a pause when it heats up. Taking turns being the calm one breaks the loop.",
+  complement: "How to fix it: say out loud which speed you're at. 'I need a day' and 'I miss you' are both easier to hear than silence.",
+  hard: "How to fix it: ask for one small, specific thing instead of the whole feeling. A clear request is something {they} can actually give.",
+};
+const PAST_FIX: Record<string, string> = {
+  "We stopped communicating": "You said your past relationships ended when the talking stopped. With {them}, keep one small daily habit of checking in, even on busy days.",
+  "They weren't serious": "You said they weren't serious. With {them}, watch what {they} do{es} over the next few weeks, not what {they} promise{s}, and say what you want early.",
+  "I gave too much": "You said you gave too much. With {them}, leave space for {them} to give first. The relationships that last are the ones where both people make an effort.",
+  "Bad timing": "You said it was bad timing. With {them}, talk about where your lives are heading before the timing becomes the excuse again.",
+  "Trust broke down": "You said trust broke down. With {them}, trust is built in small kept promises, so make few and keep all of them, and expect the same.",
+  "I haven't had a serious one yet": "You haven't had a serious relationship yet. With {them}, go slower than your feelings want to. Your first serious love is worth building carefully.",
+};
+const WRONG_TXT: Record<string, string> = {
+  "Act like I'm not that interested": "You play it cool, so the people who stay are the ones who enjoy a chase, and they lose interest once the chase is over. The steady ones read your coolness as a no and leave.",
+  "Read their messages again and again": "You fall for what a connection could become, so you can fall for potential and miss what someone is actually showing you right now.",
+  "Put them first right away": "You give first and give most, so you attract people who are comfortable taking. The real givers are quieter at the start, and you overlook them.",
+  "Watch to see if they're consistent": "You keep people at arm's length while you test them, so the patient ones get tired and the charming ones pass every test with ease.",
+};
+const WRONG_FIX: Record<string, string> = {
+  "Act like I'm not that interested": "What to change: show interest once, clearly. The right person won't need you to play hard to get.",
+  "Read their messages again and again": "What to change: judge people by the last three weeks, not by the best conversation you've had.",
+  "Put them first right away": "What to change: give a little, then wait. Notice who gives back without being asked.",
+  "Watch to see if they're consistent": "What to change: tell people what you need instead of testing them for it. The right one will pass the real test.",
 };
 
 const FEAR_TXT: Record<string, string> = {
@@ -422,19 +407,6 @@ const MATCH_TXT: Record<string, string> = {
   square: "Intense chemistry, constant friction. Exciting at first, exhausting later.",
 };
 
-const WINDOW_WHY: Record<LoveWindow["kind"], string> = {
-  sun: "Venus, the planet of love, moves into your own sign. People notice you more, and it's easier to say what you feel.",
-  partner: "Venus, the planet of love, moves into your partnership sign. This is when new people arrive and existing bonds get serious.",
-};
-const WINDOW_STATUS: Record<string, string> = {
-  "Is this person right for me?": "If there's someone on your mind, this is when you'll see clearly how {they} show{s} up for you.",
-  "When will I meet the one?": "If you're waiting for the right person, say yes to invitations during this window. It's when meetings tend to happen.",
-  "Will we last?": "If you're together, this is the best time to talk about the future. Plans made now tend to stick.",
-  "How do I finally move on?": "If you're letting go, this is when your heart has the most energy for something new. Old ties feel lighter.",
-};
-
-const MASKED_DATE = "••• ••, 20••";
-
 function an(word: string) {
   return /^[AEIOU]/i.test(word) ? `an ${word}` : `a ${word}`;
 }
@@ -458,7 +430,6 @@ export type AstroInput = {
   answers: AstroAnswers;
 };
 
-const ALWAYS: QuestionId[] = ["gender", "drawn_to", "status", "someone", "falls_for", "fear", "past", "when_like", "love_lang", "future", "want_now", "anxious", "looks", "loved_how", "dynamic", "effort", "destiny"];
 const labels = (q: Question) => q.opts.map(([, label]) => label);
 
 export function parseAstroInput(raw: unknown, now = new Date()): { ok: true; value: AstroInput } | { ok: false; error: string } {
@@ -479,7 +450,7 @@ export function parseAstroInput(raw: unknown, now = new Date()): { ok: true; val
       answers[id] = value; continue;
     }
     if (!(id in QUESTIONS)) continue; // Ignore unknown keys from older clients.
-    if ((id === "their_sign" || id === "their_attitude") && !hasSomeone(someone)) continue;
+    if (!questionApplies(id, someone)) continue;
     const q: Question = QUESTIONS[id as QuestionId];
     const allowed = labels(q);
     if (q.multi) {
@@ -492,7 +463,7 @@ export function parseAstroInput(raw: unknown, now = new Date()): { ok: true; val
       answers[id] = value;
     }
   }
-  const required: QuestionId[] = hasSomeone(someone) ? [...ALWAYS, "their_sign", "their_attitude"] : ALWAYS;
+  const required = (Object.keys(QUESTIONS) as QuestionId[]).filter((id) => questionApplies(id, someone));
   if (required.some((id) => !answers[id])) return fail("Please complete the quiz first.");
   return { ok: true, value: { dob: { y, m, d }, time: null, place: "", goals: ["Love & relationships"], answers } };
 }
@@ -540,15 +511,7 @@ export function theirSign(input: AstroInput): Sign | null {
   return ZODIAC.find((sign) => sign.name === name) ?? null;
 }
 
-// Which locked card the user sees first depends on what they most want to know.
-const ORDER: Record<string, string[]> = {
-  "Is this person right for me?": ["them", "soulmate", "moment", "window", "pattern"],
-  "When will I meet the one?": ["soulmate", "window", "them", "moment", "pattern"],
-  "Will we last?": ["moment", "them", "window", "soulmate", "pattern"],
-  "How do I finally move on?": ["pattern", "moment", "window", "soulmate", "them"],
-};
-
-export function buildSections(chart: AstroChart, input: AstroInput, now = new Date()): Section[] {
+export function buildSections(chart: AstroChart, input: AstroInput): Section[] {
   const { sun } = chart;
   const a = input.answers;
   const p = pronounFor(one(a.drawn_to));
@@ -560,7 +523,7 @@ export function buildSections(chart: AstroChart, input: AstroInput, now = new Da
   const someone = hasSomeone(one(a.someone));
   const fallsFor = many(a.falls_for);
   const fears = many(a.fear);
-  const loveWin = nextLoveWindow(sun, now);
+  const past = many(a.past)[0];
 
   /* free */
   const typeSection: Section = {
@@ -575,61 +538,32 @@ export function buildSections(chart: AstroChart, input: AstroInput, now = new Da
     teaser: FALL_LINE[fallsFor[0]] ?? "",
     body: [
       `You fall for ${listOf(fallsFor.slice(0, 3))}. ${FALL_LINE[fallsFor[0]] ?? ""}`.trim(),
-      `But your ${sun.name} chart says what actually keeps you calm in love is ${NEED_LINE[soul.element]}. That's the first thing your soulmate has, and it's not always the person you notice first.`,
+      `But your ${sun.name} chart says what actually keeps you calm in love is ${NEED_LINE[soul.element]}. It's not always the person you notice first.`,
     ],
   };
-  const pairText = (other: Sign) => compatLine(sun, other, p);
   const compat: Section = partner
     ? {
         id: "compat", icon: "💫", access: "free", title: `You & ${partner.name}: ${compatScore(sun, partner)}% compatible`,
         tag: `${sun.glyph} ${sun.name} + ${partner.glyph} ${partner.name}`,
         score: compatScore(sun, partner),
-        teaser: pairText(partner),
-        body: [pairText(partner), f("Why it feels this way, what {they} really think{s} of you and the moment {they} pull{s} away are in your reading below.")],
+        teaser: compatLine(sun, partner, p),
+        body: [compatLine(sun, partner, p), f("What {they} really feel{s} about you, where you two clash and the moment {they} pull{s} away are in your reading below.")],
       }
     : {
         id: "compat", icon: "💫", access: "free", title: "Your soulmate's sign: 🔒",
         tag: `${compatScore(sun, soul)}% match with your ${sun.name} Sun`,
         score: compatScore(sun, soul),
         teaser: `Your strongest match is ${an(soul.element)} sign, the kind you'd probably overlook at first.`,
-        body: [`Your strongest match is ${an(soul.element)} sign, the kind you'd probably overlook at first.`, f("Which sign, what {they} look{s} like and where you're likely to meet are in your Soulmate Profile below.")],
+        body: [
+          `Your strongest match is ${an(soul.element)} sign, the kind you'd probably overlook at first.`,
+          someone ? f("Add {their} sign next time to see your exact match. Your soulmate's sign is in your reading below.") : f("Which sign, what {they're} like and how {they}'ll love you are in your Soulmate Profile below."),
+        ],
       };
 
-  /* paid: basic */
-  const loved = one(a.loved_how), lang = many(a.love_lang)[0];
-  const soulmate: Section = {
-    id: "soulmate", icon: "💞", access: "basic", title: "Your Soulmate Profile",
-    tag: `You said: “${one(a.looks).toLowerCase()}” · “${loved.toLowerCase()}”`,
-    teaser: f(`Your soulmate's sign, what {they} look{s} like, how {they}'ll love you and where you're most likely to meet. ${someone && partner ? `Plus whether ${partner.name} is a match for it.` : ""}`).trim(),
-    preview: ["Sign", "Look & vibe", "How {they} love{s}", "Where you'll meet"].map(f),
-    body: [
-      f(`Sign: ${soul.glyph} ${soul.name}. ${SOUL_SIGN_LINE.opposite}`),
-      f(`Look & vibe: ${LOOK_TXT[one(a.looks)] ?? ""} ${ELEMENT_VIBE[soul.element]}`),
-      f(`How {they}'ll love you: ${LOVED_TXT[loved] ?? ""} ${lang ? LANG_TXT[lang] ?? "" : ""}`.trim()),
-      f(`Where you're likely to meet: ${MEET_TXT[soul.element]}`),
-      f(`What wins you over: ${type.wins}`),
-      ...(partner ? [partner.name === soul.name
-        ? f(`And yes: ${partner.name} is your soulmate sign. The person on your mind fits this profile.`)
-        : f(`About ${partner.name}: your soulmate sign is ${soul.name}, but ${partner.name} scores ${compatScore(sun, partner)}% with you. Read “How ${an(partner.name)} sees you” for what that means for the two of you.`)] : []),
-    ],
-    peek: f("Your soulmate is the kind of person who…"),
-  };
+  /* paid sections */
   const attitude = one(a.their_attitude);
-  const them: Section = partner
-    ? {
-        id: "them", icon: "💘", access: "basic", title: `How ${an(partner.name)} sees you`,
-        tag: `You said: “${attitude.toLowerCase()}”`,
-        teaser: f(`What ${an(partner.name)} notices first about you, why {they're} acting “${attitude.toLowerCase()}”, and what makes {them} commit.`),
-        body: [f(SEES_YOU[partner.element].replace("A {sign}", cap(an(partner.name)))), f(ATTITUDE_TXT[attitude] ?? ""), f(COMMIT_TXT[partner.element])].filter(Boolean),
-        peek: f(`To ${an(partner.name)}, you feel like…`),
-      }
-    : {
-        id: "them", icon: "💘", access: "basic", title: "What your soulmate will notice first about you",
-        tag: `${sun.glyph} ${sun.name} Sun`,
-        teaser: f("The first thing that draws {them} to you, and the one thing you do that makes {them} stay."),
-        body: [f(NOTICE_TXT[sun.element]), f(COMMIT_TXT[soul.element])],
-        peek: f("The first thing your soulmate notices is…"),
-      };
+  const signals = many(a.their_signals);
+  const anxious = many(a.anxious)[0];
   const moment: Section = {
     id: "moment", icon: "🌗", access: "basic", title: f("The moment {they} pull{s} away, and what to do"),
     tag: fears[0] ? `You said you fear: “${fears[0].toLowerCase()}”` : undefined,
@@ -637,11 +571,8 @@ export function buildSections(chart: AstroChart, input: AstroInput, now = new Da
     body: [f(FEAR_TXT[fears[0]] ?? ""), f(type.pull), f(FIX_TXT[sun.element])].filter(Boolean),
     peek: "It usually starts with a small silence…",
   };
-
-  /* paid: full */
-  const past = many(a.past)[0];
   const pattern: Section = {
-    id: "pattern", icon: "⭐", access: "full", title: "Your top 3 matches & the sign you keep falling for",
+    id: "pattern", icon: "⭐", access: "full", title: "Your top 3 matches & the sign to avoid",
     tag: "3 matches scored · 1 sign to avoid",
     teaser: `Match #2 is the sign you'd probably overlook. The sign to avoid is one ${sun.name}s fall for again and again${past ? ", and it explains why your past relationships ended the way they did" : ""}.`,
     preview: ["Match #1", "Match #2", "Match #3", "Avoid"],
@@ -649,34 +580,76 @@ export function buildSections(chart: AstroChart, input: AstroInput, now = new Da
       ...matches.map(({ sign, kind }) => `${sign.glyph} ${sign.name} (${compatScore(sun, sign)}%): ${MATCH_TXT[kind]}`).map((line, n) => `${n + 1}. ${line}`),
       `Be careful with: ${avoid.glyph} ${avoid.name} (${compatScore(sun, avoid)}%). ${MATCH_TXT.square}`,
       past ? f(PAST_TXT[past] ?? "") : "",
+      partner ? `Where ${partner.name} stands: ${compatScore(sun, partner)}%, ${matches.some((m) => m.sign.name === partner.name) ? "one of your top 3 matches." : partner.name === avoid.name ? "the sign to be careful with, so go slowly and watch for the pattern above." : "outside your top 3, which means it can work but takes more conscious effort."}` : "",
     ].filter(Boolean),
   };
-  const want = one(a.want_now);
-  const windowSection: Section = loveWin
-    ? {
-        id: "window", icon: "🗓️", access: "full", title: `Your next love window: ${MASKED_DATE}`,
-        unlockedTitle: loveWin.open ? `Your love window is open until ${prettyDate(loveWin.end)}` : `Your next love window: ${prettyDate(loveWin.start)}`,
-        tag: "Based on the real position of Venus",
-        teaser: loveWin.open
-          ? "Venus is in a love point of your chart right now. Your reading shows exactly when this window closes and what to do before it does."
-          : "Venus is about to move into a love point of your chart. Your reading gives the exact date it opens, when it closes and what to do with it.",
-        preview: ["Opens", "Closes", "What to do"],
-        body: [
-          loveWin.open
-            ? `Your love window is open now and lasts until about ${prettyDate(loveWin.end)}. ${WINDOW_WHY[loveWin.kind]}`
-            : `Your next love window opens around ${prettyDate(loveWin.start)} and lasts until about ${prettyDate(loveWin.end)}. ${WINDOW_WHY[loveWin.kind]}`,
-          f(WINDOW_STATUS[want] ?? WINDOW_STATUS["When will I meet the one?"]),
-        ],
-      }
-    : {
-        id: "window", icon: "🗓️", access: "full", title: "Your next love window", tag: "Based on the real position of Venus",
-        teaser: "When Venus next lights up your chart, and what to do with it.",
-        body: [WINDOW_WHY.partner, f(WINDOW_STATUS[want] ?? WINDOW_STATUS["When will I meet the one?"])],
-      };
 
-  const paid: Record<string, Section> = { soulmate, them, moment, pattern, window: windowSection };
-  const order = ORDER[want] ?? ORDER["When will I meet the one?"];
-  return [typeSection, contrast, compat, ...order.map((id) => paid[id])];
+  if (someone) {
+    const kind = partner ? pairKind(sun.element, partner.element) : "hard";
+    const who = partner ? an(partner.name) : "";
+    const them: Section = {
+      id: "them", icon: "💘", access: "basic", title: f("What {they} really feel{s} about you"),
+      tag: `${partner ? `${partner.glyph} ${partner.name} · ` : ""}You said: “${attitude.toLowerCase()}”`,
+      teaser: f(`{They} may act “${attitude.toLowerCase()}”, but that's not the whole story. Your reading shows what {they} notice{s} first about you, what {they} won't say out loud${signals[0] ? ` and what “${signals[0].toLowerCase()}” really means` : ""}.`),
+      preview: ["What {they} notice{s} first", "What {they} hide{s}", "What {their} signals mean", "What makes {them} commit"].map(f),
+      body: [
+        partner ? f(SEES_YOU[partner.element].replace("A {sign}", cap(an(partner.name)))) : "",
+        f(HIDE_TXT[partner?.element ?? "unknown"]),
+        f(ATTITUDE_TXT[attitude] ?? ""),
+        ...signals.slice(0, 3).map((x) => f(SIGNAL_TXT[x] ?? "")),
+      ].filter(Boolean),
+      peek: f("What {they} won't say out loud is…"),
+    };
+    const clash: Section = {
+      id: "clash", icon: "⚡", access: "basic", title: partner ? `Where you and ${partner.name} clash` : "Where you two clash",
+      tag: anxious ? `You said: “${anxious.toLowerCase()}”` : undefined,
+      teaser: f(`Every pair has one spot where it keeps going wrong. For you two it's tied to ${anxious ? `“${anxious.toLowerCase()}”` : "how differently you show love"}. Your reading names it and how to fix it.`),
+      body: [
+        f(CLASH_TXT[kind]),
+        partner ? f(`In short: ${YOU_NEED[sun.element]}, while ${who} ${THEY_NEED[partner.element]}.`) : f(`In short: ${YOU_NEED[sun.element]}. Ask {them} what {they} need{s}, because it's probably not the same.`),
+        anxious ? f(`You said this makes you anxious: “${anxious.toLowerCase()}”. That's exactly where this clash shows up first.`) : "",
+        f(CLASH_FIX[kind]),
+      ].filter(Boolean),
+      peek: "It shows up first when…",
+    };
+    const last: Section = {
+      id: "last", icon: "♾️", access: "full", title: partner ? `What makes it last with ${an(partner.name)}` : "What makes it last",
+      tag: past ? `You said: “${past.toLowerCase()}”` : undefined,
+      teaser: f("The one thing that makes {them} commit, and how to avoid the way your past relationships ended."),
+      body: [partner ? f(COMMIT_TXT[partner.element]) : "", past ? f(PAST_FIX[past] ?? "") : "", f(`What keeps you close: ${type.wins}`)].filter(Boolean),
+    };
+    return [typeSection, contrast, compat, them, clash, moment, last, pattern];
+  }
+
+  const loved = one(a.loved_how), lang = many(a.love_lang)[0];
+  const soulmate: Section = {
+    id: "soulmate", icon: "💞", access: "basic", title: "Your Soulmate Profile",
+    tag: `You said: “${loved.toLowerCase()}”`,
+    teaser: f("Your soulmate's exact sign, what {they're} like, how {they}'ll love you and what wins you over."),
+    preview: ["Sign", "Personality", "How {they} love{s}", "What wins you over"].map(f),
+    body: [
+      f(`Sign: ${soul.glyph} ${soul.name}. ${SOUL_SIGN_LINE.opposite}`),
+      f(`Personality: ${ELEMENT_VIBE[soul.element]}`),
+      f(`How {they}'ll love you: ${LOVED_TXT[loved] ?? ""} ${lang ? LANG_TXT[lang] ?? "" : ""}`.trim()),
+      f(`What wins you over: ${type.wins}`),
+    ],
+    peek: f("Your soulmate is the kind of person who…"),
+  };
+  const wrong: Section = {
+    id: "wrong", icon: "🔁", access: "basic", title: "Why you keep attracting the wrong people",
+    tag: `Your love type: ${type.name}`,
+    teaser: `It's not bad luck. There's one habit tied to your love type (${type.name}) that keeps pulling in the wrong people and pushing away the right ones.`,
+    body: [WRONG_TXT[one(a.when_like)] ?? "", past ? f(PAST_TXT[past] ?? "") : "", f(FEAR_TXT[fears[0]] ?? ""), WRONG_FIX[one(a.when_like)] ?? ""].filter(Boolean),
+    peek: "It starts the moment you…",
+  };
+  const notice: Section = {
+    id: "them", icon: "💘", access: "basic", title: "What your soulmate will notice first about you",
+    tag: `${sun.glyph} ${sun.name} Sun`,
+    teaser: f("The first thing that draws {them} to you, and the one thing you do that makes {them} stay."),
+    body: [f(NOTICE_TXT[sun.element]), f(COMMIT_TXT[soul.element])],
+    peek: f("The first thing your soulmate notices is…"),
+  };
+  return [typeSection, contrast, compat, soulmate, wrong, notice, pattern, { ...moment, access: "full" }];
 }
 
 
@@ -688,6 +661,10 @@ const LEGACY_PROMPTS: Record<string, string> = {
   yes_compat: "Do you want to know which signs you're most compatible with?", yes_career: "Do you want to discover your hidden talent?",
   st0: "Statement 1 (v2, depends on Sun element)", st1: "Statement 2 (v2, depends on Sun element)", st2: "Statement 3 (v2, depends on Sun element)",
   time: "Birth time", place: "Birth place",
+  // v3 questions removed in v4
+  status: "What's your relationship status?", future: "What future do you dream of with your person?", want_now: "What do you most want to know right now?",
+  looks: "What does your ideal partner look like?", dynamic: "Your ideal relationship feels…", effort: "In relationships, you usually…",
+  destiny: "Do you believe there's one person meant for you?",
 };
 const LEGACY_LOADING: Record<string, string> = {
   loading_q34: "Do you often feel you understand others better than they understand you?",
@@ -696,15 +673,16 @@ const LEGACY_LOADING: Record<string, string> = {
 
 // Order of questions in the quiz (v3 first, then v2-only ids), used by admin tables.
 export const ASTRO_QUESTION_ORDER = [
-  "gender", "drawn_to", "status", "someone", "their_sign", "dob", "falls_for", "fear", "past", "when_like", "love_lang", "future", "want_now",
-  "their_attitude", "anxious", "looks", "loved_how", "dynamic", "effort", "destiny", "loading_q34", "loading_q72",
+  "gender", "drawn_to", "someone", "their_sign", "dob", "falls_for", "fear", "past", "when_like",
+  "their_attitude", "their_signals", "anxious", "loved_how", "love_lang", "loading_q34", "loading_q72",
+  "status", "future", "want_now", "looks", "dynamic", "effort", "destiny",
   "goals", "challenge", "time", "place", "st0", "st1", "st2", "overthink", "q_drain", "q_love", "q_others", "q_decide", "yes_compat", "yes_career",
 ];
 
 // Readable prompt for an astro question id (admin only). `version` < 3 uses the old loading-question texts.
 export function astroQuestionPrompt(id: string, _sunElement?: Element, version = ASTRO_VERSION): string | null {
   if (id in LOADING_QUESTIONS) return version < 3 ? LEGACY_LOADING[id] : LOADING_QUESTIONS[id as keyof typeof LOADING_QUESTIONS];
-  if (id in QUESTIONS) return QUESTIONS[id as QuestionId].q;
+  if (id in QUESTIONS) return fill(QUESTIONS[id as QuestionId].q, "they");
   if (id === "dob") return "Date of birth";
   return LEGACY_PROMPTS[id] ?? null;
 }
@@ -714,8 +692,10 @@ function adminQuestions(input: AstroInput, chart: AstroChart, version?: number) 
   const answerChoices: Record<string, number> = {};
   const push = (id: string, prompt: string, options: string[], value: string | undefined) => {
     const index = value === undefined ? -1 : options.indexOf(value);
+    // Answers saved by an older quiz version may not be in today's option list: show them as given.
+    if (value !== undefined && index < 0) options = [value];
     questions.push({ id, prompt, options: options.map((label) => ({ label })) });
-    if (index >= 0) answerChoices[id] = index;
+    if (value !== undefined) answerChoices[id] = Math.max(index, 0);
   };
   const fixed = (id: string, prompt: string, value: string) => push(id, prompt, [value], value);
   const a = input.answers;
@@ -731,8 +711,13 @@ function adminQuestions(input: AstroInput, chart: AstroChart, version?: number) 
     const value = a[id];
     if (value === undefined) continue;
     const q: Question = QUESTIONS[id];
-    if (q.multi) fixed(id, q.q, many(value).join(", "));
-    else push(id, q.q, labels(q), one(value));
+    const prompt = fill(q.q, "they");
+    if (q.multi) fixed(id, prompt, many(value).join(", "));
+    else push(id, prompt, labels(q), one(value));
+  }
+  for (const id of Object.keys(a)) {
+    if (id in QUESTIONS || id in LOADING_QUESTIONS || !LEGACY_PROMPTS[id]) continue;
+    fixed(id, LEGACY_PROMPTS[id], many(a[id]).join(", "));
   }
   for (const id of Object.keys(LOADING_QUESTIONS)) if (a[id]) push(id, LOADING_QUESTIONS[id as keyof typeof LOADING_QUESTIONS], ["yes", "no"], one(a[id]));
   return { questions, answerChoices };
@@ -751,7 +736,7 @@ export function astroAdminAnswers(snapshot: { input?: AstroInput; chart?: AstroC
   return { questions, answerChoices: { ...snapshot.answerChoices, chart: 0, report_version: 0 } };
 }
 
-export function buildAstroSnapshot(input: AstroInput, now = new Date()): AstroSnapshot {
+export function buildAstroSnapshot(input: AstroInput): AstroSnapshot {
   const chart = buildChart(input);
   const type = LOVE_TYPE[one(input.answers.when_like)];
   const partner = theirSign(input);
@@ -759,7 +744,7 @@ export function buildAstroSnapshot(input: AstroInput, now = new Date()): AstroSn
     kind: "astro", version: ASTRO_VERSION, test: { id: ASTRO_TEST_ID, title: ASTRO_TITLE },
     chart,
     profile: { type: type.name, typeGlyph: type.glyph, ...(partner ? { partner: { name: partner.name, glyph: partner.glyph, score: compatScore(chart.sun, partner) } } : {}) },
-    input, sections: buildSections(chart, input, now), ...adminQuestions(input, chart, ASTRO_VERSION),
+    input, sections: buildSections(chart, input), ...adminQuestions(input, chart, ASTRO_VERSION),
   };
 }
 
