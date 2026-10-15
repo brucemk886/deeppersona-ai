@@ -63,7 +63,7 @@ export default function TrafficPanel({
         </div>
       </div>
     </div>
-    <p className="email-guidance">访问次数为页面浏览次数，刷新也计数，不是独立人数；历史访问无法补回。测试与订单排除已标记测试、沙盒及内部预览；邮箱软删除不改变历史转化。</p>
+    <p className="email-guidance">访问次数为页面浏览次数，刷新也计数，不是独立人数；历史访问无法补回。上方测试与订单统计排除已标记测试、沙盒及内部预览；版本转化表保留沙盒中的页面行为用于验收，成交仍只计算正式订单。邮箱软删除不改变历史转化。</p>
     <section className="metric-grid four">{[['访问次数',data.anonymous.pageviews],['开始测试',data.operations.started],['完成测试',data.operations.finished],['付款成功',data.operations.paid]].map(([label,value])=><div className="admin-card" key={label}><p>{label}</p><h2>{value}</h2><small>{rangeLabel}</small></div>)}</section>
     <section className="admin-card"><h2>测试到付款</h2><p>按测试开始日期统计，重做算一次新测试；含免费测试，退款不抹除成交记录。当前区间：{rangeLabel}。</p><div className="table-scroll"><table className="lead-table-cn"><thead><tr><th>阶段</th><th>测试会话数</th><th>较上一步</th></tr></thead><tbody>{steps.map(([name,value],i)=><tr key={name}><td>{name}</td><td>{value}</td><td>{i?rate(value,steps[i-1][1]):'—'}</td></tr>)}</tbody></table></div></section>
     <section className="admin-card"><h2>{hourly ? "各时段测试会话与完成情况" : "每日测试会话与完成情况"}</h2><div className={`order-trend${hourly ? " hourly" : ""}`}>{data.days.map(d=><div className="order-trend-day" key={d.day} title={`${d.day}：开始 ${d.started}，完成 ${d.finished}`}><strong>{d.started}</strong><div className="order-trend-track"><span style={{height:`${d.started/max*100}%`}} /></div><small>{formatTrafficDay(d.day, range)}</small><p>完成 {d.finished}</p></div>)}</div></section>

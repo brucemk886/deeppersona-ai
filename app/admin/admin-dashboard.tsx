@@ -235,8 +235,8 @@ export function AdminDashboard({
   }, [loadData]);
 
   const funnel = useMemo(() => {
-    const values = stats?.traffic.operations;
-    return ([['started','开始测试'],['finished','完成答题'],['submitted','提交邮箱'],['checkout','收银台已创建'],['paid','付款成功']] as const).map(([key,label]) => ({key,label,users:values?.[key] ?? 0}));
+    const values = new Map((stats?.funnel ?? []).map((row) => [row.event_name, Number(row.users)]));
+    return funnelOrder.map(([key, label]) => ({ key, label, users: values.get(key) ?? 0 }));
   }, [stats]);
 
   const funnelMax = Math.max(1, funnel[0]?.users ?? 0);
