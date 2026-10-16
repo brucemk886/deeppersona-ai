@@ -52,6 +52,8 @@ type RuntimeEnv = {
   LEMONSQUEEZY_TEST_MODE?: string;
   APP_URL?: string;
   RESEND_API_KEY?: string;
+  BEEHIIV_API_KEY?: string;
+  BEEHIIV_PUBLICATION_ID?: string;
   RESEND_WEBHOOK_SECRET?: string;
   REPORT_EMAIL_FROM?: string;
   DB?: D1Database;
