@@ -15,3 +15,14 @@ The dedicated admin “邮件记录” panel lists each job with search, status 
 The main Worker receives signed Resend callbacks at `/api/resend/webhook` using its `RESEND_WEBHOOK_SECRET` secret. Subscribe to email.sent, email.delivered, email.delivery_delayed, email.bounced, email.complained, email.failed and email.suppressed. Svix validates the raw bounded body and timestamp. Only reports@mail.deeppersonaai.com messages are recorded; this account's other website is ignored. `report_email_delivery` stores minimal provider state separately from the send job, so callbacks arriving before the sending response are preserved. Duplicate/stale callbacks cannot regress terminal states. Provider acceptance and recipient-server delivery are distinct; delivery does not prove inbox placement or reading. Pre-webhook historical messages remain “waiting for receipt” unless explicitly backfilled from the provider's authoritative retrieval API. This view currently covers report emails, not marketing campaigns.
 
 Verification: local integration tests use an isolated D1 database, mocked Stripe/Resend APIs, and the real mailer implementation. They cover retries, duplicate sends, recovery rate control, token scoping, expiry and refunded access. A separate authorized test message checks the verified live domain and actual provider delivery; it is not a real paid transaction.
+
+## beehiiv newsletter sync
+
+The same `deeppersona-report-mailer` cron also copies new astro-quiz emails to beehiiv (`lib/beehiiv-sync.ts`). The quiz never waits on beehiiv. It sends only sessions of `astro-reading` with marketing consent (the email screen discloses the free weekly love forecast and unsubscribing), completed after the first sync run. Earlier emails are not backfilled (owner decision). Admin test sessions, deleted leads and `@deeppersonaai.com` addresses are never sent. Unsubscribed people are not re-added (`reactivate_existing: false`); beehiiv sends its welcome email.
+
+Each subscriber gets `utm_source` (quiz source), `utm_medium=quiz`, `utm_campaign` (quiz campaign) and custom fields `sun_sign`, `love_type`, `on_mind`, `partner_sign`, `gender`. Create these custom fields in beehiiv first; if beehiiv rejects them, the email is added without fields. Results are stored in `beehiiv_sync` (synced / retry / failed, with the last error). Failed calls retry with backoff.
+
+Setup (on the mailer Worker, not in Git):
+`npx wrangler secret put BEEHIIV_API_KEY --config wrangler.mailer.jsonc`
+`npx wrangler secret put BEEHIIV_PUBLICATION_ID --config wrangler.mailer.jsonc`
+then `npm run deploy:mailer`. Without both secrets the sync does nothing. The first run after setup sets the start time.
